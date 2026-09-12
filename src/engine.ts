@@ -48,10 +48,63 @@ interface SearchRecord {
   resolve: (move: UciMove | null) => void;
 }
 
-const HANDSHAKE_TIMEOUT_MS = 10_000;
+export interface EngineCreateOptions {
+  /**
+   * Expected byte size of the .wasm next to the worker script. The pre-check compares it
+   * with the server's content-length (±5 %) so an empty, truncated or wrong file fails
+   * fast instead of waiting for the handshake timeout.
+   */
+  expectedWasmBytes: number;
+}
 
-export function createEngine(workerUrl: string, onError: (err: Error) => void): Engine {
-  const worker = new Worker(workerUrl);
+// 30 s: a legitimate 7 MB load on a slow mobile link must not disable a working engine.
+// The pre-check below covers the fast-fail cases (missing / wrong-size file); corruption
+// with the right size still falls through to this timeout — accepted.
+const HANDSHAKE_TIMEOUT_MS = 30_000;
+const PRECHECK_TIMEOUT_MS = 5_000;
+const WASM_SIZE_TOLERANCE = 0.05;
+
+/**
+ * HEAD request for the .wasm before the worker is created. Resolves when the file looks
+ * reachable (or the server cannot tell us: 405/501, missing content-length); rejects when
+ * it is missing, unreachable or has an unexpected size.
+ */
+async function precheckWasm(wasmUrl: string, expectedBytes: number): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PRECHECK_TIMEOUT_MS);
+  try {
+    const response = await fetch(wasmUrl, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+    if (response.status === 405 || response.status === 501) return; // host refuses HEAD: unknown, proceed
+    if (!response.ok) throw new Error(`Engine wasm not reachable: HTTP ${response.status} for ${wasmUrl}`);
+    // SPA hosts (and Vite dev) answer unknown paths with index.html and status 200.
+    const type = response.headers.get('content-type') ?? '';
+    if (type.includes('text/html')) {
+      throw new Error(`Engine wasm not reachable: ${wasmUrl} answered with HTML (missing file / SPA fallback)`);
+    }
+    const length = Number(response.headers.get('content-length'));
+    if (!Number.isFinite(length) || length <= 0) return; // unknown, proceed
+    if (Math.abs(length - expectedBytes) > expectedBytes * WASM_SIZE_TOLERANCE) {
+      throw new Error(`Engine wasm has unexpected size ${length} (expected ~${expectedBytes}) at ${wasmUrl}`);
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Engine wasm pre-check timed out after ${PRECHECK_TIMEOUT_MS} ms`);
+    }
+    throw err instanceof Error ? err : new Error(String(err));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function createEngine(
+  workerUrl: string,
+  onError: (err: Error) => void,
+  options: EngineCreateOptions,
+): Engine {
+  // The glue script finds its .wasm by replacing .js with .wasm next to itself.
+  const wasmUrl = workerUrl.replace(/\.js$/, '.wasm');
+  let worker: Worker | null = null;
+  let handshakeTimer: ReturnType<typeof setTimeout> | null = null;
   const outstanding: SearchRecord[] = [];
   const drainWaiters: Array<() => void> = [];
   let disposed = false;
@@ -75,13 +128,8 @@ export function createEngine(workerUrl: string, onError: (err: Error) => void): 
     onError(err);
   };
 
-  const handshakeTimer = setTimeout(
-    () => fail(new Error(`Engine handshake timed out after ${HANDSHAKE_TIMEOUT_MS} ms`)),
-    HANDSHAKE_TIMEOUT_MS,
-  );
-
   const post = (command: string): void => {
-    if (disposed) return;
+    if (disposed || !worker) return;
     worker.postMessage(command);
   };
 
@@ -90,7 +138,7 @@ export function createEngine(workerUrl: string, onError: (err: Error) => void): 
     for (const waiter of drainWaiters.splice(0)) waiter();
   };
 
-  worker.onmessage = (event: MessageEvent<unknown>) => {
+  const onMessage = (event: MessageEvent<unknown>): void => {
     if (typeof event.data !== 'string') return;
     const line = event.data;
 
@@ -100,7 +148,8 @@ export function createEngine(workerUrl: string, onError: (err: Error) => void): 
       return;
     }
     if (line === 'readyok') {
-      clearTimeout(handshakeTimer);
+      if (handshakeTimer !== null) clearTimeout(handshakeTimer);
+      handshakeTimer = null;
       resolveReady();
       if (resolveReadyGate) {
         resolveReadyGate();
@@ -128,14 +177,24 @@ export function createEngine(workerUrl: string, onError: (err: Error) => void): 
     // `info …` and everything else is ignored.
   };
 
-  worker.onerror = (event: ErrorEvent) => {
-    fail(new Error(`Engine worker error: ${event.message || 'unknown'}`));
-  };
-  worker.onmessageerror = () => {
-    fail(new Error('Engine worker message could not be deserialized'));
+  const startWorker = (): void => {
+    if (disposed) return;
+    worker = new Worker(workerUrl);
+    worker.onmessage = onMessage;
+    worker.onerror = (event: ErrorEvent) => {
+      fail(new Error(`Engine worker error: ${event.message || 'unknown'}`));
+    };
+    worker.onmessageerror = () => {
+      fail(new Error('Engine worker message could not be deserialized'));
+    };
+    handshakeTimer = setTimeout(
+      () => fail(new Error(`Engine handshake timed out after ${HANDSHAKE_TIMEOUT_MS} ms`)),
+      HANDSHAKE_TIMEOUT_MS,
+    );
+    post('uci');
   };
 
-  post('uci');
+  precheckWasm(wasmUrl, options.expectedWasmBytes).then(startWorker, fail);
 
   const awaitGates = (): Promise<void> => ready.then(() => readyGate);
 
@@ -211,8 +270,8 @@ export function createEngine(workerUrl: string, onError: (err: Error) => void): 
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      clearTimeout(handshakeTimer);
-      worker.terminate();
+      if (handshakeTimer !== null) clearTimeout(handshakeTimer);
+      worker?.terminate();
       for (const record of outstanding.splice(0)) record.resolve(null);
       settleOutstandingIfDrained();
     },

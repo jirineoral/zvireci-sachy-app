@@ -29,14 +29,21 @@ app.innerHTML = `
 `;
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
+// Byte size of stockfish-18-lite-single.wasm as shipped by stockfish@18.0.8. Used by the
+// engine's reachability pre-check (±5 %). UPDATE THIS when the engine version changes.
+const ENGINE_WASM_BYTES = 7_295_411;
 
 // The controller owns engine-failure handling (before and after the handshake). It is
 // constructed after the engine, hence the late binding.
 let controller: GameController | undefined;
-const engine = createEngine(ENGINE_WORKER_URL, (err) => {
-  if (controller) controller.engineFailed(err);
-  else console.error('Engine failed before the controller existed', err);
-});
+const engine = createEngine(
+  ENGINE_WORKER_URL,
+  (err) => {
+    if (controller) controller.engineFailed(err);
+    else console.error('Engine failed before the controller existed', err);
+  },
+  { expectedWasmBytes: ENGINE_WASM_BYTES },
+);
 
 const boardEl = requireElement<HTMLElement>(app, '.board');
 

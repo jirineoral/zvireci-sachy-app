@@ -1,0 +1,28 @@
+@import '@lichess-org/chessground/assets/chessground.base.css';
+@import '@lichess-org/chessground/assets/chessground.brown.css';
+
+/*
+ * Board palette lives in two custom properties so that a piece set (phase 3)
+ * can re-colour the board by setting these on .cg-wrap. Nothing in TS knows
+ * these colours.
+ */
+.cg-wrap {
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
+}
+
+/*
+ * Override the vendor theme's board face (an SVG overlay whose dark colour is
+ * not settable) with a checkerboard built from the two variables.
+ * One tile is 2x2 squares, top-left light, so a8 is light and a1/h8 are dark.
+ */
+cg-board {
+  background-color: var(--board-light);
+  background-image: conic-gradient(
+    var(--board-dark) 25%,
+    var(--board-light) 0 50%,
+    var(--board-dark) 0 75%,
+    var(--board-light) 0
+  );
+  background-size: 25% 25%;
+}

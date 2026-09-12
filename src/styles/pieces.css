@@ -1,0 +1,5 @@
+/*
+ * Piece-set styling. This file is the ONLY place that knows where piece images
+ * come from. Phase 3 replaces it via the piece-set manifest.
+ */
+@import '@lichess-org/chessground/assets/chessground.cburnett.css';

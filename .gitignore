@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vite cache
+.vite/
+node_modules/.vite/
+*.timestamp-*.mjs
+
+# Claude Code session files
+.claude/
+
+# Local overrides
+*.local
+
+# OS
+.DS_Store
+Thumbs.db

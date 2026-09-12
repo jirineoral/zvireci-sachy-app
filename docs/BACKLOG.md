@@ -139,3 +139,24 @@ the existing sheet is the safe option.
 - Promotion dialog: keep the pawn on the destination square while choosing, as Lichess
   does (R5).
 - Strong opponent levels via `UCI_LimitStrength`/`UCI_Elo` (R3).
+
+---
+
+## B10 — engine failure detection (RESOLVED in Phase 3)
+A missing or corrupt `.wasm` does not raise the worker's `onerror`; before Phase 3 the
+fallback was reached only via the 10 s handshake timeout. Phase 3 added a HEAD pre-check
+(status, `text/html` SPA-fallback answers, `content-length` ±5 % of the expected size)
+before the worker is created, and raised the handshake timeout to 30 s for slow but
+legitimate loads. Right-sized corrupt files still fall through to the 30 s timeout —
+accepted.
+
+## B11 — vendor the two engine files
+`npm i stockfish` installs ~250 MB to ship 7 MB (`stockfish-18-lite-single.js` +
+`.wasm`). Before Phase 6 (PWA), consider committing the two files into the repo, dropping
+the `stockfish` dependency and the `postinstall` copy step, and keeping the licence text
+alongside them (GPL-3.0 — see B6). Record only; nothing in the build changes until then.
+Note `ENGINE_WASM_BYTES` in `src/main.ts` must track the vendored file.
+
+## B12 — bounded re-cancel loop (RESOLVED in Phase 3)
+`beginTransition()` re-cancels at most twice; on the third attempt it logs
+`console.error` and breaks out instead of hanging.

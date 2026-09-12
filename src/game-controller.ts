@@ -221,7 +221,13 @@ export class GameController {
     if (this.chess.turn() === this.humanColor) return;
     if (this.pendingSearch !== null) return;
 
-    const search = this.engine.search(this.chess.fen(), difficulty(this.difficultyLevel).limits);
+    const d = difficulty(this.difficultyLevel);
+    // Weak levels: sometimes play a random legal move instead of asking the engine. It is
+    // wrapped as a Search so the identity + FEN guards below apply unchanged.
+    const search =
+      Math.random() < d.randomMoveChance
+        ? this.randomMoveSearch()
+        : this.engine.search(this.chess.fen(), d.limits);
     this.pendingSearch = search;
     this.refreshView(); // locks the board, shows "přemýšlím…"
 
@@ -237,6 +243,14 @@ export class GameController {
         this.applyEngineMove(move);
       })
       .catch((err) => console.error('engine search failed', err));
+  }
+
+  /** A uniformly random legal move (rules from chess.js), shaped like an engine search. */
+  private randomMoveSearch(): Search {
+    const moves = this.chess.moves({ verbose: true });
+    const pick = moves[Math.floor(Math.random() * moves.length)];
+    const uci: UciMove = `${pick.from}${pick.to}${pick.promotion ?? ''}`;
+    return { fen: this.chess.fen(), result: Promise.resolve(uci) };
   }
 
   /** Sync + render + (maybe) start the engine. */

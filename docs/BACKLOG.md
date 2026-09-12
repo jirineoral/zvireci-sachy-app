@@ -91,3 +91,51 @@ changing.
 Consequence for Phase 3 design: the goat side wants a cream/brown/burgundy board,
 the frog side a green one → the piece-set manifest must carry `--board-light` /
 `--board-dark` values, which is why Phase 1 already exposes them on `.cg-wrap`.
+
+---
+
+## B6 — GPL-3.0
+Stockfish.js is GPL-3.0. Private repo, no issue today. If this is ever published, the
+whole app must be GPL-3.0. Decide before publishing, not after.
+
+## B7 — Two-player mode as a deliberate choice
+Phase 2 gets local two-player play only as the engine-failure fallback. Promoting it to a
+real option in the side selector is roughly a select entry plus a branch in
+`movableColor()`. Deferred: expected to be used rarely.
+
+## B8 — `history()` cost
+`chess.history({verbose:true})` replays the whole game; it is called in `sync()` for
+`lastMove` and again in `render()`. Two full replays per move. Invisible in a 40-move
+game, potentially not in B3 (chess.com import). Fix when something feels slow: keep the
+`Move` object returned by `chess.move()` and pass it into `sync()`.
+
+## B9 — Victory animation (Phase 5 input)
+A storyboard exists for both sides (goat headbutt / frog tongue), 6 panels, ~2.5 s each,
+produced as a single reference image.
+
+Design corrections required before this is built:
+1. **Win and loss must not be the same animation mirrored.** The player plays one side;
+   showing him a 2.5 s celebration of his opponent after a loss is the wrong response.
+   Win = the current storyboard. Loss = short, quiet, no gloating: the defeated king sits
+   down and removes his crown. Different tone, not a different animal.
+2. **Skippable on any click, and shorter.** Panels 4 and 5 (crown flying, crown landing)
+   are filler; four panels is enough. Target ~1.5 s.
+3. Draw only after the piece artwork is final (B5), so the style matches.
+
+Implementation approach (decided): do NOT attempt frame-by-frame animation. Render the
+storyboard panels as a **cross-faded sequence of static images with a slow zoom
+(Ken Burns)**, plus sound. The existing panels are usable as final assets. Roughly 1–2 h
+versus 4–8 h for hand-animated SVG, and visually close to what the storyboard promises.
+
+Open question: whether the frog-tongue and goat-headbutt panels can be regenerated
+individually in a matching style, or whether the single sheet must be cut up. Cutting up
+the existing sheet is the safe option.
+
+---
+
+## Later-phase candidates recorded from the Phase 2 review
+- Undo as black at move 1: disable the button when the resulting position would be the
+  engine's turn at ply 0 (R6).
+- Promotion dialog: keep the pawn on the destination square while choosing, as Lichess
+  does (R5).
+- Strong opponent levels via `UCI_LimitStrength`/`UCI_Elo` (R3).

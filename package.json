@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "postinstall": "node scripts/copy-engine.mjs"
+    "postinstall": "node scripts/copy-engine.mjs",
+    "build:pages": "tsc --noEmit && vite build --base /sach-kvak-mek-web/"
   },
   "dependencies": {
     "@lichess-org/chessground": "10.1.1",

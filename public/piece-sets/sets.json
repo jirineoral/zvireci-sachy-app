@@ -1,9 +1,21 @@
 [
   {
+    "id": "farm",
+    "name": "Kůzlata vs. žabky",
+    "pair": "kuzlata-zabky",
+    "board": {
+      "light": "#dce6f0",
+      "dark": "#8fa3bd"
+    }
+  },
+  {
     "id": "cburnett",
     "name": "Klasické",
     "pair": "classic",
-    "board": { "light": "#f0d9b5", "dark": "#b58863" },
+    "board": {
+      "light": "#f0d9b5",
+      "dark": "#b58863"
+    },
     "stylesheet": null
   }
 ]

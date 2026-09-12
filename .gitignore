@@ -21,3 +21,6 @@ Thumbs.db
 
 # Engine binaries copied from node_modules by scripts/copy-engine.mjs
 public/engine/
+
+# Extraction debug overlays (scripts/extract-pieces.py)
+assets/source/_debug/

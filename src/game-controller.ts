@@ -130,9 +130,17 @@ export class GameController {
   private async beginTransition(): Promise<number> {
     const t = ++this.transition;
     // A search can only start synchronously inside afterPositionChange(); if one slipped
-    // in while we were awaiting (e.g. the engine became ready), cancel again.
+    // in while we were awaiting (e.g. the engine became ready), cancel again — but never
+    // loop forever: later phases add more async entry points, and a hang here is worse
+    // than one stale search (which the identity + FEN guards discard anyway).
+    let attempts = 0;
     do {
       await this.cancelSearch();
+      attempts++;
+      if (attempts >= 2 && this.pendingSearch !== null) {
+        console.error('beginTransition: search kept restarting; breaking out');
+        break;
+      }
     } while (this.pendingSearch !== null && t === this.transition);
     return t;
   }

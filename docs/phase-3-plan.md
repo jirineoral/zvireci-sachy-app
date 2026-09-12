@@ -394,3 +394,41 @@ Carried-over + hygiene
 17. `git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty.
 
 Wrap-up: leave `npx vite preview --port 4173 --strictPort --host` running and report the URL.
+
+## DoD results (executed 2026-09-12)
+
+Commits: `d9561ab` mechanism, `35ee62f` farm set, `c2c883e` B12, `ba98698` B10, `7efcca3`
+B11. Tested in the Vite dev server (Chromium); human moves are real clicks, `<select>`
+changes real `change` events; positions cross-checked by replaying the rendered SAN through
+chess.js. Temporary scaffolding (level-6 `depth 30 / movetime 3000`, `debugLoadFen` +
+`window.__SKM_DEBUG_CONTROLLER__`, forced re-cancel counter) was removed; `git status` was
+clean against HEAD before the results commit and `git grep -e SKM_DEBUG -e debugLoadFen
+HEAD -- src` is empty.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Switch sets mid-game | PASS | farm → cburnett → farm after `1.e4 e6`: FEN, ply count, status identical; `background-image` and `--board-light/dark` swapped; id persisted; no errors |
+| 2 | Switch while thinking | PASS | Level 6 temporarily `movetime 3000`; switched while status read "přemýšlím…": pieces changed at once, engine's `…e5` still applied, no errors; constant reverted (`git diff` clean) |
+| 2b | Sizing on board and in dialog, both sets | PASS | `background-size: cover` (built-in) / `contain` (farm); starting-position and dialog screenshots for both sets — no cropping, no tiling |
+| 3 | Reload restores set | PASS | `cburnett` stored → reload → classic pieces, brown board, no `<link>` |
+| 4 | Unknown stored id | PASS | `nope` → `farm` + `console.warn("Stored piece set "nope" is not in sets.json; using "farm"")`; playable |
+| 5 | `sets.json` missing | PASS | `console.error` (dev server answers HTML → JSON error, handled), classic pieces, select = single disabled "Klasické (vestavěné)", `1.e4 d6` played |
+| 6 | `farm` folder + entry removed | PASS | App runs on cburnett, no code change; restored from git |
+| 7 | Promotion dialog uses current set | PASS | farm: four `piece` URLs in `/piece-sets/farm/` (goat Q/R/B/N visible in the buttons); cburnett: bundled `data:image/svg+xml` |
+| 8 | First visit | PASS | Empty `localStorage` → `farm` selected and rendered |
+| 9 | Contact sheet / 40 px gate | PASS | `docs/piece-contact-sheet.png`: all twelve identifiable at 40 px on light and dark squares; greyscale: goats light, frogs dark, kings clearly distinct; outlines continuous on both square colours; `DEHALO_MODE = "gated"` shipped |
+| 10 | Relative sizes | PASS | Source heights wP 413 / wK 667, bP 385 / bK 668 → pawn:king 0.62 / 0.58 (≥ 0.55, no `ROLE_HEIGHT_FACTOR` applied); kings 230 px both sides on the canvas; **note:** the source art draws rooks lower than knights/bishops (R 0.80 / 0.73 of king) and queens level with knights — shipped as drawn, reported here |
+| 11 | No halo / clipping at board size | PASS | 70 px composites on both square colours ×3: no white fringe, crowns and bows intact, bow interiors transparent |
+| 12 | Placement | PASS | All bottoms at canvas y = 244; side margins ≥ 69 px; base-centred with nudges wN −3, wB −8, bB −8 recorded in the script; starting-position screenshot judged balanced |
+| 13 | Reproducible | PASS | Rerun → all twelve PNGs byte-identical (sha1) |
+| 14 | B12 | PASS | Forced 5 restarts: exactly 2 re-cancels, one `console.error`, transition completed in 3 ms; clean new game afterwards |
+| 15 | B10 | PASS | Missing `.wasm` (dev server returns HTML 200): fallback in **165 ms**; 4 KB truncated file: fallback in **160 ms** via `content-length`; restored file (sha256 = package copy) → normal load, engine replies |
+| 16 | `npm run build` | PASS | strict `tsc` clean; 84.0 kB JS / 18.8 kB CSS; `dist/piece-sets/` present |
+| 17 | Leftover grep | PASS | empty at HEAD |
+
+Deviations from the plan, all reported in the review: segmentation by seeded connected
+components instead of x-cuts (column projection merges pawn+knight and bishop+rook);
+ordering assertion downgraded to pawn-smallest / king-tallest / N≈B within 10 % with the
+rook/queen deviation printed as a note; B10 pre-check additionally rejects a `text/html`
+answer (SPA fallback), which is what Vite dev and many static hosts return for a missing
+file; `assets/source/_debug/` added to `.gitignore`.

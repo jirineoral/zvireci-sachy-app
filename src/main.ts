@@ -13,13 +13,19 @@ app.innerHTML = `
   <div class="board"></div>
   <aside class="panel">
     <h1>ŠACH KVÁK MEK!!!</h1>
-    <div class="controls">
-      <label>Obtížnost <select class="difficulty"></select></label>
-      <label>Hraju za <select class="side"></select></label>
-      <label>Figurky <select class="piece-set"></select></label>
-    </div>
+    <details class="settings" open>
+      <summary>⚙ Nastavení</summary>
+      <div class="controls">
+        <label>Obtížnost <select class="difficulty"></select></label>
+        <label>Hraju za <select class="side"></select></label>
+        <label>Figurky <select class="piece-set"></select></label>
+      </div>
+    </details>
     <div class="status"></div>
-    <ol class="move-list"></ol>
+    <details class="moves" open>
+      <summary>Tahy <span class="moves-summary"></span></summary>
+      <ol class="move-list"></ol>
+    </details>
     <div class="buttons">
       <button type="button" class="new-game">Nová hra</button>
       <button type="button" class="undo">Zpět</button>
@@ -86,3 +92,44 @@ function safeLocalStorage(): Storage | null {
     return null; // blocked storage behaves like a first visit
   }
 }
+
+// Compact panel on narrow screens: once the first move is played, fold the settings and
+// the move list away; a new game unfolds the settings again. Pure view logic driven by
+// the rendered move list, so the controller stays unaware of it.
+const settingsPanel = requireElement<HTMLDetailsElement>(app, '.settings');
+const movesPanel = requireElement<HTMLDetailsElement>(app, '.moves');
+const movesSummary = requireElement<HTMLElement>(app, '.moves-summary');
+const moveListEl = requireElement<HTMLElement>(app, '.move-list');
+const narrow = window.matchMedia('(max-width: 899px)');
+let lastPlies = -1;
+
+function syncPanels(): void {
+  const sans = Array.from(moveListEl.querySelectorAll('li span:not(.move-number)'))
+    .map((el) => el.textContent ?? '')
+    .filter((t) => t.length > 0);
+  const plies = sans.length;
+  movesSummary.textContent = plies === 0 ? '' : `(${plies}) … ${sans[plies - 1]}`;
+  if (narrow.matches && plies !== lastPlies) {
+    if (lastPlies <= 0 && plies > 0) {
+      settingsPanel.open = false; // game started: make room for the board
+      movesPanel.open = false;
+    } else if (plies === 0) {
+      settingsPanel.open = true; // new game: settings matter again
+      movesPanel.open = false;
+    }
+  }
+  lastPlies = plies;
+}
+
+new MutationObserver(syncPanels).observe(moveListEl, { childList: true, subtree: true, characterData: true });
+narrow.addEventListener('change', () => {
+  if (!narrow.matches) {
+    settingsPanel.open = true; // wide layout has room for everything
+    movesPanel.open = true;
+  } else {
+    settingsPanel.open = lastPlies === 0;
+    movesPanel.open = false;
+  }
+});
+if (narrow.matches) movesPanel.open = false;
+syncPanels();

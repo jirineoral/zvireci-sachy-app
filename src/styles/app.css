@@ -100,6 +100,60 @@ body {
   color: #eee;
 }
 
+.settings > summary,
+.moves > summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.settings > summary::-webkit-details-marker,
+.moves > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings > summary::before,
+.moves > summary::before {
+  content: '▸ ';
+  color: #888;
+}
+
+.settings[open] > summary::before,
+.moves[open] > summary::before {
+  content: '▾ ';
+}
+
+.settings > .controls {
+  margin-top: 8px;
+}
+
+.moves {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.moves:not([open]) {
+  flex: none;
+}
+
+/* Chromium wraps the children of <details> in ::details-content; let the list fill it. */
+.moves::details-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.moves-summary {
+  font-weight: 400;
+  color: #aaa;
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+}
+
 .buttons {
   display: flex;
   gap: 8px;

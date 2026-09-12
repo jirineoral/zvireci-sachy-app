@@ -4,6 +4,7 @@ import './styles/app.css';
 
 import { createEngine } from './engine';
 import { GameController } from './game-controller';
+import { initPieceSets, type PieceSetManager } from './piece-sets';
 import { requireElement } from './ui/dom';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
@@ -15,6 +16,7 @@ app.innerHTML = `
     <div class="controls">
       <label>Obtížnost <select class="difficulty"></select></label>
       <label>Hraju za <select class="side"></select></label>
+      <label>Figurky <select class="piece-set"></select></label>
     </div>
     <div class="status"></div>
     <ol class="move-list"></ol>
@@ -36,9 +38,11 @@ const engine = createEngine(ENGINE_WORKER_URL, (err) => {
   else console.error('Engine failed before the controller existed', err);
 });
 
+const boardEl = requireElement<HTMLElement>(app, '.board');
+
 controller = new GameController(
   {
-    board: requireElement<HTMLElement>(app, '.board'),
+    board: boardEl,
     status: requireElement<HTMLElement>(app, '.status'),
     moveList: requireElement<HTMLElement>(app, '.move-list'),
     newGameButton: requireElement<HTMLButtonElement>(app, '.new-game'),
@@ -50,3 +54,28 @@ controller = new GameController(
   engine,
 );
 
+
+// Piece sets are view state only; the controller never learns about them.
+const pieceSetSelect = requireElement<HTMLSelectElement>(app, '.piece-set');
+void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage() })
+  .then((manager) => wirePieceSetSelect(pieceSetSelect, manager))
+  .catch((err) => console.error('Piece sets failed to initialise', err));
+
+function wirePieceSetSelect(select: HTMLSelectElement, manager: PieceSetManager): void {
+  if (manager.sets.length === 0) {
+    select.replaceChildren(new Option('Klasické (vestavěné)', ''));
+    select.disabled = true;
+    return;
+  }
+  select.replaceChildren(...manager.sets.map((set) => new Option(set.name, set.id)));
+  select.value = manager.currentId ?? manager.sets[0].id;
+  select.addEventListener('change', () => manager.select(select.value));
+}
+
+function safeLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null; // blocked storage behaves like a first visit
+  }
+}

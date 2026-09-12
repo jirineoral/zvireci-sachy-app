@@ -1,0 +1,9 @@
+[
+  {
+    "id": "cburnett",
+    "name": "Klasické",
+    "pair": "classic",
+    "board": { "light": "#f0d9b5", "dark": "#b58863" },
+    "stylesheet": null
+  }
+]

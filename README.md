@@ -28,6 +28,12 @@ The opponent is [Stockfish.js](https://github.com/nmrugg/stockfish.js) (Stockfis
 single-threaded lite WASM build), licensed under the **GPL-3.0**. `npm install` copies
 the engine files into `public/engine/`.
 
+## Piece sets
+
+Piece artwork is data: one folder under `public/piece-sets/<id>/` plus an entry in
+`public/piece-sets/sets.json` (rules in `public/piece-sets/CONTRACT.md`). The classic set is
+the built-in fallback (chess pieces by Colin M.L. Burnett, CC BY-SA 3.0, via chessground).
+
 ## Plans
 
 Phase plans, decisions and the deferred-work backlog live in [`docs/`](docs/)

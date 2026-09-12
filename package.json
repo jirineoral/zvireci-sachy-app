@@ -7,11 +7,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "node scripts/copy-engine.mjs"
   },
   "dependencies": {
     "@lichess-org/chessground": "10.1.1",
-    "chess.js": "1.4.0"
+    "chess.js": "1.4.0",
+    "stockfish": "18.0.8"
   },
   "devDependencies": {
     "typescript": "7.0.2",

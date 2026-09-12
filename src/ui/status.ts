@@ -1,7 +1,21 @@
 import type { GameStatus } from '../game-status';
 
-/** Renders the status line (side to move / result). */
-export function renderStatus(el: HTMLElement, status: GameStatus): void {
-  el.textContent = status.text;
-  el.classList.toggle('game-over', status.over);
+export type EngineIndicator = 'loading' | 'ready' | 'thinking' | 'failed';
+
+export interface StatusView {
+  status: GameStatus;
+  engine: EngineIndicator;
+}
+
+const ENGINE_SUFFIX: Record<EngineIndicator, string> = {
+  loading: ' — načítám engine…',
+  ready: '',
+  thinking: ' — přemýšlím…',
+  failed: ' — engine nedostupný, hrají dva hráči',
+};
+
+/** Renders the status line (side to move / result, plus the engine state). */
+export function renderStatus(el: HTMLElement, view: StatusView): void {
+  el.textContent = view.status.text + ENGINE_SUFFIX[view.engine];
+  el.classList.toggle('game-over', view.status.over);
 }

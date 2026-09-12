@@ -629,3 +629,46 @@ the existing sheet is the safe option.
 - Promotion dialog: keep the pawn on the destination square while choosing, as Lichess
   does (R5).
 - Strong opponent levels via `UCI_LimitStrength`/`UCI_Elo` (R3).
+
+## DoD results (executed 2026-09-12)
+
+Run against the working tree committed as `Phase 2: engine opponent, promotion dialog, undo`
+(`stockfish@18.0.8` lite single-threaded, `@lichess-org/chessground@10.1.1`,
+`chess.js@1.4.0`). Human moves were real (trusted) clicks; `<select>` changes were real
+`change` events; results were read from the rendered move list / status line, with the
+position cross-checked by replaying the rendered SAN through chess.js in the page.
+Positions that cannot be reached against an engine that picks its own moves were loaded
+through the temporary `debugLoadFen` hook (removed before commit).
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Full game, level 1 | PASS | 39 plies, `20.Qf7#`, "Šach mat — vyhrává bílý"; every engine move legal (SAN replays) |
+| 2 | Full game, level 4 | PASS | 60 plies, engine won `30…Rg5#` after a human rook blunder, "Šach mat — vyhrává černý"; 30 searches, max reply 15 ms (cap 700 ms) |
+| 2b | Ladder sanity (hook, P1/P2) | PASS | Options change per level (`Skill Level 0/go depth 1` … `Skill Level 10/go depth 8`). P1 replies L1…L6: d5 (one run: Nd4?), d5, d5, d5, d5, d5. P2 replies: c6/Nd7, Nd7, c6, Bd7, Nd7, Bd7/Nc6 — no material lost at any level, no obvious regression upward. Plausibility only. |
+| 2c | Promotion flow cannot strand | PASS | Forced throw → `handleUserMove failed …` logged, position unchanged, controls enabled, king selectable afterwards; throw reverted |
+| 3 | Human promotion ×4 (hook position `4k3/P7/8/8/8/8/8/4K3 w`) | PASS | Dialog shows four white pieces; `a8=Q+`, `a8=R+`, `a8=B`, `a8=N` with matching piece on a8 |
+| 4 | Cancelled promotion | PASS | "Zrušit": dialog closes, pawn on a7, list unchanged, controls re-enabled. Escape: verified in real Chrome (keyCode 27) → `cancel` fires and the dialog closes; from `close` on it is the same code path as Zrušit. (The in-app pane's synthetic Escape has keyCode 0 and is ignored by Chromium's close-request logic — harness limitation.) |
+| 5 | Engine promotion (hook `7k/P7/8/8/8/8/8/K7 w`, human black) | PASS | `bestmove a7a8q` → `a8=Q+`, white queen on a8, dialog `open` never set (mutation observer 0) |
+| 6 | Undo mid-search | PASS | Search cancelled; stale `bestmove e7e5` consumed and discarded; start position, no ghost move after 3.5 s |
+| 7 | Nová hra mid-search | PASS | Wire order `stop → bestmove → ucinewgame → isready → readyok`; clean start, no stale move |
+| 8 | Difficulty change mid-search | PASS | `stop → bestmove e7e6 (discarded) → setoption Skill Level 0 → position → go depth 1 → bestmove g8f6`; exactly one engine move added |
+| 8b | Double-click Nová hra mid-search | PASS | Two `stop`s, one `bestmove` consumed, exactly one `ucinewgame`, clean start |
+| 9 | Play as black | PASS | `orientation-black`, engine opened `1.Nf3`, human `…e5` accepted, engine replied `d3` |
+| 10 | Undo as black at move 1 | PASS | New search from the start position, engine moved again; list holds exactly one white move |
+| 11 | Undo after game over | PASS | From `20.Qf7#`: reopened at ply 38, `game-over` cleared, board live (mate replayed) |
+| 12 | Undo at move 1 as white | PASS | Button disabled, click is a no-op |
+| 13 | Engine unavailable fallback | PASS | `.wasm` renamed: status "— engine nedostupný, hrají dva hráči" (via the 10 s handshake timeout — the glue does not raise `onerror` for a bad wasm), both colours movable, undo pops one ply; file restored |
+| 14 | F1 | PASS | `grep isGameOver src` → one call site, `game-status.ts:16` (plus its doc comment) |
+| 15 | F2 | PASS | No `!` assertions in `main.ts`; renaming `.move-list` → `Uncaught Error: Required element ".move-list" not found`, no board rendered; reverted |
+| 16 | Build + leftover grep | PASS | `tsc --noEmit` strict clean; Vite bundle 80.2 kB JS / 18.8 kB CSS; `git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty (checked after commit) |
+| 16b | Dropped-promise sweep | PASS | Every `.newGame/.undo/.setDifficulty/.setHumanColor/.cancelSearch/.stop(` call is awaited, returned, or `void …().catch(`; every `.then(` chain ends in `.catch(` |
+| 17 | Fresh-install copy | PASS | `git clean -xfd public/engine` + `npm install` recreates both files via `postinstall` |
+
+Mid-search tests (6, 7, 8, 8b) needed a search long enough to interrupt; on this machine
+depth 8 completes in ~200 ms, so level 6 was **temporarily** set to `depth 30 /
+movetime 3000` for those tests and reverted (`git diff` clean on `difficulty.ts`).
+
+Test-environment notes: the in-app Browser pane is often occluded, which throttles or
+stops `requestAnimationFrame`; chessground redraws and Chromium's dialog `close` event
+both ride on the frame queue, so several steps had to wait for a rendering surface.
+None of this is app behaviour.

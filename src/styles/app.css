@@ -76,17 +76,125 @@ body {
   text-align: right;
 }
 
-.new-game {
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.controls label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.controls select {
+  min-width: 140px;
+  padding: 4px 6px;
+  font: inherit;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #1e1e1e;
+  color: #eee;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.new-game,
+.undo {
+  flex: 1;
   padding: 10px 16px;
   font-size: 1rem;
   font-weight: 600;
   border: none;
   border-radius: 6px;
-  background: #4caf50;
   color: #fff;
   cursor: pointer;
 }
 
+.new-game {
+  background: #4caf50;
+}
+
 .new-game:hover {
   background: #43a047;
+}
+
+.undo {
+  background: #546e7a;
+}
+
+.undo:hover:not(:disabled) {
+  background: #455a64;
+}
+
+.undo:disabled,
+.controls select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Promotion dialog */
+
+.promotion-dialog {
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #eee;
+  text-align: center;
+}
+
+.promotion-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.promotion-title {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.promotion-pieces {
+  display: flex;
+  gap: 8px;
+}
+
+.promotion-choice {
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: #f0d9b5;
+  cursor: pointer;
+}
+
+.promotion-choice:hover,
+.promotion-choice:focus-visible {
+  border-color: #4caf50;
+  outline: none;
+}
+
+/* Piece images come from the active piece set (.cg-wrap piece.*); undo the board
+   layout rules from chessground.base.css for the dialog buttons. */
+.promotion-dialog .cg-wrap piece {
+  position: static;
+  display: block;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+}
+
+.promotion-cancel {
+  margin-top: 12px;
+  padding: 6px 14px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
 }

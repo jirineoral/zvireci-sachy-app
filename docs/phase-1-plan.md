@@ -229,3 +229,39 @@ chessground's click-click input:
    the board live.
 9. **New game** resets board, move list and status.
 10. `npm run build` passes (`tsc --noEmit` strict + vite build).
+
+## DoD results (executed 2026-09-12)
+
+Run against commit `8f56fa4` with `@lichess-org/chessground@10.1.1`, `chess.js@1.4.0`.
+Moves were played with real (trusted) click-click input in Chromium; results were read
+from the rendered move list / status line, never from chess.js directly.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Scholar's Mate | PASS | List ends `4.Qxf7#`; status "Šach mat — vyhrává bílý"; check glow on e8; a2→a3 refused afterwards |
+| 2 | Castling both sides | PASS | `4.O-O` → king g1, rook f1; `5.O-O-O O-O-O` both accepted; rook animation observed live (h8→f8 interpolated 489.9 → 433.0 → 350 px over ~200 ms) |
+| 3 | En passant | PASS | `3.exd6`; white pawn on d6, d5 empty, 7 black pawns remain |
+| 4 | Pinned piece | PASS | After `3.Bb5+ Nc6 4.d3`: selecting c6 shows 0 destination dots; c6→d4 and c6→b4 refused; control move …a6 accepted |
+| 5 | Illegal drop e2→e5 | PASS | Refused, move list stays empty |
+| 6 | Promotion (auto-queen) | PASS | `5.bxa8=Q`; white queen rendered on a8 |
+| 7 | Threefold repetition | PASS | After `4.Ng1 Ng8`: "Remíza — trojí opakování"; e2→e4 refused afterwards |
+| 8 | Board palette | PASS | a1 dark / h1 light; setting `--board-light`/`--board-dark` on `.cg-wrap` recolours `cg-board` |
+| 9 | New game | PASS | 32 pieces, empty list, "Na tahu: bílý" |
+| 10 | `npm run build` | PASS | `tsc --noEmit` strict clean; Vite bundle 70.7 kB JS / 17.7 kB CSS |
+
+### Remaining `game-status.ts` branches (executed after the baseline commit)
+
+Positions were loaded through a temporary `debugLoadFen()` hook (removed before commit;
+`src/` is byte-identical to `8f56fa4`). Each FEN was first verified with chess.js in Node
+to be the claimed state; all three were correct as written.
+
+| Test | FEN | Result | Observed |
+|------|-----|--------|----------|
+| A Stalemate | `7k/8/6Q1/8/8/8/8/4K3 b - - 0 1` | PASS | Status "Remíza — pat"; clicking and dragging the h8 king produces no selection and no move |
+| B Insufficient material | `4k3/8/8/8/8/8/8/4K3 w - - 0 1` | PASS | Status "Remíza — nedostatečný materiál" (position has 5 legal moves, so stalemate is not shadowing it, nor is the "Na tahu" fallback); Ke1→e2 refused — board locked |
+| C Fifty-move rule | `4k3/8/4K3/8/8/8/8/7R w - - 99 1`, then `Rh2` | PASS | Before the move: "Na tahu: bílý"; after `1.Rh2` (clock 100): "Remíza — pravidlo 50 tahů"; Ke8→d8 refused — board locked |
+
+Test-environment note: the Browser pane and background Chrome tabs throttle
+`requestAnimationFrame`, on which chessground's redraw/drag pipeline depends. Clicks
+spaced < 1 s apart were intermittently dropped in that state; with 1 s spacing every line
+replayed deterministically. This is a harness artefact, not app behaviour.

@@ -1,5 +1,14 @@
 [
   {
+    "id": "farm-busts",
+    "name": "Kůzlata vs. žabky (hlavy)",
+    "pair": "kuzlata-zabky",
+    "board": {
+      "light": "#dce6f0",
+      "dark": "#8fa3bd"
+    }
+  },
+  {
     "id": "farm",
     "name": "Kůzlata vs. žabky",
     "pair": "kuzlata-zabky",

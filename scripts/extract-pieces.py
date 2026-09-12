@@ -5,8 +5,16 @@ AI-generated character sheets in assets/source/ into public/piece-sets/farm/*.pn
 render the quality-gate contact sheet docs/piece-contact-sheet.png.
 
 Usage (from the repo root):
-    python scripts/extract-pieces.py            # write pieces + contact sheet + debug overlays
-    python scripts/extract-pieces.py --dry-run  # only print measurements and pocket candidates
+    python scripts/extract-pieces.py                     # all sets: pieces + contact sheets + debug overlays
+    python scripts/extract-pieces.py farm-busts          # one set only
+    python scripts/extract-pieces.py --dry-run           # only print measurements and pocket candidates
+
+Sets:
+  farm        two white-background sheets (goats.png, frogs.png), full pieces on pedestals,
+              segmented by pedestal-seeded components (process_sheet).
+  farm-busts  one dark-background sheet (farm-busts.png) with both rows (goats on top,
+              frogs below), busts without pedestals, Czech labels under each piece;
+              segmented by large connected components, labels ignored (process_busts_sheet).
 
 Pipeline (see docs/phase-3-plan.md, Part B):
   1. Background = flood fill from the sheet border with a colour tolerance (the cream
@@ -84,6 +92,19 @@ NUDGE_X.update({"wN": -3, "wB": -8, "bB": -8})
 
 FARM_LIGHT = (0xDC, 0xE6, 0xF0)
 FARM_DARK = (0x8F, 0xA3, 0xBD)
+
+# ---- farm-busts recipe -------------------------------------------------------------------
+BUSTS_SOURCE = ROOT / "assets/source/farm-busts.png"
+BUSTS_OUT_DIR = ROOT / "public/piece-sets/farm-busts"
+BUSTS_CONTACT_SHEET = ROOT / "docs/piece-contact-sheet-busts.png"
+BUSTS_ROWS = {"w": (0, 430), "b": (430, None)}  # goats above y=430, frogs below (sheet px)
+BUSTS_ORDER = ["P", "R", "N", "B", "Q", "K"]  # left -> right on this sheet
+BUSTS_BG_TOL = 36  # background is ~(27,28,29); outlines are near-black (sum diff ~70)
+BUSTS_NEAR_BG_TOL = 15
+BUSTS_MIN_PIECE_AREA = 5000  # label letters are < 2500 px each
+BUSTS_TALLEST_FRACTION = 0.94  # busts are meant to fill the square (mobile legibility)
+BUSTS_BOTTOM_MARGIN = 8
+BUSTS_NUDGE_X: dict[str, int] = {}  # + = right, tuned on the starting-position screenshot
 
 
 # ---- helpers ---------------------------------------------------------------------------
@@ -251,6 +272,79 @@ def process_sheet(side: str, path: Path, dry_run: bool) -> list[Piece]:
     return pieces
 
 
+def process_busts_sheet(dry_run: bool) -> list[Piece]:
+    img = Image.open(BUSTS_SOURCE).convert("RGB")
+    rgb = np.asarray(img).astype(np.int16)
+    h, w = rgb.shape[:2]
+    edge = np.concatenate([rgb[:4].reshape(-1, 3), rgb[-4:].reshape(-1, 3), rgb[:, :4].reshape(-1, 3), rgb[:, -4:].reshape(-1, 3)])
+    bg_color = np.median(edge, axis=0).astype(np.int16)
+    diff = np.abs(rgb - bg_color).sum(axis=2)
+    border = np.zeros((h, w), dtype=bool)
+    border[0, :] = border[-1, :] = border[:, 0] = border[:, -1] = True
+    background = flood(diff <= BUSTS_BG_TOL, border)
+    foreground = ~background
+    print(f"  background colour {tuple(int(c) for c in bg_color)}")
+
+    comps = [c for c in label_components(foreground) if c.sum() >= BUSTS_MIN_PIECE_AREA]
+    by_row: dict[str, list[np.ndarray]] = {"w": [], "b": []}
+    for c in comps:
+        ys, xs = np.where(c)
+        cy = ys.mean()
+        for side, (y0, y1) in BUSTS_ROWS.items():
+            if cy >= y0 and (y1 is None or cy < y1):
+                by_row[side].append(c)
+    pieces: list[Piece] = []
+    near_bg = diff <= BUSTS_NEAR_BG_TOL
+    for side, row in by_row.items():
+        # Neighbouring busts can touch (the goat queen's and king's outlines do): split the
+        # widest component at its thinnest column until the row has six pieces.
+        while len(row) < 6:
+            widest = max(row, key=lambda c: bbox(c)[2] - bbox(c)[0])
+            x0, _, x1, _ = bbox(widest)
+            cols = widest.sum(axis=0)
+            lo, hi = x0 + (x1 - x0) * 35 // 100, x0 + (x1 - x0) * 65 // 100
+            cut = lo + int(np.argmin(cols[lo:hi]))
+            left, right = widest.copy(), widest.copy()
+            left[:, cut:] = False
+            right[:, :cut] = False
+            if not left.any() or not right.any():
+                sys.exit(f"farm-busts {side}: could not split merged component at x={cut}")
+            print(f"  {side}: split merged component (width {x1 - x0}) at x={cut} (junction {int(cols[cut])} px)")
+            row.remove(widest)
+            row.extend([left, right])
+        row.sort(key=lambda c: np.where(c)[1].mean())
+        if len(row) != 6:
+            sys.exit(f"farm-busts {side}: expected 6 pieces in the row, found {len(row)} (areas {[int(c.sum()) for c in row]})")
+    all_final = [c for row in by_row.values() for c in row]
+    for side, row in by_row.items():
+        for role, comp in zip(BUSTS_ORDER, row):
+            code = side + role
+            x0, y0, x1, y1 = bbox(comp)
+            others = np.zeros_like(comp)
+            for c in all_final:
+                if c is not comp:
+                    others |= c
+            opaque = ~background[y0:y1, x0:x1] & ~others[y0:y1, x0:x1]
+            piece = Piece(code, rgb[y0:y1, x0:x1].astype(np.uint8), opaque, (x0, y0))
+            # Enclosed background pockets: with a dark background nothing drawn is near
+            # background colour (pupils are darker, skin/fur lighter), so clear them all.
+            pocket_mask = near_bg[y0:y1, x0:x1] & opaque
+            candidates = [c for c in label_components(pocket_mask) if c.sum() >= 150]
+            for idx, cand in enumerate(candidates):
+                ys, xs = np.where(cand)
+                piece.pockets.append((idx, int(cand.sum()), int(xs.mean()) + x0, int(ys.mean()) + y0, 0))
+                piece.opaque &= ~cand
+            pieces.append(piece)
+            if not dry_run:
+                DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+                dbg = Image.fromarray(piece.rgb).convert("RGBA")
+                ov = np.zeros((*piece.opaque.shape, 4), dtype=np.uint8)
+                ov[~piece.opaque] = (255, 0, 255, 110)
+                dbg = Image.alpha_composite(dbg, Image.fromarray(ov))
+                dbg.save(DEBUG_DIR / f"busts-{code}.png")
+    return pieces
+
+
 def dehalo(piece: Piece) -> np.ndarray:
     """Returns an RGBA uint8 crop with the de-halo applied."""
     rgb = piece.rgb.astype(np.int16)
@@ -284,7 +378,7 @@ def measure_heights(rgbas: dict[str, np.ndarray]) -> dict[str, int]:
     return heights
 
 
-def place(rgba: np.ndarray, scale: float, nudge: int, code: str) -> Image.Image:
+def place(rgba: np.ndarray, scale: float, nudge: int, code: str, bottom_margin: int = BOTTOM_MARGIN) -> Image.Image:
     src = Image.fromarray(rgba, "RGBA")
     solid = rgba[..., 3] >= 128
     x0, y0, x1, y1 = bbox(solid)
@@ -299,7 +393,7 @@ def place(rgba: np.ndarray, scale: float, nudge: int, code: str) -> Image.Image:
     base_cols = np.where(a[band_top:sy1, :].any(axis=0))[0]
     base_cx = (base_cols.min() + base_cols.max() + 1) / 2
     left = int(round(CANVAS / 2 - base_cx)) + nudge
-    top = CANVAS - BOTTOM_MARGIN - sy1
+    top = CANVAS - bottom_margin - sy1
     canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
     canvas.alpha_composite(small, (left, top))
     fa = np.asarray(canvas)[..., 3] >= 128
@@ -310,7 +404,7 @@ def place(rgba: np.ndarray, scale: float, nudge: int, code: str) -> Image.Image:
     return canvas
 
 
-def contact_sheet(files: dict[str, Path]) -> None:
+def contact_sheet(files: dict[str, Path], out_path: Path = CONTACT_SHEET) -> None:
     order = ["wP", "wN", "wB", "wR", "wQ", "wK", "bP", "bN", "bB", "bR", "bQ", "bK"]
     cell = 40
     big = 96
@@ -347,14 +441,36 @@ def contact_sheet(files: dict[str, Path]) -> None:
     y = row(y, cell, FARM_DARK, False, "40 px on farm dark squares")
     y = row(y, cell, FARM_LIGHT, True, "40 px, grayscale(1)")
     row(y, big, FARM_LIGHT, False, "96 px reference")
-    CONTACT_SHEET.parent.mkdir(parents=True, exist_ok=True)
-    sheet.save(CONTACT_SHEET, optimize=True)
-    print(f"contact sheet -> {CONTACT_SHEET.relative_to(ROOT)}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out_path, optimize=True)
+    print(f"contact sheet -> {out_path.relative_to(ROOT)}")
 
 
 # ---- main --------------------------------------------------------------------------------
-def main() -> None:
-    dry_run = "--dry-run" in sys.argv
+def report_ratios(heights: dict[str, int], strict_order: bool) -> None:
+    for side in "wb":
+        king = heights[side + "K"]
+        ratios = {r: heights[side + r] / king for r in ROLES}
+        print(f"  {side}: ratio to king " + ", ".join(f"{r} {v:.2f}" for r, v in ratios.items()))
+        if strict_order:
+            adjusted = {r: heights[side + r] * ROLE_HEIGHT_FACTOR[r] / (king * ROLE_HEIGHT_FACTOR["K"]) for r in ROLES}
+            print(f"  {side}: after ROLE_HEIGHT_FACTOR " + ", ".join(f"{r} {v:.2f}" for r, v in adjusted.items()))
+            if adjusted["P"] < PAWN_KING_MIN_RATIO:
+                print(f"  !! {side}: pawn:king {adjusted['P']:.2f} is below {PAWN_KING_MIN_RATIO} - tune ROLE_HEIGHT_FACTOR (DoD 10)")
+            others = [adjusted[r] for r in "NBRQ"]
+            if not (adjusted["P"] < min(others) and adjusted["K"] > max(others)):
+                sys.exit(f"{side}: pawn must be the smallest and king the tallest piece: {adjusted}")
+            if abs(adjusted["N"] - adjusted["B"]) > 0.10 * max(adjusted["N"], adjusted["B"]):
+                sys.exit(f"{side}: knight and bishop heights differ by more than 10 %: {adjusted}")
+            if not (max(adjusted["N"], adjusted["B"]) < adjusted["R"] < adjusted["Q"]):
+                print(f"  note {side}: source proportions deviate from N~B < R < Q (R {adjusted['R']:.2f}, Q {adjusted['Q']:.2f}); shipped as drawn")
+        else:
+            # Busts: the king (crown + cross) must be the tallest; the rest is the artist's call.
+            if heights[side + "K"] < max(heights[side + r] for r in "PNBRQ"):
+                sys.exit(f"{side}: king is not the tallest bust: {heights}")
+
+
+def run_farm(dry_run: bool) -> None:
     pieces: list[Piece] = []
     for side, path in SOURCES.items():
         print(f"{path.name}:")
@@ -369,32 +485,10 @@ def main() -> None:
     heights = measure_heights(rgbas)
     tallest = max(heights.values())
     print("source heights:", heights, "tallest:", tallest)
-    for side in "wb":
-        king = heights[side + "K"]
-        ratios = {r: heights[side + r] / king for r in ROLES}
-        print(f"  {side}: ratio to king " + ", ".join(f"{r} {v:.2f}" for r, v in ratios.items()))
-        adjusted = {r: heights[side + r] * ROLE_HEIGHT_FACTOR[r] / (king * ROLE_HEIGHT_FACTOR['K']) for r in ROLES}
-        print(f"  {side}: after ROLE_HEIGHT_FACTOR " + ", ".join(f"{r} {v:.2f}" for r, v in adjusted.items()))
-        if adjusted["P"] < PAWN_KING_MIN_RATIO:
-            print(f"  !! {side}: pawn:king {adjusted['P']:.2f} is below {PAWN_KING_MIN_RATIO} — tune ROLE_HEIGHT_FACTOR (DoD 10)")
-        # Hard requirements: pawn smallest, king tallest, knight ~ bishop (within 5 %).
-        others = [adjusted[r] for r in "NBRQ"]
-        if not (adjusted["P"] < min(others) and adjusted["K"] > max(others)):
-            sys.exit(f"{side}: pawn must be the smallest and king the tallest piece: {adjusted}")
-        # Knight ~ bishop: the source frogs differ by 5.8 % (rider vs. mitre); 10 % is the limit.
-        if abs(adjusted["N"] - adjusted["B"]) > 0.10 * max(adjusted["N"], adjusted["B"]):
-            sys.exit(f"{side}: knight and bishop heights differ by more than 10 %: {adjusted}")
-        # Chess convention also has N ~ B < R < Q. The source art does not (the rook tower
-        # is lower than the mounted knight and the mitred bishop). With all factors at 1.0
-        # the art is shipped as drawn; report it rather than distort it.
-        if not (max(adjusted["N"], adjusted["B"]) < adjusted["R"] < adjusted["Q"]):
-            print(f"  note {side}: source proportions deviate from N~B < R < Q (R {adjusted['R']:.2f}, Q {adjusted['Q']:.2f}); shipped as drawn")
-
+    report_ratios(heights, strict_order=True)
     base_scale = TALLEST_FRACTION * CANVAS / tallest
     if dry_run:
-        print("dry run: nothing written")
         return
-
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     files: dict[str, Path] = {}
     print("placing:")
@@ -406,6 +500,44 @@ def main() -> None:
         files[p.code] = out
     print(f"wrote {len(files)} pieces -> {OUT_DIR.relative_to(ROOT)}")
     contact_sheet(files)
+
+
+def run_busts(dry_run: bool) -> None:
+    print(f"{BUSTS_SOURCE.name}:")
+    pieces = process_busts_sheet(dry_run)
+    for p in pieces:
+        for idx, area, cx, cy, kept in p.pockets:
+            print(f"  {p.code} pocket #{idx}: area {area} px, centre ({cx},{cy}) -> CLEAR")
+    rgbas = {p.code: dehalo(p) for p in pieces}
+    heights = measure_heights(rgbas)
+    tallest = max(heights.values())
+    print("source heights:", heights, "tallest:", tallest)
+    report_ratios(heights, strict_order=False)
+    base_scale = BUSTS_TALLEST_FRACTION * CANVAS / tallest
+    if dry_run:
+        return
+    BUSTS_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    files: dict[str, Path] = {}
+    print("placing:")
+    for p in pieces:
+        canvas = place(rgbas[p.code], base_scale, BUSTS_NUDGE_X.get(p.code, 0), p.code, BUSTS_BOTTOM_MARGIN)
+        out = BUSTS_OUT_DIR / f"{p.code}.png"
+        canvas.save(out, optimize=True, compress_level=9)
+        files[p.code] = out
+    print(f"wrote {len(files)} pieces -> {BUSTS_OUT_DIR.relative_to(ROOT)}")
+    contact_sheet(files, BUSTS_CONTACT_SHEET)
+
+
+def main() -> None:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    dry_run = "--dry-run" in sys.argv
+    wanted = set(args) or {"farm", "farm-busts"}
+    if "farm" in wanted:
+        run_farm(dry_run)
+    if "farm-busts" in wanted:
+        run_busts(dry_run)
+    if dry_run:
+        print("dry run: nothing written")
 
 
 if __name__ == "__main__":

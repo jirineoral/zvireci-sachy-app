@@ -81,6 +81,10 @@ async function precheckWasm(wasmUrl: string, expectedBytes: number): Promise<voi
     if (type.includes('text/html')) {
       throw new Error(`Engine wasm not reachable: ${wasmUrl} answered with HTML (missing file / SPA fallback)`);
     }
+    // With transfer compression (GitHub Pages, most CDNs) content-length is the encoded
+    // size, so the check only applies to uncompressed answers.
+    const encoding = (response.headers.get('content-encoding') ?? 'identity').toLowerCase();
+    if (encoding !== 'identity') return; // size unknown, proceed
     const length = Number(response.headers.get('content-length'));
     if (!Number.isFinite(length) || length <= 0) return; // unknown, proceed
     if (Math.abs(length - expectedBytes) > expectedBytes * WASM_SIZE_TOLERANCE) {

@@ -26,3 +26,31 @@ cg-board {
   );
   background-size: 25% 25%;
 }
+
+/*
+ * Coordinates: the vendor theme draws them 9 px, alternating white/grey to suit its brown
+ * board; on the light animal palette the white ones vanish. One dark colour with a pale
+ * halo reads on both square colours, bigger and bold for children (review, 2026-09-13).
+ * `.board.cg-wrap` outranks the vendor's `.orientation-* .ranks :nth-child()` rules.
+ */
+.board.cg-wrap coords {
+  opacity: 1;
+  font-size: clamp(11px, 2.3vmin, 14px);
+  font-weight: 700;
+}
+
+.board.cg-wrap coords.ranks coord,
+.board.cg-wrap coords.files coord {
+  color: #1c2431;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.85), 0 0 1px rgba(255, 255, 255, 0.85);
+}
+
+.board.cg-wrap coords.ranks {
+  left: 3px;
+  width: 14px;
+}
+
+.board.cg-wrap coords.files {
+  bottom: -2px;
+  height: 18px;
+}

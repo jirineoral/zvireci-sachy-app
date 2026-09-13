@@ -472,3 +472,39 @@ issue.
 gets unlocked.
 
 *(The parent's note: beating "člověk" will not be much of a challenge. Queued after R2.)*
+
+### R9 — Piece-drop animation at the start of every game
+
+Requested by the player. Reuses the phase 8 intro animation, but driven by the
+two animals the player actually chose instead of random ones: pick frog and
+goat, those drop in; pick chicken and worm, those do.
+
+**Prerequisite:** phase 8's composition layer must be reusable, not baked into
+the intro. If it was written as intro-only, extracting it is the first step and
+should be reported as such.
+
+**Constraints that decide whether this is delightful or annoying:**
+- **Shorter than the intro.** The intro plays once per session; this plays
+  every new game. Target around one second, and **any click skips it
+  instantly**. At 2.5 s it becomes something to sit through by the fifth game.
+- **Pieces land in the actual starting position** — pawns on ranks 2 and 7,
+  pieces on 1 and 8 — not scattered as in the intro. The animation then flows
+  into a playable board instead of cutting to one.
+- **It must end exactly where the real board is.** Animate the chessground
+  piece elements themselves rather than an overlay, or the pieces will land and
+  then jump into place.
+- **It must not delay the first move.** When the human plays black the engine
+  opens; it must not move until the animation finishes, or its move appears
+  through falling pieces.
+- A setting to disable it, alongside the intro setting.
+
+**Free bonus:** this is the natural place for an opponent announcement —
+"ŽÁBA vs. SLEPICE" over the animation. In the campaign (R8) it carries more:
+"soupeř 7 z 19".
+
+*Status note (2026-09-13): the phase 8 intro is intro-only — the landing keyframes and
+spots live in `src/intro/` and target an overlay over the plate image, not chessground's
+piece elements. R9 therefore starts with extracting a reusable "drop" animation that runs
+on the real `.cg-wrap piece` elements (chessground positions them with `transform`, so the
+drop must compose with that) and the engine's opening move must wait for it (the Phase 8
+pre-game `started` flag is the natural hook). Queued after R2 and R8.*

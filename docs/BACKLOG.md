@@ -5,6 +5,35 @@ recorded so that the design does not accidentally foreclose them.
 
 ---
 
+## GATE — stop before anything that needs a server
+
+This project deliberately has no backend. It is a static site on GitHub Pages:
+no database, no accounts, no user data leaving the browser, no hosting cost,
+no GDPR surface, no content moderation duty. That is not a limitation to be
+engineered around — it is the reason the project stays a hobby rather than an
+obligation.
+
+**Before starting any backlog item, check whether it can be done entirely in
+the browser.** Browser-local storage (`localStorage`, IndexedDB) and public
+CORS-enabled APIs are in scope. A server of any kind is not.
+
+If an item — or part of one — requires a backend, a shared database, user
+accounts, authentication, a CORS proxy, or server-side storage of anything:
+
+1. **Stop. Do not design around it and do not build a partial version that
+   quietly assumes one later.**
+2. Report which specific part needs it and why the browser cannot do it.
+3. Propose the largest useful subset that works with no server at all.
+4. Wait for my decision.
+
+Many items on this list are *partly* server-free. Splitting them so the
+server-free part ships is usually the right answer — but that split is my call,
+not an implementation detail.
+
+(B15 below records the reasoning behind this line in more detail.)
+
+---
+
 ## B1 — Animal library (multiple piece-set pairs) — RESOLVED in Phase 6 (character library, 19 characters, any vs. any)
 
 ### Idea
@@ -49,7 +78,9 @@ Phase 6 sheets was not archived; PROMPTS.md carries the cumulative prompt.)
 
 ---
 
-## B3 — chess.com game import
+## B3 — chess.com game import — MERGED into R3 (first, server-free part)
+
+*Kept for the technical notes below; the live item is R3.*
 
 Replay the boy's own tournament games in his own piece set. The chess.com public
 API needs no auth: `api.chess.com/pub/player/{username}/games/archives` returns
@@ -152,7 +183,8 @@ the existing sheet is the safe option.
   engine's turn at ply 0 (R6).
 - Promotion dialog: keep the pawn on the destination square while choosing, as Lichess
   does (R5).
-- Strong opponent levels via `UCI_LimitStrength`/`UCI_Elo` (R3).
+- Strong opponent levels via `UCI_LimitStrength`/`UCI_Elo` (review item R3 of the
+  Phase 2 plan — not the player's R3 below; `UCI_Elo` self-play is also option (a) of R1).
 
 ---
 
@@ -175,7 +207,9 @@ Note `ENGINE_WASM_BYTES` in `src/main.ts` must track the vendored file.
 `beginTransition()` re-cancels at most twice; on the third attempt it logs
 `console.error` and breaks out instead of hanging.
 
-## B13 — "Zvířecí šachy": teaching app (one day, maybe)
+## B13 — "Zvířecí šachy": teaching app (one day, maybe) — MERGED into R6
+
+*Kept for the decisions-to-take list below; the live item is R6.*
 
 Not scope. Not a commitment. Recorded so that today's decisions don't
 foreclose it.
@@ -293,3 +327,107 @@ mated king speak ("Prohrál jsem…"); B18's rule — after a loss the opponent'
 animal does not appear — will need the review's spectators and reactions to be
 revisited when B18 is implemented (e.g. hide the winner's bubbles on a loss, or
 gate the review behind the "play again" screen).
+
+---
+
+## Requests from the player (2026-09-13)
+
+These came from the actual user — a child who plays the app daily and dictated
+this list unprompted. Treat that as the strongest signal in the whole backlog. His
+ordering is preserved in the titles; the suggested build order at the end is the
+parent's. **The GATE at the top applies to every item.**
+
+### R1 — Show approximate Elo next to each bot difficulty level
+Trivial to display, not trivial to know. After the M5 rework, levels 1–2 play a
+weak self-search with randomisation among top-N moves, and nobody has measured
+what Elo that actually is. Inventing a number and showing it to a tournament
+player is worse than showing nothing — he will notice it is wrong and stop
+trusting everything else the app tells him.
+
+Options:
+- (a) Measure it: self-play matches against known `UCI_Elo` settings, dozens of
+  games per level. Real work, produces a real answer.
+- (b) Show honest wide ranges labelled "přibližně".
+- (c) **Preferred:** show *his own* win/loss record against each level instead.
+  It is true, it computes itself from local game history, and it is more
+  interesting to a child than a stranger's rating.
+
+(c) optionally combined with (b). No server: records live in IndexedDB.
+
+### R2 — Puzzles (diagrams) with selectable difficulty
+Best value-to-effort ratio on the whole list.
+
+The Lichess puzzle database is CC0 — roughly 6 million puzzles as CSV, each
+with a FEN, the solution moves, a numeric rating and theme tags. Selectable
+difficulty therefore comes free with the data, and the licence allows
+redistribution without asking.
+
+No database needed: ship a **filtered static subset** (a few thousand puzzles
+spanning his rating band) in the repo. Do not ship millions of rows — check the
+resulting file size against what is reasonable to serve from Pages, and say
+what subset you chose and why.
+
+Infrastructure already exists: board, chess.js, move validation, piece sets.
+
+### R3 — Game database: tournament games, chess.com games, app games, and
+eventually live play against real people
+
+Three different things at three very different costs. **Do not treat as one
+item.**
+- His own chess.com games: public API, no auth, CORS-friendly — **no server**.
+  (Merges with the existing B3.)
+- Games played in this app: IndexedDB — **no server**.
+- Live play against real people: accounts, matchmaking, a server, moderation,
+  GDPR — **this hits the GATE**. Parked, not refused.
+
+The first two must not wait on the third. He explicitly said he does not want
+the live-play idea to die quietly — so record it as parked with the reason, not
+as rejected.
+
+*Merged from B3 (chess.com import: `api.chess.com/pub/player/{username}/games/archives`,
+PGN into chess.js, move-list navigator over existing infrastructure). Live play is the
+"above the line" case described in B15.*
+
+### R4 — Analysis view with game replay
+Build this **first** despite not being his top priority: it is the shared
+infrastructure that R3 and R7 both need, and it has standalone value. Fully
+client-side. Overlaps the existing analysis/comic-bubble notes — merge.
+
+*Merged notes: the Phase 5B review already replays a finished game ply by ply with the
+kings' comic bubbles (`src/review.ts`, `src/commentary.ts`) and the per-ply feedback
+records `{glyph, betterSan}`; R4 generalises it to any game (loaded PGN, app history,
+R3 sources) with an eval/analysis view. B18 (the loser must not watch the winning
+animal) and B9/B16 (win/loss animations, victory cry) stay separate but constrain how
+the review presents a lost game.*
+
+### R5 — Endgame training (given a position, win it or hold the draw)
+Cheaper than it looks. A list of FENs, the existing engine as the opponent, and
+a goal check on the result (win required / draw sufficient). Roughly a day. No
+server.
+
+### R6 — Lessons, graded: absolute beginner → beginner → lightly advanced →
+intermediate → advanced → expert → master
+This is B13; merge. The most expensive item on the list and the one where a
+mistake teaches many children something wrong. The work is content, not code,
+and any generated instruction needs review by someone who actually plays before
+it ships. Parked pending feedback from real users.
+
+*Merged from B13: Czech-language, AI-assisted lessons as the differentiator; decisions
+to take first — GPL (B6), artwork licensing, and human review of any generated
+instruction — remain listed under B13.*
+
+### R7 — Follow live games from real tournaments
+He linked a chess-results.com tournament page.
+
+chess-results.com has no public API and serves ASPX pages; a browser on our
+origin cannot fetch it because of CORS. Making this work needs a proxy, i.e. a
+server — **this hits the GATE**.
+
+The realistic alternative is the **Lichess Broadcast API**, which is public and
+CORS-friendly, but only carries events somebody chooses to broadcast there —
+which will usually not include his regional tournaments. Investigate whether
+that is true before assuming; if it is, this item is honestly limited and I
+will tell him so rather than leaving it open.
+
+### Suggested build order (mine, not his)
+R4 → R2 → R5 → R1 → the two server-free parts of R3 → R6 → R7.

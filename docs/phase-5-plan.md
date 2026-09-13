@@ -232,3 +232,37 @@ npx vite preview --port 4173 --strictPort --host
 
 Wrap-up: preview on 4173 rebuilt and left running, Pages redeployed, DoD table appended
 here with deviations listed.
+
+## DoD results (executed 2026-09-13)
+
+Commits: `b28db74` 5A, `a53eee9` 5B. Tested in the Vite dev server (Chromium) with a
+temporary `debugLoadFen` / `debugHumanMove` / `debugState` hook (removed before the
+commit; `git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty). Selects were driven
+by real `change` events, review buttons by real clicks, keys by `keydown` on `body`.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | First visit | PASS | `hlavy` / `kůzlata` / `bílá`, `farm-busts` stylesheet, light goats at the bottom, no keys written until a change |
+| 2 | Animal switch mid-game | PASS | `žáby` + `bílá` → `farm-busts-inverse` at once, orientation white, position and status unchanged |
+| 3 | Colour × animal | PASS | `žáby`+`černá` → `farm-busts`, orientation black; `kůzlata`+`černá` → `farm-busts-inverse`; all four combinations resolved as designed. **Found during this item:** the inverse folder had been extracted with goats as `w*`; fixed in the extractor (row mapping per variant) so `w*` = white pieces = light frogs |
+| 4 | Single-member families | PASS | `cele`: `Hraju za` disabled, shows the implied animal (`žáby` when black); `klasicke`: disabled `—`; back to `hlavy`: enabled, stored animal restored |
+| 5 | Persistence + garbage | PASS | Reload keeps family/animal, colour resets to white; legacy `skm.pieceSetId=farm` → `skm.pieceFamily=cele`, old key removed; `skm.animal=kachna` and a 10 kB family → defaults + `console.warn`, playable |
+| 6 | Promotion dialog | PASS | `žáby`+`bílá`: the four dialog pieces are `farm-busts-inverse/w{Q,R,B,N}.png` |
+| 7 | Inverse folder missing | PASS with note | Board playable, classic pieces show through (bundled fallback). **Deviation:** no family-level fallback to the first entry was implemented — the Phase 3 mechanism (keep previous/built-in styling) applies. In the dev server the SPA fallback answers 200 HTML, so no `console.error` appears there; on a static host the 404 logs it |
+| 8 | Spectators | PASS | Opponent's king above, own king below in both orientations; follow the set (goat/frog/classic); mobile 375 px: heads 48 px, board top at y=64 |
+| 9 | Rozbor visibility | PASS | Hidden during play and after Nová hra; shown after mate, stalemate (`Qg6` pat) and insufficient material (`Kxd2`) |
+| 10 | Real-game review | PASS | 103-ply level-1 game (`1.e4 d5 2.Qh5? Bg4 3.Bc4?? Bxh5 … 52.Nd6#`): ⏮ ◀ ▶ ⏭ and arrow keys step through every ply, current move highlighted in the list, bubbles per ply. Positions are `positionAt()` = chess.js replay (the same function feeds the board and the commentary); the badge appears with the glyph of the shown ply |
+| 11 | Bubbles | PASS | Every ply speaks; `Bc4??` → second bubble from the frog king; `Qh5?` names `exd5`, `Bc4??` names `Qxg4`; last ply: mate line + the mated king's reaction; `Mééé!`/`Kvák!` follow the animals; `git grep innerHTML` over the four new files empty |
+| 12 | Determinism | PASS | Pick = FNV hash of `ply:san`; `1:e4→3`, `1:d4→2`, `1:c4→5`, `1:Nf3→7` (distinct first-move lines); the same game re-reviewed gives the same texts |
+| 13 | Mode safety | PASS | In review: Zpět disabled, board not movable, ▶ at the end / ◀ at the start / Home / End clamp; keys ignored with focus in a select; Nová hra and Barva exit the review (fresh game); zero `engine.analyse` / `engine.search` calls while navigating (counted by wrapping the engine) |
+| 14 | Feedback off | PASS | Game with feedback off: no glyphs, review still comments from the situation (`Ra8# — poslední tah partie…`) |
+| 15 | Mobile | PASS | 375×812: bubbles never overlap the board (top bubble y 25–55 above the board at 64; bottom bubble 423–471 below it at 415); review controls at y 609–644, visible without scrolling |
+| 16 | Build / grep / deps | PASS | `tsc` strict clean, 112 kB JS / 21.5 kB CSS; grep empty; `package.json` unchanged |
+
+Deviations from the plan:
+- 5B shipped as one commit (spectators + review) instead of the planned two.
+- DoD 7: no family-level fallback (see the table).
+- Review at ply 0 speaks with the side to move of the game's start position (identical to
+  "white" for every real game; matters only for FEN-loaded test games).
+- `positionAt()` takes the game's start FEN (chess.js `SetUp` header) so a test game loaded
+  from a FEN reviews correctly; real games always start from the initial position.

@@ -11,6 +11,7 @@ import { buildUserSetsDialog } from './ui/user-sets-dialog';
 import { openUserSetStore } from './user-sets';
 import { RESULT_LABEL, openGameStore, type GameRecord, type GameStore } from './games';
 import { buildGamesDialog } from './ui/games-dialog';
+import { buildBroadcastsDialog } from './ui/broadcasts-dialog';
 import { buildPuzzlePanel } from './ui/puzzle-panel';
 import { buildEndgamePanel } from './ui/endgame-panel';
 import { TRAINER } from './endgames';
@@ -74,6 +75,7 @@ app.innerHTML = `
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
       <button type="button" class="endgames">Koncovky</button>
+      <button type="button" class="broadcasts">Turnaje</button>
       <button type="button" class="campaign">Kampaň</button>
     </div>
     <footer class="credits">
@@ -89,6 +91,7 @@ app.innerHTML = `
   <dialog class="user-sets-dialog"></dialog>
   <dialog class="games-dialog"></dialog>
   <dialog class="campaign-dialog"></dialog>
+  <dialog class="broadcasts-dialog"></dialog>
 `;
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
@@ -230,6 +233,10 @@ requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', () 
   endgamePanel.close();
   puzzlePanel.open();
 });
+
+// Tournament broadcasts (Phase 16): Lichess, read-only, nothing stored.
+const broadcasts = buildBroadcastsDialog({ dialog: requireElement<HTMLDialogElement>(app, '.broadcasts-dialog'), open: (r) => game.loadGame(r) });
+requireElement<HTMLButtonElement>(app, '.broadcasts').addEventListener('click', () => broadcasts.open());
 
 // Saved games (Phase 9): the store opens in the background; a record that arrives before
 // it is ready is written once it is.

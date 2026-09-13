@@ -905,6 +905,70 @@ body {
   }
 }
 
+/* Turnaje dialog (Phase 16) — shares the games dialog's look. */
+.broadcasts-dialog {
+  width: min(92vw, 640px);
+  max-height: 92vh;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #eee;
+}
+
+.broadcasts-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.broadcasts-dialog h2 {
+  margin: 0 0 8px;
+}
+
+.broadcasts-dialog .us-note {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
+.broadcasts-dialog .us-msg {
+  margin: 4px 0;
+  min-height: 1.2em;
+  color: #7fd17a;
+}
+
+.broadcasts-dialog .us-msg.us-error {
+  color: #ffa459;
+}
+
+.bc-back {
+  padding: 4px 10px;
+  margin-bottom: 6px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.bc-back[hidden] {
+  display: none;
+}
+
+.bc-title {
+  margin: 0 0 6px;
+  min-height: 1.2em;
+}
+
+.bc-list {
+  max-height: 50vh;
+}
+
+.bc-list button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* chess.com section (Phase 15) in the games dialog. */
 .games-chesscom {
   border-top: 1px solid #444;

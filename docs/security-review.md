@@ -71,13 +71,14 @@ server, which injects CSS through `<style>` elements and would require `'unsafe-
 
 ```
 default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self';
-img-src 'self' data: blob:; connect-src 'self' https://api.chess.com; worker-src 'self';
-base-uri 'none'; form-action 'none'
+img-src 'self' data: blob:; connect-src 'self' https://api.chess.com https://lichess.org;
+worker-src 'self'; base-uri 'none'; form-action 'none'
 ```
 
-*(Phase 15: `https://api.chess.com` is the single external endpoint — the public,
-unauthenticated chess.com Published-Data API used by the import in `Partie`; `blob:` in
-`img-src` came with the user piece sets.)*
+*(Phase 15: `https://api.chess.com` — the public, unauthenticated chess.com Published-Data
+API used by the import in `Partie`. Phase 16: `https://lichess.org` — the public Broadcast
+API behind `Turnaje`. Both are read-only GETs; `blob:` in `img-src` came with the user
+piece sets.)*
 
 - `'wasm-unsafe-eval'` is the loose part and it is unavoidable: Stockfish is a WebAssembly
   module compiled in the worker (`WebAssembly.instantiateStreaming`). Without it the
@@ -304,3 +305,12 @@ the API answers 200, `https://example.com` is refused by the policy). Username v
 `recordFromPgn`, other fields reduced to bounded strings/numbers; all text via
 `textContent`. New key `skm.chesscom` (the username). 1 `npm audit` 0 · 2 grep empty ·
 3–4 as above · 5–6 on Pages after the deploy · 7 tree unchanged · 8 nothing new.
+
+### 2026-09-13 — Phase 16 (tournament broadcasts)
+CSP `connect-src` gains `https://lichess.org` (verified in the built app: the search
+answers 200, `https://example.com` is refused). Tour/round ids validated
+`/^[A-Za-z0-9]{8}$/` before being put in a URL; names/locations reduced to trimmed
+strings ≤ 120 chars; round PGN split per game, comments stripped from the movetext,
+each game parsed by chess.js via `recordFromPgn`; all text via `textContent`; no images
+from Lichess. Nothing stored. 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages
+after the deploy · 7 tree unchanged · 8 nothing new.

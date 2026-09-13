@@ -416,7 +416,7 @@ it ships. Parked pending feedback from real users.
 to take first — GPL (B6), artwork licensing, and human review of any generated
 instruction — remain listed under B13.*
 
-### R7 — Follow live games from real tournaments
+### R7 — Follow live games from real tournaments — SHIPPED (Lichess part) in Phase 16 (`Turnaje`: search → rounds → games → review); chess-results.com stays parked (GATE: needs a proxy)
 He linked a chess-results.com tournament page.
 
 chess-results.com has no public API and serves ASPX pages; a browser on our

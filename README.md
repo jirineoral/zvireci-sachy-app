@@ -84,6 +84,16 @@ open a game in the review or save it among the games. When the username is one o
 players, the review knows which side is yours. The username is remembered
 (`skm.chesscom`); this is the one external host the CSP allows.
 
+## Tournament broadcasts
+
+`Turnaje` searches the public Lichess broadcast API (`lichess.org/api/broadcast`, no
+account, no server): tournament → rounds → games → the review. Lichess carries what
+somebody chooses to broadcast there — Czech national youth championships, Czech Open,
+the Extraliga, the big opens — but not regional youth events or club leagues.
+chess-results.com has no API and no CORS, so it stays out (it would need a proxy).
+A running round refreshes every 30 s while its list is open; an opened game is a
+snapshot. Nothing is stored.
+
 ## Your record
 
 `Partie` opens with `Bilance`: wins : draws : losses per difficulty level (named after

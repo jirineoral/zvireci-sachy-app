@@ -14,7 +14,9 @@ import { defineConfig, type Plugin } from 'vite';
  *  - img-src data:: the built-in cburnett piece set is data:image/svg+xml in the bundled CSS.
  *  - img-src blob:: the player's own piece sets (MVP M1) are object URLs of PNGs that our
  *    own code re-encoded from sniffed uploads; no other blob: source exists.
- *  - connect-src 'self': sets.json, the wasm HEAD pre-check and the worker's wasm fetch.
+ *  - connect-src 'self' https://api.chess.com: sets.json, the wasm HEAD pre-check, the
+ *    worker's wasm fetch, and the one external endpoint — the public chess.com API
+ *    (Phase 15 import; unauthenticated, CORS `*`).
  *  - frame-ancestors cannot be expressed in a <meta> policy; a header would be needed.
  */
 const CSP = [
@@ -22,7 +24,7 @@ const CSP = [
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
-  "connect-src 'self'",
+  "connect-src 'self' https://api.chess.com",
   "worker-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",

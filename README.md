@@ -76,6 +76,14 @@ them) under a `KŮZLATA vs. HADI` announcement — `soupeř 7 z 18` in the campa
 click or key skips it; the engine waits for it. Setting `Nástup figurek` (`skm.pieceDrop`);
 reduced motion shows the announcement only.
 
+## chess.com import
+
+In `Partie`, the `Chess.com` section loads a player's games straight from the public
+chess.com API (`api.chess.com/pub`, no password, no server in between): pick a month,
+open a game in the review or save it among the games. When the username is one of the two
+players, the review knows which side is yours. The username is remembered
+(`skm.chesscom`); this is the one external host the CSP allows.
+
 ## Your record
 
 `Partie` opens with `Bilance`: wins : draws : losses per difficulty level (named after

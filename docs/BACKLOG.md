@@ -375,7 +375,7 @@ eventually live play against real people
 Three different things at three very different costs. **Do not treat as one
 item.**
 - His own chess.com games: public API, no auth, CORS-friendly — **no server**.
-  (Merges with the existing B3.)
+  (Merges with the existing B3.) *Shipped in Phase 15: `Chess.com` section in `Partie`.*
 - Games played in this app: IndexedDB — **no server**. *(Shipped in Phase 9: auto-saved, listed under `Partie`.)*
 - Live play against real people: accounts, matchmaking, a server, moderation,
   GDPR — **this hits the GATE**. Parked, not refused.

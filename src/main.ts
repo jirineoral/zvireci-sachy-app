@@ -249,6 +249,7 @@ void openGameStore().then((store) => {
     store,
     open: (r) => game.loadGame(r),
     levelLabel: (level) => difficultySelect.options[level - 1]?.text ?? String(level),
+    storage: safeLocalStorage(),
   });
   requireElement<HTMLButtonElement>(app, '.games').addEventListener('click', () => dialog.open());
   for (const r of pendingRecords.splice(0)) void saveGame(r);

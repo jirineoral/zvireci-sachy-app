@@ -905,6 +905,61 @@ body {
   }
 }
 
+/* chess.com section (Phase 15) in the games dialog. */
+.games-chesscom {
+  border-top: 1px solid #444;
+  padding-top: 10px;
+  margin-bottom: 10px;
+}
+
+.games-chesscom .us-note {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
+.games-cc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.games-cc-row input,
+.games-cc-row select {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1e1e1e;
+  color: #eee;
+  min-width: 0;
+}
+
+.games-cc-row input {
+  flex: 1 1 160px;
+}
+
+.games-cc-row button {
+  padding: 6px 12px;
+  font: inherit;
+  border: 1px solid #4caf50;
+  border-radius: 6px;
+  background: #4caf50;
+  color: #fff;
+  cursor: pointer;
+}
+
+.games-cc-row button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.games-cc-list {
+  max-height: 32vh;
+}
+
 /* Bilance (Phase 14) in the games dialog. */
 .games-stats {
   display: flex;

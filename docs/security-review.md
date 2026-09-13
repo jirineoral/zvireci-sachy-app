@@ -71,8 +71,13 @@ server, which injects CSS through `<style>` elements and would require `'unsafe-
 
 ```
 default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self';
-img-src 'self' data:; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'
+img-src 'self' data: blob:; connect-src 'self' https://api.chess.com; worker-src 'self';
+base-uri 'none'; form-action 'none'
 ```
+
+*(Phase 15: `https://api.chess.com` is the single external endpoint — the public,
+unauthenticated chess.com Published-Data API used by the import in `Partie`; `blob:` in
+`img-src` came with the user piece sets.)*
 
 - `'wasm-unsafe-eval'` is the loose part and it is unavoidable: Stockfish is a WebAssembly
   module compiled in the worker (`WebAssembly.instantiateStreaming`). Without it the
@@ -127,8 +132,11 @@ the browser's request log and `performance.getEntriesByType('resource')`:
 `/engine/stockfish-18-lite-single.wasm` (HEAD pre-check + the worker's GET),
 `/piece-sets/sets.json`, `/piece-sets/<id>/pieces.css` and the set PNGs, plus the
 `data:image/svg+xml` cburnett pieces. **Every request is same-origin.** No fonts, no CDN,
-no analytics, no telemetry; the CSP `connect-src 'self'` now makes a stray external
-request fail loudly instead of silently succeeding.
+no analytics, no telemetry; the CSP `connect-src` makes a stray external request fail
+loudly instead of silently succeeding. *Phase 15 exception:* when the player uses the
+chess.com import, the browser requests `api.chess.com/pub/player/<username>/games/…`
+directly — the username (a public handle) is the only thing sent, only on the player's
+explicit `Načíst`, and it is remembered in `skm.chesscom` for convenience.
 
 Storage: exactly `skm.pieceSetId` and `skm.moveFeedback` after a full session (checked via
 `Object.entries(localStorage)`); nothing in `sessionStorage`, no cookies, no IndexedDB.
@@ -287,3 +295,12 @@ behind a pending delete/upgrade in another tab fires no event — the app now fa
 memory after 4 s instead of never initialising the piece sets. No new network use, CSP
 unchanged. 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy ·
 7 tree unchanged · 8 nothing new.
+
+### 2026-09-13 — Phase 15 (chess.com import)
+CSP `connect-src` widened to exactly `https://api.chess.com` (verified in the built app:
+the API answers 200, `https://example.com` is refused by the policy). Username validated
+`/^[A-Za-z0-9_-]{1,50}$/` and URL-encoded; archive URLs accepted only under
+`https://api.chess.com/pub/`; every game's PGN parsed by chess.js through the existing
+`recordFromPgn`, other fields reduced to bounded strings/numbers; all text via
+`textContent`. New key `skm.chesscom` (the username). 1 `npm audit` 0 · 2 grep empty ·
+3–4 as above · 5–6 on Pages after the deploy · 7 tree unchanged · 8 nothing new.

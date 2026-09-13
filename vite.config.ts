@@ -1,4 +1,17 @@
+import { execSync } from 'node:child_process';
 import { defineConfig, type Plugin } from 'vite';
+
+/** Build stamp for the footer / feedback form: short commit + date, e.g. "1d80155 · 13. 9. 2026". */
+function buildStamp(): string {
+  let commit = 'dev';
+  try {
+    commit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+  } catch {
+    /* no git: keep "dev" */
+  }
+  const d = new Date();
+  return `${commit} · ${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+}
 
 /**
  * Content Security Policy for the published build (docs/security-review.md, C4).
@@ -43,4 +56,7 @@ function cspMeta(): Plugin {
 
 export default defineConfig({
   plugins: [cspMeta()],
+  define: {
+    __BUILD_STAMP__: JSON.stringify(buildStamp()),
+  },
 });

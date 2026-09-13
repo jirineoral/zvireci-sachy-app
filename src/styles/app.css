@@ -619,6 +619,22 @@ body {
   color: #b8bec8;
 }
 
+.credits .feedback-line {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+
+.credits .feedback {
+  color: #7fd17a;
+  font-weight: 600;
+}
+
+.credits .build {
+  margin-left: 8px;
+  color: #8a8f98;
+  font-size: 0.72rem;
+}
+
 .new-game.start {
   animation: start-pulse 1.6s ease-in-out infinite;
 }

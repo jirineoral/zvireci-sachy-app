@@ -400,7 +400,7 @@ R3 sources) with an eval/analysis view. B18 (the loser must not watch the winnin
 animal) and B9/B16 (win/loss animations, victory cry) stay separate but constrain how
 the review presents a lost game.*
 
-### R5 — Endgame training (given a position, win it or hold the draw)
+### R5 — Endgame training (given a position, win it or hold the draw) — SHIPPED in Phase 13 (`Koncovky`, 17 engine-checked positions, trainer strength, `skm.endgames`)
 Cheaper than it looks. A list of FENs, the existing engine as the opponent, and
 a goal check on the result (win required / draw sufficient). Roughly a day. No
 server.

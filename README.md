@@ -76,6 +76,14 @@ them) under a `KŮZLATA vs. HADI` announcement — `soupeř 7 z 18` in the campa
 click or key skips it; the engine waits for it. Setting `Nástup figurek` (`skm.pieceDrop`);
 reduced motion shows the announcement only.
 
+## Endgame training
+
+`Koncovky` sets up one of 17 textbook endgames (`src/endgames.ts`: mates with queen, rook,
+two rooks, two bishops, bishop + knight; pawn endings; Lucena, Philidor; queen and rook
+against a pawn) with a goal — win it, or hold the draw — against the engine at full
+strength. Every position was checked with Stockfish at depth 22 before it went in.
+Progress lives in the browser (`skm.endgames`).
+
 ## Campaign
 
 `Kampaň` lines up every character of the library except your own (18 opponents) in an

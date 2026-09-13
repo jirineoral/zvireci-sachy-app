@@ -272,3 +272,9 @@ and campaign numbers and set via `textContent`; the animations read only the pie
 own inline `transform`. No new source, sink or network use, CSP unchanged.
 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy · 7 tree
 unchanged · 8 nothing new.
+
+### 2026-09-13 — Phase 13 (endgame training)
+New key `skm.endgames` (JSON, validated: only known ids kept). Positions are constants
+in `src/endgames.ts`, loaded through chess.js; all text via `textContent`. No new
+network use, no new sink, CSP unchanged. 1 `npm audit` 0 · 2 grep empty · 3–4 as above ·
+5–6 on Pages after the deploy · 7 tree unchanged · 8 nothing new.

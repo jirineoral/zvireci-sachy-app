@@ -12,10 +12,13 @@ import { openUserSetStore } from './user-sets';
 import { RESULT_LABEL, openGameStore, type GameRecord, type GameStore } from './games';
 import { buildGamesDialog } from './ui/games-dialog';
 import { buildPuzzlePanel } from './ui/puzzle-panel';
+import { buildEndgamePanel } from './ui/endgame-panel';
+import { TRAINER } from './endgames';
+import { DEFAULT_POSITION } from 'chess.js';
 import { buildCampaignDialog } from './ui/campaign-dialog';
 import { dropPieces, readPieceDropSetting, writePieceDropSetting, type Announcement } from './ui/piece-drop';
 import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
-import { interpolateDifficulty } from './difficulty';
+import { interpolateDifficulty, type Difficulty } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
@@ -59,6 +62,7 @@ app.innerHTML = `
     </div>
     <button type="button" class="analyse" hidden>Analyzovat partii</button>
     <div class="puzzle-panel" hidden></div>
+    <div class="endgame-panel" hidden></div>
     <details class="moves" open>
       <summary>Tahy <span class="moves-summary"></span></summary>
       <ol class="move-list"></ol>
@@ -69,6 +73,7 @@ app.innerHTML = `
       <button type="button" class="review" hidden>Rozbor</button>
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
+      <button type="button" class="endgames">Koncovky</button>
       <button type="button" class="campaign">Kampaň</button>
     </div>
     <footer class="credits">
@@ -139,6 +144,7 @@ controller = new GameController(
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
     nextColor: () => pieceSets?.drawColor() ?? 'w',
     onNewGame: (color) => {
+      endgamePanel.close();
       campaignHooks?.beforeNewGame();
       pieceSets?.startGame(color);
       renderMatchup();
@@ -150,6 +156,7 @@ controller = new GameController(
     onGameRecord: (record) => {
       void saveGame(record);
       campaignHooks?.afterGame(record);
+      endgamePanel.onGameRecord(record);
     },
     onGameLoaded: (record) => {
       const you = record.humanColor === 'w' ? ' (ty)' : '';
@@ -165,8 +172,30 @@ controller = new GameController(
       renderMatchup();
     },
     onPuzzleResult: (result) => puzzlePanel.onResult(result),
+    onTrainingStart: (color) => {
+      pieceSets?.startGame(color);
+      renderMatchup();
+    },
   },
 );
+
+// Endgame training (Phase 13): trainer strength while a position is being played.
+const endgamePanel = buildEndgamePanel({
+  container: requireElement<HTMLElement>(app, '.endgame-panel'),
+  storage: safeLocalStorage(),
+  start: async (e) => {
+    await game.setDifficultyOverride(TRAINER);
+    await game.startTraining(e.fen, e.human);
+  },
+  leave: () => {
+    void game.setDifficultyOverride(campaignHooks?.currentDifficulty() ?? null).catch((err) => console.error('setDifficultyOverride failed', err));
+    void game.newGame().catch((err) => console.error('newGame failed', err));
+  },
+});
+requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', () => {
+  requireElement<HTMLElement>(app, '.puzzle-panel').hidden = true;
+  endgamePanel.open();
+});
 
 // Piece drop (Phase 12): the announcement over the board names the two sides.
 const announceEl = requireElement<HTMLElement>(app, '.announce');
@@ -196,7 +225,10 @@ const puzzlePanel = buildPuzzlePanel({
   hint: () => game.puzzleHint(),
   leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
 });
-requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', () => puzzlePanel.open());
+requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', () => {
+  endgamePanel.close();
+  puzzlePanel.open();
+});
 
 // Saved games (Phase 9): the store opens in the background; a record that arrives before
 // it is ready is written once it is.
@@ -369,7 +401,7 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
 let campaignOpponent: string | null = null;
 let campaignNext: string | null = null;
 let campaignState: CampaignState | null = null;
-let campaignHooks: { afterGame: (r: GameRecord) => void; beforeNewGame: () => void; afterAnimalChange: () => void } | null = null;
+let campaignHooks: { afterGame: (r: GameRecord) => void; beforeNewGame: () => void; afterAnimalChange: () => void; currentDifficulty: () => Difficulty | null } | null = null;
 const campaignBar = requireElement<HTMLElement>(app, '.campaign-bar');
 const campaignText = requireElement<HTMLElement>(app, '.campaign-text');
 const campaignNextBtn = requireElement<HTMLButtonElement>(app, '.campaign-next');
@@ -384,10 +416,14 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   const nextUndefeated = (): string | null => campaignStep(state, manager.animals, manager.animal)?.animal.id ?? null;
 
   /** Sets the engine strength of the step `opponentId` occupies; false when it is not an opponent. */
-  const applyStrength = (opponentId: string): boolean => {
+  const strengthOf = (opponentId: string): Difficulty | null => {
     const step = campaignStep(state, manager.animals, manager.animal, opponentId);
-    if (!step) return false;
-    void game.setDifficultyOverride(interpolateDifficulty(step.x)).catch((err) => console.error('setDifficultyOverride failed', err));
+    return step ? interpolateDifficulty(step.x) : null;
+  };
+  const applyStrength = (opponentId: string): boolean => {
+    const d = strengthOf(opponentId);
+    if (!d) return false;
+    void game.setDifficultyOverride(d).catch((err) => console.error('setDifficultyOverride failed', err));
     return true;
   };
 
@@ -474,8 +510,10 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   });
 
   campaignHooks = {
+    currentDifficulty: () => (campaignOpponent ? strengthOf(campaignOpponent) : null),
     afterGame: (record) => {
       if (campaignOpponent === null || record.source !== 'app' || record.humanColor === null || record.sans.length === 0) return;
+      if (record.startFen !== DEFAULT_POSITION) return; // endgame training, not a campaign game
       if (manager.animalOf(other())?.id !== campaignOpponent) return;
       const won = (record.result === '1-0' && record.humanColor === 'w') || (record.result === '0-1' && record.humanColor === 'b');
       recordCampaignGame(state, campaignOpponent, won);

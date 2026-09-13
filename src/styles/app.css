@@ -139,8 +139,9 @@ body {
   cursor: default;
 }
 
-/* Puzzle panel (Phase 10). */
-.puzzle-panel {
+/* Puzzle panel (Phase 10); the endgame panel (Phase 13) shares the styling. */
+.puzzle-panel,
+.endgame-panel {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -151,7 +152,8 @@ body {
   font-size: 0.85rem;
 }
 
-.puzzle-panel[hidden] {
+.puzzle-panel[hidden],
+.endgame-panel[hidden] {
   display: none;
 }
 

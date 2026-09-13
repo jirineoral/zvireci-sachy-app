@@ -76,6 +76,8 @@ export interface GameControllerOptions {
   onGameStart: (humanColor: Color) => { done: Promise<void>; cancel: () => void } | null;
   /** Puzzle mode events (Phase 10): a puzzle started for the given human colour; a result. */
   onPuzzleStart: (humanColor: Color) => void;
+  /** Endgame training (Phase 13): a position was set up for the given human colour. */
+  onTrainingStart: (humanColor: Color) => void;
   onPuzzleResult: (result: 'wrong' | 'correct' | 'solved') => void;
 }
 
@@ -210,6 +212,27 @@ export class GameController {
     this.started = false; // wait for `Hrát` (or the human's first move)
     if (this.engineState === 'ready') this.engine.newGame();
     this.options.onNewGame(this.humanColor);
+    this.afterPositionChange();
+  }
+
+  /**
+   * Endgame training (Phase 13): the position is on the board, the game is on at once
+   * (no `Hrát!`, no piece drop) and the engine plays the other side. Caller sets the
+   * trainer strength through `setDifficultyOverride`.
+   */
+  async startTraining(fen: string, humanColor: Color): Promise<void> {
+    const t = await this.beginTransition();
+    if (t !== this.transition) return;
+    this.chess.load(fen);
+    this.plies = [];
+    this.preMove = null;
+    this.record = null;
+    this.reviewPly = null;
+    this.clearPuzzle();
+    this.humanColor = humanColor;
+    this.started = true;
+    if (this.engineState === 'ready') this.engine.newGame();
+    this.options.onTrainingStart(humanColor);
     this.afterPositionChange();
   }
 

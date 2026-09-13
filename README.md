@@ -42,6 +42,15 @@ its header), chosen deterministically per ply from the move's situation (chess.j
 and the feedback glyph; mistakes name the engine's better move. No engine runs during
 the review.
 
+## Intro and splash
+
+On load a ~2.5 s intro drops the real pieces of two randomly drawn characters (user sets
+included) onto an empty board, then the splash appears with the title and `HRÁT`. Any
+click, tap or key skips it; `prefers-reduced-motion` skips it entirely; the setting
+`Intro` (`skm.intro`) turns it off for good and it shows once per browser session. After
+`HRÁT` the game waits — choose the character and the colour, then press `Hrát!` (or, as
+white, just move). Images: `public/splash/`; geometry and timing: `src/intro/landing-spots.ts`.
+
 ## Your own pieces
 
 "Vlastní figurky…" in the settings takes up to twelve PNG/JPG images (one per piece; the

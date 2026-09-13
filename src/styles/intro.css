@@ -1,0 +1,363 @@
+/* Intro animation and splash screen (Phase 8). Everything animated here is a CSS
+   transform/opacity; per-piece positions arrive as custom properties from intro.ts. */
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  background: #3b6ea5; /* the illustration's sky: the splash is usable before its image arrives */
+  color: #fff;
+  --side-top: #6f9a3e;
+  --side-bottom: #2f4a1c;
+}
+
+/* Both images sit in a box with the picture's own aspect ratio, so the plate and the
+   splash are fitted identically and pieces/title/button can be placed in image space.
+   Portrait viewports: cover (the box is at least the viewport in both directions).
+   Landscape viewports: contain by height, the sides painted with the foliage gradient. */
+.intro-fit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 1024 / 1536;
+  width: max(100vw, calc(100vh * 1024 / 1536));
+  transform: translate(-50%, -50%);
+}
+
+@media (min-aspect-ratio: 4/5) {
+  .intro {
+    background: linear-gradient(var(--side-top), var(--side-bottom));
+  }
+
+  .intro-fit {
+    width: auto;
+    height: 100%;
+  }
+}
+
+.intro-fit > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill; /* the box already has the image's ratio */
+  display: block;
+}
+
+/* ---- playing ------------------------------------------------------------------------- */
+.intro-stage {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 60%;
+}
+
+.intro-pieces {
+  position: absolute;
+  inset: 0;
+}
+
+.intro-piece {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: calc(var(--size) * 1.18);
+  aspect-ratio: 1;
+  transform: translate(-50%, -100%);
+  opacity: 0;
+}
+
+.intro-piece-far {
+  z-index: 1;
+}
+
+.intro-piece-near {
+  z-index: 2;
+}
+
+.intro-piece img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Soft shadow under the base; brightens for a beat on impact (the "flash"). */
+.intro-piece::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -3%;
+  height: 12%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  z-index: -1;
+}
+
+.intro-piece.landed {
+  animation: intro-land 380ms cubic-bezier(0.25, 0.8, 0.3, 1) forwards;
+}
+
+.intro-piece.landed::after {
+  animation: intro-shadow 380ms ease-out forwards;
+}
+
+@keyframes intro-land {
+  0% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--drift)), calc(-100% - 60vh)) scale(0.6);
+  }
+  68% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+  78% {
+    transform: translate(-50%, -100%) scale(1.14, 0.84);
+  }
+  90% {
+    transform: translate(-50%, -100%) scale(0.96, 1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+@keyframes intro-shadow {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+    background: rgba(0, 0, 0, 0.35);
+  }
+  68% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.35);
+    background: rgba(255, 255, 220, 0.55);
+  }
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+    background: rgba(0, 0, 0, 0.35);
+  }
+}
+
+.intro-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-beat .intro-stage {
+  animation: intro-zoom 160ms ease-out forwards;
+}
+
+.intro-beat .intro-flash {
+  animation: intro-flash 220ms ease-out;
+}
+
+@keyframes intro-zoom {
+  to {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes intro-flash {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Cross-fade with a camera push-in: the plate keeps drifting forward while the splash
+   settles from slightly larger to 1 — the different board geometry reads as movement. */
+.intro-crossfade .intro-stage {
+  animation: intro-stage-out 450ms ease-in forwards;
+}
+
+@keyframes intro-stage-out {
+  from {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.09);
+  }
+}
+
+/* ---- splash -------------------------------------------------------------------------- */
+.splash {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 55%;
+}
+
+.intro-crossfade .splash {
+  animation: splash-in 450ms ease-out forwards;
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.splash-bg {
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.splash-bg.loaded {
+  opacity: 1;
+}
+
+.splash-title {
+  position: absolute;
+  left: 50%;
+  top: max(2.5vh, 12px);
+  width: min(96vw, 130vh * 1024 / 1536);
+  margin: 0;
+  transform: translateX(-50%) rotate(-3deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05em;
+  font-family: 'Arial Rounded MT Bold', 'Segoe UI Black', 'Trebuchet MS', system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 9vmin, 5.5rem);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #ffd84a;
+  -webkit-text-stroke: 0.045em #4a2a10;
+  paint-order: stroke fill;
+  text-shadow:
+    0.04em 0.05em 0 #4a2a10,
+    0 0.12em 0.2em rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.splash-title span:first-child {
+  background: linear-gradient(#fff2a8, #ffb400);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.splash-title span:last-child {
+  font-size: 1.25em;
+  color: #ff7a2a;
+  background: linear-gradient(#ffd27a, #ff6a1a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.splash-bottom {
+  position: absolute;
+  left: 50%;
+  bottom: max(2.5vh, 12px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.splash-play {
+  min-width: 11em;
+  min-height: 64px;
+  padding: 14px 48px;
+  font: inherit;
+  font-family: 'Arial Rounded MT Bold', 'Segoe UI Black', 'Trebuchet MS', system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.4rem, 5vmin, 2.2rem);
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: linear-gradient(#6fd06b, #3d9a3a);
+  border: 3px solid #1f4d1d;
+  border-radius: 999px;
+  box-shadow:
+    0 6px 0 #1f4d1d,
+    0 12px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.splash-play:hover {
+  filter: brightness(1.06);
+}
+
+.splash-play:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 #1f4d1d,
+    0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.splash-play:focus-visible {
+  outline: 4px solid #fff;
+  outline-offset: 3px;
+}
+
+.splash-never {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.splash-never:focus-visible {
+  outline: 3px solid #fff;
+}
+
+/* ---- leaving ------------------------------------------------------------------------- */
+.intro-leaving {
+  animation: intro-out 220ms ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes intro-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-crossfade .splash,
+  .intro-leaving,
+  .intro-piece.landed,
+  .intro-beat .intro-stage,
+  .intro-beat .intro-flash {
+    animation: none;
+  }
+
+  .splash-bg {
+    transition: none;
+  }
+}

@@ -223,3 +223,13 @@ render through `textContent` / `new Option`. `navigator.clipboard.writeText` onl
 may now be a `user-<id>`, validated against the loaded families) · 5–6 on Pages after the
 deploy: single origin, zero violations, engine answers · 7 tree unchanged in kind ·
 8 licence text ships, AI-artwork line in the footer.
+
+### 2026-09-13 — Phase 8 (intro + splash)
+New loads: `splash/plate.jpg`, `splash/splash.jpg` and the piece PNGs of the drawn
+characters — same-origin files (`img-src 'self'`) or our own object URLs from stored user
+sets (`blob:`), revoked when the intro ends. Per-piece positions are custom properties set
+via the CSSOM from constants; all text (`ŠACH KVÁK MEK!!!`, `HRÁT`, `Příště bez intra`) is
+`textContent`. New storage: `skm.intro` (`on`|`off`, anything else = on) and
+`sessionStorage['skm.introShown']`. No new dependency, no inline style/script, CSP unchanged.
+1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy · 7 tree +
+`splash/` (2 files) · 8 unchanged.

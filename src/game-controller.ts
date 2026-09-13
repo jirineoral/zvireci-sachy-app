@@ -95,6 +95,12 @@ export class GameController {
   private engineMode: EngineMode = 'play';
   /** Post-game review (Phase 5B): the ply being shown, or null while playing. */
   private reviewPly: number | null = null;
+  /**
+   * Pre-game (Phase 8): after `Nová hra` the position is set up but nothing moves until the
+   * player presses `Hrát` (or, playing white, simply makes a move). Lets the child pick the
+   * character and the colour before the engine's first move.
+   */
+  private started = false;
 
   constructor(
     private readonly els: GameControllerElements,
@@ -107,7 +113,8 @@ export class GameController {
 
     populateControls(this.controlsElements());
     els.newGameButton.addEventListener('click', () => {
-      void this.newGame().catch((err) => console.error('newGame failed', err));
+      if (!this.started) this.startPlaying();
+      else void this.newGame().catch((err) => console.error('newGame failed', err));
     });
     els.undoButton.addEventListener('click', () => {
       void this.undo().catch((err) => console.error('undo failed', err));
@@ -154,9 +161,17 @@ export class GameController {
     this.plies = [];
     this.preMove = null;
     this.reviewPly = null;
+    this.started = false; // wait for `Hrát` (or the human's first move)
     if (this.engineState === 'ready') this.engine.newGame();
     this.options.onNewGame(this.humanColor);
-    this.afterPositionChange(); // engine opens (new search) only if the human is black
+    this.afterPositionChange();
+  }
+
+  /** `Hrát`: the set-up game begins — the engine opens if it has white. */
+  startPlaying(): void {
+    if (this.started) return;
+    this.started = true;
+    this.afterPositionChange();
   }
 
   async undo(): Promise<void> {
@@ -344,6 +359,7 @@ export class GameController {
     try {
       this.chess.move({ from, to, promotion });
       moved = true;
+      this.started = true; // playing white, the first move is the start
     } catch (err) {
       console.error(`Move ${from}->${to} rejected by chess.js`, err);
     }
@@ -416,7 +432,7 @@ export class GameController {
   }
 
   private maybeStartEngine(status: GameStatus): void {
-    if (status.over) return;
+    if (status.over || !this.started) return;
     if (this.engineState !== 'ready') return;
     if (this.chess.turn() === this.humanColor) return;
     if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
@@ -507,8 +523,11 @@ export class GameController {
     const sans = this.chess.history();
     const glyphs = this.plies.map((p) => p?.glyph ?? null);
     renderMoveList(this.els.moveList, sans, glyphs, this.reviewPly);
-    renderStatus(this.els.status, { status, engine: this.engineIndicator() });
+    renderStatus(this.els.status, { status, engine: this.engineIndicator(), preGame: !this.started && sans.length === 0 && !status.over });
     this.renderControls();
+    const preGame = !this.started;
+    this.els.newGameButton.textContent = preGame ? 'Hrát!' : 'Nová hra';
+    this.els.newGameButton.classList.toggle('start', preGame);
     this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null);
     renderReviewControls(this.els.reviewControls, {
       active: this.reviewPly !== null,

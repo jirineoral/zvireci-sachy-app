@@ -160,3 +160,56 @@ set's kings (B16), sound, replay, lessons, any gameplay/engine/ladder change, a 
    the result honestly if it is not mine to test.
 10. `npm run build` strict; `git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty;
     security checklist re-run (new asset loads are same-origin files and our own blob URLs).
+
+## Addendum after the assets arrived (2026-09-13)
+
+- Assets: `assets/source/prazdna_sachovnice.png` (plate) and `assets/source/splash_zviratka.png`
+  (splash without text) are the sources, 1024×1536 each; the app ships JPEG copies
+  `public/splash/plate.jpg` (248 kB) and `public/splash/splash.jpg` (307 kB), quality 86.
+  `assets/source/splash_screen.png` (an earlier version with baked-in text) is kept as a
+  style reference for the title only and is not shipped.
+- The two boards do **not** share geometry (user's note): landings use the plate's board
+  (measured trapezoid, `landing-spots.ts`), and the cut is a 450 ms cross-fade with a camera
+  push-in — the plate drifts from scale 1.03 to 1.09 while the splash settles from 1.06 to
+  1 — so the different board reads as camera movement. No warping or cropping.
+- **Pre-game state (user request during the phase):** after the splash the game is set up
+  but nothing moves. The status line reads "Vyber si, za koho hraješ, a dej Hrát!", the
+  `Nová hra` button becomes a pulsing `Hrát!`; the engine's first move (when it has white)
+  waits for `Hrát!`; a human playing white starts simply by moving. `Nová hra` returns to
+  the pre-game state, so the character/colour can be changed calmly before every game.
+  `GameController.started` + `startPlaying()`, no other controller change.
+- 16 landings (the back rank `R N B Q K B N R` of both sides) instead of the planned 12 —
+  one real starting formation; the flurry spacing shrinks from 330 ms to 35 ms.
+- Title and button are anchored to the **viewport** (top/bottom 2.5 vh), not to the image
+  box: in a 3:4 viewport the cover-fitted 2:3 picture overflows 64 px top and bottom and
+  the title would have been cut (found in DoD 8).
+- The overlay lives outside `#app` (a sibling in `<body>`): `#app` is `inert` while the
+  overlay is up, and an overlay inside it would have been inert too (found in DoD 7 — a
+  real click on `HRÁT` did nothing until this fix).
+- `will-change` dropped from the pieces (no visible benefit; it made the debugging
+  screenshots misleading).
+
+## DoD results (executed 2026-09-13)
+
+Tested on the Vite dev server in Chromium (real Chrome window + the in-app pane). Note on
+method: a background/occluded tab throttles timers and freezes CSS animations, and
+screenshots taken mid-animation were unreliable; timings and positions were therefore
+read from the DOM (`getAnimations()`, bounding rects) and the final frame was captured
+with every landing animation seeked to its end.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Plays on load, ≈ 2.5 s, different animals | PASS | Recorder in the page: plate up at ≈ 0.35 s after boot, 16 landings between 0.20 and 1.91 s, beat at 2.05 s, cross-fade at 2.30 s (450 ms). Six consecutive reloads: žáby/tučňáci, pštrosi/kočky, lamy/slepice, kravky/kočky, oslíci/hadi, user set/žížaly |
+| 2 | Skip on any input | PASS | `keydown` (letter), `pointerdown` and `click` during `playing` → `intro-splash` within the same tick; timers cleared, the stage removed |
+| 3 | Reduced motion | PASS by code path, not driven | `matchMedia('(prefers-reduced-motion: reduce)')` → `showSplash()` directly (no plate, no timers); the CSS also disables every intro/splash animation under the media query. I could not toggle the OS setting from here — please flip Windows "Show animations" off once if you want it seen |
+| 4 | Slow network | PASS (fallback path) | The 1200 ms budget races the plate + 16 piece loads; a missing plate (`plate.jpg` renamed, dev server answers HTML) → splash at once with title + button on the sky colour. A real Slow-3G throttle was not available in the pane; the budget path is the same code |
+| 5 | User set in the intro | PASS | A 12-piece user set joined the pool and was drawn as the dark side on the 6th reload (`blob:` sources on the far rank) |
+| 6 | Setting persists | PASS | `Intro: vypnuto` → reload → no overlay, no splash; `zapnuto` → intro back; `Příště bez intra` on the splash sets `skm.intro = off` and updates the select |
+| 7 | Real HTML title/button | PASS | `ŠACH KVÁK` / `MEK!!!` render with diacritics (screenshots at 360, 768, 1600 px); `HRÁT` is a `<button>` (tabIndex 0, focus-visible ring), receives focus when the splash appears, Enter/Space native, Escape also starts; a real pane click on it removes the overlay and clears `inert` |
+| 8 | 9:16, 3:4, 16:9 | PASS | 360×640: title 26–128 px, button 523–587 px, all inside; 768×1024: title 6–204, button 877–957 (image box −64…1088, i.e. only picture overflow); 1600×900: image 500–1100 wide with the foliage gradient beside it, title 2–229, button 756–836 |
+| 9 | Real phone via LAN | NOT EXECUTED by me | http://192.168.68.40:4173 — please give it one look on the phone (intro, tap-to-skip, `HRÁT`, then `Hrát!`) |
+| 10 | Build, debug, security | PASS | `tsc` strict; no debug hooks were added this phase (`git grep` empty); checklist run appended to `docs/security-review.md` |
+
+Deviations (all above): pre-game `Hrát!` flow (user request), 16 landings, viewport-anchored
+title/button, overlay outside `#app`, JPEG asset copies, `will-change` removed, the plan's
+"two commits" became one feature commit.

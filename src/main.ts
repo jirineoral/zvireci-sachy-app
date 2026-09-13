@@ -1,6 +1,7 @@
 import './styles/board.css';
 import './styles/pieces.css';
 import './styles/app.css';
+import './styles/intro.css';
 
 import { createEngine } from './engine';
 import { GameController } from './game-controller';
@@ -8,6 +9,8 @@ import { initPieceSets, type ColorPreference, type PieceSetManager } from './pie
 import { setDifficultyLabels } from './ui/controls';
 import { buildUserSetsDialog } from './ui/user-sets-dialog';
 import { openUserSetStore } from './user-sets';
+import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
+import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
@@ -29,6 +32,7 @@ app.innerHTML = `
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
+        <label>Intro <select class="intro-setting"></select></label>
         <button type="button" class="user-sets-open">Vlastní figurky…</button>
       </div>
     </details>
@@ -122,6 +126,31 @@ controller = new GameController(
 
 const game: GameController = controller;
 
+// Intro + splash (Phase 8): the overlay is a sibling of #app (which becomes inert while the
+// overlay is up — it must not be inside it); the game boots underneath.
+const introOverlay = document.createElement('div');
+introOverlay.className = 'intro intro-preload';
+introOverlay.setAttribute('role', 'dialog');
+introOverlay.setAttribute('aria-modal', 'true');
+introOverlay.setAttribute('aria-label', 'Úvodní obrazovka');
+document.body.appendChild(introOverlay);
+const introSelect = requireElement<HTMLSelectElement>(app, '.intro-setting');
+introSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
+introSelect.value = readIntroSetting(safeLocalStorage()) ? 'on' : 'off';
+introSelect.addEventListener('change', () => writeIntroSetting(safeLocalStorage(), introSelect.value === 'on'));
+const intro = createIntro({
+  overlay: introOverlay,
+  app,
+  baseUrl: import.meta.env.BASE_URL,
+  storage: safeLocalStorage(),
+  session: safeSessionStorage(),
+  onDisable: () => {
+    introSelect.value = 'off';
+  },
+});
+const introWanted = readIntroSetting(safeLocalStorage()) && !shownThisSession(safeSessionStorage());
+if (!introWanted) intro.dismiss();
+
 // Piece sets are view state only; the controller never learns about them. The family
 // (drawing style), the characters and the colour preference live in piece-sets.ts.
 const familySelect = requireElement<HTMLSelectElement>(app, '.piece-family');
@@ -148,6 +177,16 @@ void openUserSetStore()
     const rerender = wirePieceSetSelects(manager);
     const dialog = buildUserSetsDialog({ dialog: userSetsDialog, store, manager, onChanged: rerender });
     userSetsButton.addEventListener('click', () => dialog.open());
+    if (introWanted) {
+      const library = manager.families.find((f) => f.library);
+      const pool = buildIntroPool({
+        baseUrl: import.meta.env.BASE_URL,
+        libraryFolder: library ? (library.sets.find((s) => s.library)?.library ?? null) : null,
+        animals: library?.library?.animals ?? [],
+        userSets,
+      });
+      void intro.start(pool);
+    }
     // The controller opened its first game before the preferences were known: draw again
     // (no move has been played yet; a new game is what a colour change means anyway).
     void game.newGame().catch((err) => console.error('newGame failed', err));
@@ -242,6 +281,14 @@ function writeFeedbackSetting(enabled: boolean): void {
     window.localStorage.setItem(FEEDBACK_STORAGE_KEY, enabled ? 'on' : 'off');
   } catch (err) {
     console.warn('Could not persist move-feedback setting', err);
+  }
+}
+
+function safeSessionStorage(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
   }
 }
 

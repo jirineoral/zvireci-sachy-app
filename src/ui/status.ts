@@ -5,6 +5,8 @@ export type EngineIndicator = 'loading' | 'ready' | 'thinking' | 'evaluating' | 
 export interface StatusView {
   status: GameStatus;
   engine: EngineIndicator;
+  /** Set up but not started: invite the player instead of announcing whose move it is. */
+  preGame?: boolean;
 }
 
 const ENGINE_SUFFIX: Record<EngineIndicator, string> = {
@@ -17,6 +19,7 @@ const ENGINE_SUFFIX: Record<EngineIndicator, string> = {
 
 /** Renders the status line (side to move / result, plus the engine state). */
 export function renderStatus(el: HTMLElement, view: StatusView): void {
-  el.textContent = view.status.text + ENGINE_SUFFIX[view.engine];
+  const text = view.preGame ? 'Vyber si, za koho hraješ, a dej Hrát!' : view.status.text;
+  el.textContent = text + ENGINE_SUFFIX[view.engine];
   el.classList.toggle('game-over', view.status.over);
 }

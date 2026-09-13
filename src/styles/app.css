@@ -291,6 +291,22 @@ body {
   color: inherit;
 }
 
+.new-game.start {
+  animation: start-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes start-pulse {
+  50% {
+    filter: brightness(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-game.start {
+    animation: none;
+  }
+}
+
 .new-game,
 .undo,
 .review {

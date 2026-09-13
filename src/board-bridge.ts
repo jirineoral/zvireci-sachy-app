@@ -11,6 +11,7 @@ import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Key } from '@lichess-org/chessground/types';
 import type { Chess, Color, Square } from 'chess.js';
+import { GLYPH_CLASS, type Glyph } from './feedback';
 
 export type BoardColor = 'white' | 'black';
 
@@ -18,6 +19,29 @@ export interface BoardSyncOptions {
   orientation: BoardColor;
   /** Which colour may pick up pieces; `null` locks the board. */
   movableColor: BoardColor | null;
+  /** Move-feedback glyph to badge onto a square (the last human move's destination). */
+  annotation?: { square: Square; glyph: Glyph } | null;
+}
+
+/** Badge colours per glyph (chess.com palette). Kept here because the badge is drawn as SVG. */
+const GLYPH_COLOR: Record<Glyph, string> = {
+  '!!': '#1baca6',
+  '!': '#5b8baf',
+  '!?': '#d7a52a',
+  '?!': '#f7c631',
+  '?': '#ffa459',
+  '??': '#fa412d',
+};
+
+/** A round badge in the top-right corner of the square (chessground draws customSvg in a 100×100 box). */
+function glyphBadge(glyph: Glyph): string {
+  const size = glyph.length === 2 ? 30 : 34;
+  return (
+    `<g class="move-glyph move-glyph-${GLYPH_CLASS[glyph]}">` +
+    `<circle cx="76" cy="24" r="21" fill="${GLYPH_COLOR[glyph]}" stroke="#fff" stroke-width="3"/>` +
+    `<text x="76" y="25" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-weight="700" font-size="${size}" fill="#fff">${glyph}</text>` +
+    `</g>`
+  );
 }
 
 export interface BoardBridge {
@@ -33,7 +57,7 @@ export function createBoardBridge(
     coordinates: true,
     animation: { enabled: true, duration: 200 },
     premovable: { enabled: false },
-    drawable: { enabled: false, visible: false },
+    drawable: { enabled: false, visible: true }, // visible: needed for the autoShapes glyph badge; enabled: no user drawing
     movable: {
       free: false,
       showDests: true,
@@ -63,6 +87,11 @@ export function createBoardBridge(
         movable: {
           color: opts.movableColor ?? undefined,
           dests: legalDests(chess),
+        },
+        drawable: {
+          autoShapes: opts.annotation
+            ? [{ orig: opts.annotation.square, customSvg: { html: glyphBadge(opts.annotation.glyph) } }]
+            : [],
         },
       });
     },

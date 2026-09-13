@@ -17,7 +17,8 @@ import {
   type BoardColor,
 } from './board-bridge';
 import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type DifficultyLevel } from './difficulty';
-import type { Engine, Search, UciMove } from './engine';
+import { MATE_SCORE, type Analysis, type Engine, type PvLine, type Search, type UciMove } from './engine';
+import { ANALYSIS, classifyMove, sacrificeOf, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
 import { populateControls, renderControls } from './ui/controls';
 import { renderMoveList } from './ui/move-list';
@@ -32,10 +33,28 @@ export interface GameControllerElements {
   undoButton: HTMLButtonElement;
   difficultySelect: HTMLSelectElement;
   sideSelect: HTMLSelectElement;
+  feedbackSelect: HTMLSelectElement;
   promotionDialog: HTMLDialogElement;
 }
 
+export interface GameControllerOptions {
+  /** Move feedback (glyphs) on/off at start; persisted by the caller via onFeedbackChange. */
+  feedbackEnabled: boolean;
+  onFeedbackChange: (enabled: boolean) => void;
+}
+
 type EngineState = 'loading' | 'ready' | 'failed';
+
+/** Result of the pre-move analysis (A): what the engine thought before the human moved. */
+interface PreMoveInfo {
+  fen: string;
+  evalBefore: number; // human POV
+  bestMove: UciMove | null;
+  secondBestEval: number | null; // human POV
+}
+
+/** Engine options currently loaded: the level's play settings, or full-strength analysis. */
+type EngineMode = 'play' | 'analysis';
 
 export class GameController {
   private readonly chess: Chess;
@@ -48,11 +67,23 @@ export class GameController {
   private promotionOpen = false;
   /** Generation counter for async transitions; a superseded transition returns early. */
   private transition = 0;
+  /** Move feedback (Phase 4). */
+  private feedbackEnabled: boolean;
+  /** The one in-flight analysis (A while the human thinks, B right after the human's move). */
+  private pendingAnalysis: Analysis | null = null;
+  /** True while analysis B runs: board locked, status "hodnotím…". */
+  private evaluating = false;
+  private preMove: PreMoveInfo | null = null;
+  /** Glyph per ply (index = ply of the human's move); null/undefined = none. */
+  private annotations: (Glyph | null)[] = [];
+  private engineMode: EngineMode = 'play';
 
   constructor(
     private readonly els: GameControllerElements,
     private readonly engine: Engine,
+    private readonly options: GameControllerOptions,
   ) {
+    this.feedbackEnabled = options.feedbackEnabled;
     this.chess = new Chess();
     this.board = createBoardBridge(els.board, (from, to) => this.handleUserMove(from, to));
 
@@ -75,11 +106,17 @@ export class GameController {
       const color = els.sideSelect.value === 'b' ? 'b' : 'w';
       void this.setHumanColor(color).catch((err) => console.error('setHumanColor failed', err));
     });
+    els.feedbackSelect.addEventListener('change', () => {
+      void this.setFeedback(els.feedbackSelect.value === 'on').catch((err) =>
+        console.error('setFeedback failed', err),
+      );
+    });
 
     engine.ready
       .then(() => {
         this.engineState = 'ready';
-        this.engine.setOptions(difficulty(this.difficultyLevel).options);
+        this.engine.setOptions({ ...difficulty(this.difficultyLevel).options, multiPv: 1 });
+        this.engineMode = 'play';
         this.afterPositionChange(); // an engine turn that waited during loading starts now
       })
       .catch((err: unknown) => this.engineFailed(err));
@@ -91,6 +128,8 @@ export class GameController {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
     this.chess.reset();
+    this.annotations = [];
+    this.preMove = null;
     if (this.engineState === 'ready') this.engine.newGame();
     this.afterPositionChange(); // engine opens (new search) only if the human is black
   }
@@ -107,6 +146,8 @@ export class GameController {
     //  - two-player fallback: pop 1 ply
     const plies = this.engineState === 'failed' ? 1 : wasEngineTurn ? 1 : 2;
     for (let i = 0; i < plies && this.chess.history().length > 0; i++) this.chess.undo();
+    this.annotations.length = Math.min(this.annotations.length, this.chess.history().length);
+    this.preMove = null;
     this.afterPositionChange();
   }
 
@@ -117,13 +158,28 @@ export class GameController {
     const wasThinking = this.pendingSearch !== null;
     const t = await this.beginTransition();
     if (t !== this.transition) return;
-    this.engine.setOptions(difficulty(level).options); // no search outstanding here
+    this.engine.setOptions({ ...difficulty(level).options, multiPv: 1 }); // no search outstanding here
+    this.engineMode = 'play';
     if (wasThinking) this.afterPositionChange(); // restarts the search with the new settings
   }
 
   setHumanColor(color: Color): Promise<void> {
     this.humanColor = color;
     return this.newGame();
+  }
+
+  async setFeedback(enabled: boolean): Promise<void> {
+    if (enabled === this.feedbackEnabled) return;
+    this.feedbackEnabled = enabled;
+    this.options.onFeedbackChange(enabled);
+    this.renderControls();
+    // Only an analysis needs cancelling; a running opponent search is left alone.
+    if (this.pendingAnalysis !== null) {
+      const t = await this.beginTransition();
+      if (t !== this.transition) return;
+    }
+    this.preMove = null;
+    this.afterPositionChange(); // enabled + human's turn → pre-move analysis starts
   }
 
   /** Cancels the in-flight search and returns the generation of this transition. */
@@ -137,18 +193,68 @@ export class GameController {
     do {
       await this.cancelSearch();
       attempts++;
-      if (attempts >= 2 && this.pendingSearch !== null) {
+      if (attempts >= 2 && (this.pendingSearch !== null || this.pendingAnalysis !== null)) {
         console.error('beginTransition: search kept restarting; breaking out');
         break;
       }
-    } while (this.pendingSearch !== null && t === this.transition);
+    } while ((this.pendingSearch !== null || this.pendingAnalysis !== null) && t === this.transition);
+    if (t === this.transition) this.ensurePlayOptions(); // nothing outstanding: safe to restore
     return t;
   }
 
-  /** Resolves when the engine has consumed the cancelled search's bestmove. */
+  /** Resolves when the engine has consumed the cancelled job's bestmove (search or analysis). */
   private cancelSearch(): Promise<void> {
     this.pendingSearch = null;
+    this.pendingAnalysis = null;
+    this.evaluating = false;
     return this.engine.stop();
+  }
+
+  /** Restores the level's play options after an analysis. Caller guarantees nothing outstanding. */
+  private ensurePlayOptions(): void {
+    if (this.engineMode === 'play' || this.engineState !== 'ready') return;
+    this.engine.setOptions({ ...difficulty(this.difficultyLevel).options, multiPv: 1 });
+    this.engineMode = 'play';
+  }
+
+  /** Runs one analysis at full strength; resolves null when cancelled. Caller guarantees nothing outstanding. */
+  private async runAnalysis(multiPv: 1 | 2): Promise<PvLine[] | null> {
+    this.engine.setOptions({ skillLevel: 20, multiPv });
+    this.engineMode = 'analysis';
+    const analysis = this.engine.analyse(this.chess.fen(), { depth: ANALYSIS.depth, movetimeMs: ANALYSIS.movetimeMs, multiPv });
+    this.pendingAnalysis = analysis;
+    const lines = await analysis.result;
+    if (this.pendingAnalysis === analysis) {
+      this.pendingAnalysis = null;
+      this.ensurePlayOptions(); // our job was the only outstanding one and it just settled
+    }
+    return lines;
+  }
+
+  private feedbackActive(status: GameStatus): boolean {
+    return this.feedbackEnabled && this.engineState === 'ready' && !status.over;
+  }
+
+  /** Analysis A: evaluate the position the human is about to move in (runs while they think). */
+  private startPreMoveAnalysis(): void {
+    if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
+    const gen = this.transition;
+    const fen = this.chess.fen();
+    this.runAnalysis(2)
+      .then((lines) => {
+        if (gen !== this.transition || lines === null) return; // cancelled / superseded
+        if (fen !== this.chess.fen()) return; // the human already moved
+        const best = lines.find((l) => l.multipv === 1);
+        const second = lines.find((l) => l.multipv === 2);
+        if (!best) return;
+        this.preMove = {
+          fen,
+          evalBefore: best.scoreCp,
+          bestMove: best.pv[0] ?? null,
+          secondBestEval: second ? second.scoreCp : null,
+        };
+      })
+      .catch((err) => console.error('pre-move analysis failed', err));
   }
 
   /** Engine load/worker/move failure → two-player fallback for the rest of the page load. */
@@ -193,12 +299,65 @@ export class GameController {
       promotion = choice;
     }
 
+    const fenBefore = this.chess.fen();
+    let moved = false;
     try {
       this.chess.move({ from, to, promotion });
+      moved = true;
     } catch (err) {
       console.error(`Move ${from}->${to} rejected by chess.js`, err);
     }
+    if (moved) await this.evaluateHumanMove(fenBefore, `${from}${to}${promotion ?? ''}`);
     this.afterPositionChange();
+  }
+
+  /**
+   * Analysis B (post-move) and classification. Board stays locked ("hodnotím…") until it
+   * settles; any transition in the meantime cancels it and the move simply gets no glyph.
+   */
+  private async evaluateHumanMove(fenBefore: string, played: UciMove): Promise<void> {
+    const status = gameStatus(this.chess);
+    const pre = this.preMove && this.preMove.fen === fenBefore ? this.preMove : null;
+    this.preMove = null;
+    const ply = this.chess.history().length - 1;
+    const gen = this.transition;
+
+    if (this.pendingAnalysis !== null) {
+      await this.cancelSearch(); // analysis A still running: let the engine settle it first
+      if (gen !== this.transition) return;
+    }
+    if (!this.feedbackEnabled || this.engineState !== 'ready' || pre === null) return;
+
+    let evalAfter: number; // human POV
+    let reply: UciMove | undefined;
+    if (status.over) {
+      // Nothing to search in a finished game: mate delivered = best possible, any draw = 0.
+      evalAfter = this.chess.isCheckmate() ? MATE_SCORE : 0;
+    } else {
+      this.evaluating = true;
+      this.refreshView();
+      let lines: PvLine[] | null = null;
+      try {
+        lines = await this.runAnalysis(1);
+      } finally {
+        this.evaluating = false;
+      }
+      if (gen !== this.transition || lines === null) return;
+      const best = lines.find((l) => l.multipv === 1);
+      if (!best) return;
+      evalAfter = -best.scoreCp; // B is opponent-to-move
+      reply = best.pv[0];
+    }
+
+    const glyph = classifyMove({
+      evalBefore: pre.evalBefore,
+      evalAfter,
+      bestMove: pre.bestMove,
+      secondBestEval: pre.secondBestEval,
+      played,
+      sacrificed: sacrificeOf(fenBefore, this.humanColor, played, reply),
+    });
+    this.annotations[ply] = glyph;
   }
 
   private applyEngineMove(uci: UciMove): void {
@@ -219,7 +378,8 @@ export class GameController {
     if (status.over) return;
     if (this.engineState !== 'ready') return;
     if (this.chess.turn() === this.humanColor) return;
-    if (this.pendingSearch !== null) return;
+    if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
+    this.ensurePlayOptions();
 
     const d = difficulty(this.difficultyLevel);
     // Weak levels: sometimes play a random legal move instead of asking the engine. It is
@@ -258,7 +418,11 @@ export class GameController {
     const status = gameStatus(this.chess);
     this.syncBoard(status);
     this.render(status);
-    this.maybeStartEngine(status);
+    if (this.chess.turn() === this.humanColor) {
+      if (this.feedbackActive(status)) this.startPreMoveAnalysis();
+    } else {
+      this.maybeStartEngine(status);
+    }
   }
 
   /** Sync + render only — used while thinking or while the dialog is open. */
@@ -272,31 +436,45 @@ export class GameController {
     this.board.sync(this.chess, {
       orientation: toBoardColor(this.humanColor),
       movableColor: this.movableColor(status),
+      annotation: this.lastHumanAnnotation(),
     });
   }
 
   private movableColor(status: GameStatus): BoardColor | null {
-    if (status.over || this.promotionOpen || this.pendingSearch !== null) return null;
+    if (status.over || this.promotionOpen || this.pendingSearch !== null || this.evaluating) return null;
     if (this.engineState === 'failed') return toBoardColor(this.chess.turn()); // two-player fallback
     if (this.chess.turn() !== this.humanColor) return null; // engine's turn (or still loading)
     return toBoardColor(this.humanColor);
   }
 
   private render(status: GameStatus): void {
-    renderMoveList(this.els.moveList, this.chess.history());
+    renderMoveList(this.els.moveList, this.chess.history(), this.annotations);
     renderStatus(this.els.status, { status, engine: this.engineIndicator() });
     this.renderControls();
   }
 
   private engineIndicator(): EngineIndicator {
     if (this.engineState === 'ready' && this.pendingSearch !== null) return 'thinking';
+    if (this.engineState === 'ready' && this.evaluating) return 'evaluating';
     return this.engineState;
+  }
+
+  /** Glyph badge for the most recent human move, if it has one. */
+  private lastHumanAnnotation(): { square: Square; glyph: Glyph } | null {
+    const history = this.chess.history({ verbose: true });
+    for (let ply = history.length - 1; ply >= 0; ply--) {
+      if (history[ply].color !== this.humanColor) continue;
+      const glyph = this.annotations[ply];
+      return glyph ? { square: history[ply].to, glyph } : null;
+    }
+    return null;
   }
 
   private renderControls(): void {
     renderControls(this.controlsElements(), {
       difficulty: this.difficultyLevel,
       humanColor: this.humanColor,
+      feedbackEnabled: this.feedbackEnabled,
       undoEnabled: this.chess.history().length > 0 && !this.promotionOpen,
       disabled: this.promotionOpen,
     });
@@ -306,6 +484,7 @@ export class GameController {
     return {
       difficulty: this.els.difficultySelect,
       side: this.els.sideSelect,
+      feedback: this.els.feedbackSelect,
       undo: this.els.undoButton,
     };
   }

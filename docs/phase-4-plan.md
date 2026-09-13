@@ -214,3 +214,37 @@ worker; changing the difficulty ladder; sound/animation on a glyph (P5); PWA (P6
 
 Commits: `Phase 4: plan` → `Phase 4: move feedback` (+ DoD results appended here) →
 Pages deploy.
+
+## DoD results (executed 2026-09-13)
+
+Tested in the Vite dev server, Chromium (desktop), with the temporary hooks `debugLoadFen` /
+`debugHumanMove` / `debugState` and UCI console logging; all removed before the commit
+(`git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty). Positions were prepared FENs
+because the opponent's replies cannot be scripted; the human move went through
+`handleUserMove`, i.e. the same path as a board click. One real-click game (`1.e4 e5`) was
+played after the hooks were removed.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Hanging the queen → `??` | PASS | `r1bqkb1r/pppp1ppp/2n4n/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w`, `Qxf7+` (…Nxf7): list `Qxf7+??`, red `??` badge on f7 (screenshot, real Chrome) |
+| 2 | `?!`, `?`, none | PASS | `a3` from the start → `?!`; `Nxe5` (Italian, loses the knight) → `?`; `Bb5` → none; `Qh5` after `1.e4 d5` → `?` with orange badge on h5 |
+| 3 | `!` only move | PASS | `rnb1kbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBq1RK1 w` (queen on d1 must be taken by the rook): `Rxd1!`, pre-move best `f1d1` +105, second −283. Sanity: with a single legal move (`Kxd1` from `…/RNBqKBNR w`) MultiPV 2 returns one line, `secondBestEval` = null, no `!` |
+| 4 | `!!` / `!?` | PASS | `!!`: Philidor `5r1k/6pp/7N/8/8/1Q6/8/6K1 w`, `Qg8+!!` (best, mate in 2, sacrifice 9). `!?`: Dragon `2rq1rk1/pp2ppbp/3p1np1/8/3NP1b1/1BN1BP2/PPPQ2PP/2KR3R b`, `Rxc3!?` (not best, loss 11 cp, exchange down after the reply). Greek gift `r1bq1rk1/pp1nbppp/2n1p3/2ppP3/3P4/2PB1N2/PP1N1PPP/R1BQK2R w` `Bxh7+` is unsound there → `??`, as it should be |
+| 5 | Undo / new game clear glyphs | PASS | After `Qxf7+??` + reply: Zpět → list empty, badge gone (screenshot); Nová hra after a `??` → annotations `[]`, no badge |
+| 6 | Toggle | PASS | Off: a human move produced only `go depth 2 movetime 400` (no `setoption MultiPV`, no `go depth 12`); existing glyphs stay. On mid-game: next move `Qh5?` annotated; `skm.moveFeedback` persisted `off`/`on` |
+| 7 | Nová hra / Zpět during "hodnotím…" | PASS | Both pressed while the status read `— hodnotím…` (complex Dragon position): clean position (undo removed only the unanswered human move), no glyph, `evaluating` false, mode `play`, no `console.error`. UCI order per move: A → play options → B → play options → reply → A |
+| 8 | Move before A finishes | PASS | `O-O-O` sent right after loading the FEN (A not settled): move accepted, no glyph, reply arrived, no error |
+| 9 | Latency | PASS (desktop) | UCI timestamps: B 13 ms, A 19 ms after warm-up; fresh positions 8–70 ms; the 700 ms movetime cap bounds the worst case. Phone: not executed by me — please judge subjectively on the Pages build |
+| 10 | Engine-failed fallback | PASS | `.wasm` renamed → "engine nedostupný, hrají dva hráči", both sides movable, no analysis (worker never created), no glyphs, only the expected `Engine unavailable` error; file restored (7 295 411 bytes) |
+| 11 | Build + leftover grep | PASS | `tsc` strict clean; 92.3 kB JS / 20.1 kB CSS; grep empty at HEAD |
+
+Deviations from the plan, reported for review:
+- `!!` condition relaxed from "`|evalBefore| ≤ 400` (live)" to "`evalBefore ≥ −100` (not
+  losing)". Reason: the pre-move eval already prices the sacrifice in — a mating sacrifice
+  reads as +M before it is played, so the "live" filter blocked exactly the brilliant moves
+  it was meant to reward. `!` keeps the live filter.
+- `!?` is not gated by the "decided" rule; the `!?` test position was already unbalanced
+  (−512), which is where the rule fired. Fine for a child's feedback, noted for honesty.
+- Toggling feedback off leaves glyphs already earned; the plan did not say.
+- Analysis timing on Chromium's background tabs is throttled (setTimeout 1 s); the UCI
+  timestamps, not the JS polling loop, were used for item 9.

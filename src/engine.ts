@@ -15,6 +15,8 @@ export type UciMove = string; // "e2e4", "e7e8q"
 
 export interface EngineOptions {
   skillLevel: number;
+  /** Number of principal variations to report; default 1. Analysis uses 2. */
+  multiPv?: number;
 }
 
 export interface SearchLimits {
@@ -29,6 +31,33 @@ export interface Search {
   readonly result: Promise<UciMove | null>;
 }
 
+export interface AnalysisLimits {
+  depth: number;
+  movetimeMs: number;
+  multiPv: 1 | 2;
+}
+
+/** One principal variation. `scoreCp` is mate-normalised (±(10000 - plies)) and from the side to move's point of view. */
+export interface PvLine {
+  multipv: number;
+  scoreCp: number;
+  pv: UciMove[];
+}
+
+export interface Analysis {
+  readonly fen: string;
+  /** Resolves with the final PV lines (sorted by multipv), or `null` when cancelled. */
+  readonly result: Promise<PvLine[] | null>;
+}
+
+export const MATE_SCORE = 10_000;
+
+/** Stockfish `score cp X` / `score mate M` → centipawns, mates mapped near ±MATE_SCORE. */
+export function normaliseScore(kind: 'cp' | 'mate', value: number): number {
+  if (kind === 'cp') return value;
+  return value > 0 ? MATE_SCORE - value : -MATE_SCORE - value;
+}
+
 export interface Engine {
   /** Resolves after the UCI handshake (uciok → initial options → readyok). */
   readonly ready: Promise<void>;
@@ -37,6 +66,8 @@ export interface Engine {
   /** ucinewgame + isready. Caller guarantees no search is outstanding. */
   newGame(): void;
   search(fen: string, limits: SearchLimits): Search;
+  /** Full-information search (info lines parsed). Same FIFO and cancellation as search(). */
+  analyse(fen: string, limits: AnalysisLimits): Analysis;
   /** Cancels outstanding searches; resolves when all of them have settled. */
   stop(): Promise<void>;
   dispose(): void;
@@ -45,7 +76,26 @@ export interface Engine {
 interface SearchRecord {
   fen: string;
   cancelled: boolean;
-  resolve: (move: UciMove | null) => void;
+  /** Search: resolves the bestmove. */
+  resolveMove?: (move: UciMove | null) => void;
+  /** Analysis: resolves the collected PV lines. */
+  resolveLines?: (lines: PvLine[] | null) => void;
+  lines: Map<number, PvLine>;
+  multiPv: number;
+}
+
+/** Parses one `info … multipv N score cp|mate X … pv …` line; undefined for lines without a pv/score. */
+function parseInfoLine(line: string): PvLine | undefined {
+  const tokens = line.split(/\s+/);
+  const scoreAt = tokens.indexOf('score');
+  const pvAt = tokens.indexOf('pv');
+  if (scoreAt < 0 || pvAt < 0 || pvAt < scoreAt) return undefined;
+  const kind = tokens[scoreAt + 1];
+  const value = Number(tokens[scoreAt + 2]);
+  if ((kind !== 'cp' && kind !== 'mate') || !Number.isFinite(value)) return undefined;
+  const multipvAt = tokens.indexOf('multipv');
+  const multipv = multipvAt >= 0 ? Number(tokens[multipvAt + 1]) || 1 : 1;
+  return { multipv, scoreCp: normaliseScore(kind, value), pv: tokens.slice(pvAt + 1) };
 }
 
 export interface EngineCreateOptions {
@@ -161,6 +211,15 @@ export function createEngine(
       }
       return;
     }
+    if (line.startsWith('info ')) {
+      // info lines belong to the search at the head of the FIFO (UCI is sequential).
+      const head = outstanding[0];
+      if (head?.resolveLines && !head.cancelled) {
+        const pv = parseInfoLine(line);
+        if (pv && pv.multipv <= head.multiPv) head.lines.set(pv.multipv, pv);
+      }
+      return;
+    }
     if (line.startsWith('bestmove ')) {
       const record = outstanding.shift();
       if (!record) {
@@ -169,16 +228,19 @@ export function createEngine(
       }
       const move = line.split(/\s+/)[1];
       if (record.cancelled) {
-        record.resolve(null);
+        record.resolveMove?.(null);
+        record.resolveLines?.(null);
       } else if (!move || move === '(none)') {
         console.error('Engine returned no move', line, record.fen);
-        record.resolve(null);
+        record.resolveMove?.(null);
+        record.resolveLines?.(null);
       } else {
-        record.resolve(move);
+        record.resolveMove?.(move);
+        record.resolveLines?.(Array.from(record.lines.values()).sort((a, b) => a.multipv - b.multipv));
       }
       settleOutstandingIfDrained();
     }
-    // `info …` and everything else is ignored.
+    // Everything else (`id`, `option`, `info string` …) is ignored.
   };
 
   const startWorker = (): void => {
@@ -202,6 +264,34 @@ export function createEngine(
 
   const awaitGates = (): Promise<void> => ready.then(() => readyGate);
 
+  const settleRecord = (record: SearchRecord, dropFromQueue: boolean): void => {
+    if (dropFromQueue) {
+      const index = outstanding.indexOf(record);
+      if (index >= 0) outstanding.splice(index, 1);
+    }
+    record.resolveMove?.(null);
+    record.resolveLines?.(null);
+    settleOutstandingIfDrained();
+  };
+
+  /** Queues a record and posts `position` + the go command once the gates are open. */
+  const startJob = (record: SearchRecord, goCommand: string): void => {
+    outstanding.push(record);
+    awaitGates()
+      .then(() => {
+        if (disposed || record.cancelled) {
+          settleRecord(record, true); // cancelled before it was ever sent: nothing will answer it
+          return;
+        }
+        post(`position fen ${record.fen}`);
+        post(goCommand);
+      })
+      .catch((err) => {
+        console.error('search failed to start', err);
+        settleRecord(record, true);
+      });
+  };
+
   return {
     ready,
 
@@ -210,7 +300,10 @@ export function createEngine(
         console.error('setoption while a search is outstanding — controller sequencing bug');
       }
       awaitGates()
-        .then(() => post(`setoption name Skill Level value ${options.skillLevel}`))
+        .then(() => {
+          post(`setoption name Skill Level value ${options.skillLevel}`);
+          if (options.multiPv !== undefined) post(`setoption name MultiPV value ${options.multiPv}`);
+        })
         .catch((err) => console.error('setOptions failed', err));
     },
 
@@ -239,28 +332,18 @@ export function createEngine(
       const result = new Promise<UciMove | null>((r) => {
         resolve = r;
       });
-      const record: SearchRecord = { fen, cancelled: false, resolve };
-      awaitGates()
-        .then(() => {
-          if (disposed || record.cancelled) {
-            // Cancelled before it was ever sent: nothing will answer it.
-            const index = outstanding.indexOf(record);
-            if (index >= 0) outstanding.splice(index, 1);
-            record.resolve(null);
-            settleOutstandingIfDrained();
-            return;
-          }
-          post(`position fen ${fen}`);
-          post(`go depth ${limits.depth} movetime ${limits.movetimeMs}`);
-        })
-        .catch((err) => {
-          console.error('search failed to start', err);
-          const index = outstanding.indexOf(record);
-          if (index >= 0) outstanding.splice(index, 1);
-          record.resolve(null);
-          settleOutstandingIfDrained();
-        });
-      outstanding.push(record);
+      const record: SearchRecord = { fen, cancelled: false, resolveMove: resolve, lines: new Map(), multiPv: 1 };
+      startJob(record, `go depth ${limits.depth} movetime ${limits.movetimeMs}`);
+      return { fen, result };
+    },
+
+    analyse(fen: string, limits: AnalysisLimits): Analysis {
+      let resolve!: (lines: PvLine[] | null) => void;
+      const result = new Promise<PvLine[] | null>((r) => {
+        resolve = r;
+      });
+      const record: SearchRecord = { fen, cancelled: false, resolveLines: resolve, lines: new Map(), multiPv: limits.multiPv };
+      startJob(record, `go depth ${limits.depth} movetime ${limits.movetimeMs}`);
       return { fen, result };
     },
 
@@ -276,7 +359,10 @@ export function createEngine(
       disposed = true;
       if (handshakeTimer !== null) clearTimeout(handshakeTimer);
       worker?.terminate();
-      for (const record of outstanding.splice(0)) record.resolve(null);
+      for (const record of outstanding.splice(0)) {
+        record.resolveMove?.(null);
+        record.resolveLines?.(null);
+      }
       settleOutstandingIfDrained();
     },
   };

@@ -1,6 +1,6 @@
 import type { GameStatus } from '../game-status';
 
-export type EngineIndicator = 'loading' | 'ready' | 'thinking' | 'failed';
+export type EngineIndicator = 'loading' | 'ready' | 'thinking' | 'evaluating' | 'failed';
 
 export interface StatusView {
   status: GameStatus;
@@ -11,6 +11,7 @@ const ENGINE_SUFFIX: Record<EngineIndicator, string> = {
   loading: ' — načítám engine…',
   ready: '',
   thinking: ' — přemýšlím…',
+  evaluating: ' — hodnotím…',
   failed: ' — engine nedostupný, hrají dva hráči',
 };
 

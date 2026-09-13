@@ -19,6 +19,7 @@ app.innerHTML = `
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Hraju za <select class="side"></select></label>
         <label>Figurky <select class="piece-set"></select></label>
+        <label>Hodnocení tahů <select class="feedback"></select></label>
       </div>
     </details>
     <div class="status"></div>
@@ -62,9 +63,11 @@ controller = new GameController(
     undoButton: requireElement<HTMLButtonElement>(app, '.undo'),
     difficultySelect: requireElement<HTMLSelectElement>(app, '.difficulty'),
     sideSelect: requireElement<HTMLSelectElement>(app, '.side'),
+    feedbackSelect: requireElement<HTMLSelectElement>(app, '.feedback'),
     promotionDialog: requireElement<HTMLDialogElement>(app, '.promotion-dialog'),
   },
   engine,
+  { feedbackEnabled: readFeedbackSetting(), onFeedbackChange: writeFeedbackSetting },
 );
 
 
@@ -83,6 +86,24 @@ function wirePieceSetSelect(select: HTMLSelectElement, manager: PieceSetManager)
   select.replaceChildren(...manager.sets.map((set) => new Option(set.name, set.id)));
   select.value = manager.currentId ?? manager.sets[0].id;
   select.addEventListener('change', () => manager.select(select.value));
+}
+
+const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
+
+function readFeedbackSetting(): boolean {
+  try {
+    return window.localStorage.getItem(FEEDBACK_STORAGE_KEY) !== 'off'; // default on
+  } catch {
+    return true;
+  }
+}
+
+function writeFeedbackSetting(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(FEEDBACK_STORAGE_KEY, enabled ? 'on' : 'off');
+  } catch (err) {
+    console.warn('Could not persist move-feedback setting', err);
+  }
 }
 
 function safeLocalStorage(): Storage | null {
@@ -133,3 +154,4 @@ narrow.addEventListener('change', () => {
 });
 if (narrow.matches) movesPanel.open = false;
 syncPanels();
+

@@ -76,6 +76,18 @@ body {
   text-align: right;
 }
 
+.move-list .glyph {
+  font-weight: 700;
+  margin-left: 1px;
+}
+
+.glyph-brilliant { color: #1baca6; }
+.glyph-great { color: #5b8baf; }
+.glyph-interesting { color: #d7a52a; }
+.glyph-inaccuracy { color: #f7c631; }
+.glyph-mistake { color: #ffa459; }
+.glyph-blunder { color: #fa412d; }
+
 .controls {
   display: flex;
   flex-direction: column;

@@ -629,38 +629,53 @@ body {
   }
 }
 
-.new-game,
-.undo,
-.review,
-.games,
-.puzzles {
-  flex: 1;
+/* The button row: every button dark with light text (the review found white-on-light-grey
+   defaults leaking in); `Nová hra` green, `Zpět` slate, the rest one secondary style. */
+.buttons button {
+  flex: 1 1 auto;
+  min-width: 7em;
   padding: 10px 16px;
+  font: inherit;
   font-size: 1rem;
   font-weight: 600;
-  border: none;
+  border: 1px solid #5a6069;
   border-radius: 6px;
-  color: #fff;
+  background: #3a3f46;
+  color: #f2f2f2;
   cursor: pointer;
 }
 
-.new-game {
+.buttons button:hover:not(:disabled) {
+  background: #474d55;
+}
+
+.buttons button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.buttons .new-game,
+.buttons .undo {
+  border: none;
+  color: #fff;
+}
+
+.buttons .new-game {
   background: #4caf50;
 }
 
-.new-game:hover {
+.buttons .new-game:hover {
   background: #43a047;
 }
 
-.undo {
+.buttons .undo {
   background: #546e7a;
 }
 
-.undo:hover:not(:disabled) {
+.buttons .undo:hover:not(:disabled) {
   background: #455a64;
 }
 
-.undo:disabled,
 .controls select:disabled {
   opacity: 0.5;
   cursor: default;

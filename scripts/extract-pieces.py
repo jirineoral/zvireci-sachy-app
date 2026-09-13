@@ -6,7 +6,7 @@ render the quality-gate contact sheet docs/piece-contact-sheet.png.
 
 Usage (from the repo root):
     python scripts/extract-pieces.py                     # all sets: pieces + contact sheets + debug overlays
-    python scripts/extract-pieces.py farm-busts          # one set only
+    python scripts/extract-pieces.py farm-busts          # one set only (farm, farm-busts, farm-busts-inverse)
     python scripts/extract-pieces.py --dry-run           # only print measurements and pocket candidates
 
 Sets:
@@ -15,6 +15,7 @@ Sets:
   farm-busts  one dark-background sheet (farm-busts.png) with both rows (goats on top,
               frogs below), busts without pedestals, Czech labels under each piece;
               segmented by large connected components, labels ignored (process_busts_sheet).
+  farm-busts-inverse  same layout from farm-busts-inverse.png: dark goats, light frogs.
 
 Pipeline (see docs/phase-3-plan.md, Part B):
   1. Background = flood fill from the sheet border with a colour tolerance (the cream
@@ -94,9 +95,21 @@ FARM_LIGHT = (0xDC, 0xE6, 0xF0)
 FARM_DARK = (0x8F, 0xA3, 0xBD)
 
 # ---- farm-busts recipe -------------------------------------------------------------------
-BUSTS_SOURCE = ROOT / "assets/source/farm-busts.png"
-BUSTS_OUT_DIR = ROOT / "public/piece-sets/farm-busts"
-BUSTS_CONTACT_SHEET = ROOT / "docs/piece-contact-sheet-busts.png"
+# Two sheets with identical layout: light goats / dark frogs (the default set) and the
+# inverse palette (dark goats / light frogs). Both rows carry kings with a sceptre so the
+# king stays recognisable at 40 px.
+BUSTS_VARIANTS = {
+    "farm-busts": {
+        "source": ROOT / "assets/source/farm-busts.png",
+        "out": ROOT / "public/piece-sets/farm-busts",
+        "contact": ROOT / "docs/piece-contact-sheet-busts.png",
+    },
+    "farm-busts-inverse": {
+        "source": ROOT / "assets/source/farm-busts-inverse.png",
+        "out": ROOT / "public/piece-sets/farm-busts-inverse",
+        "contact": ROOT / "docs/piece-contact-sheet-busts-inverse.png",
+    },
+}
 BUSTS_ROWS = {"w": (0, 430), "b": (430, None)}  # goats above y=430, frogs below (sheet px)
 BUSTS_ORDER = ["P", "R", "N", "B", "Q", "K"]  # left -> right on this sheet
 BUSTS_BG_TOL = 36  # background is ~(27,28,29); outlines are near-black (sum diff ~70)
@@ -272,8 +285,8 @@ def process_sheet(side: str, path: Path, dry_run: bool) -> list[Piece]:
     return pieces
 
 
-def process_busts_sheet(dry_run: bool) -> list[Piece]:
-    img = Image.open(BUSTS_SOURCE).convert("RGB")
+def process_busts_sheet(source: Path, dry_run: bool) -> list[Piece]:
+    img = Image.open(source).convert("RGB")
     rgb = np.asarray(img).astype(np.int16)
     h, w = rgb.shape[:2]
     edge = np.concatenate([rgb[:4].reshape(-1, 3), rgb[-4:].reshape(-1, 3), rgb[:, :4].reshape(-1, 3), rgb[:, -4:].reshape(-1, 3)])
@@ -341,7 +354,7 @@ def process_busts_sheet(dry_run: bool) -> list[Piece]:
                 ov = np.zeros((*piece.opaque.shape, 4), dtype=np.uint8)
                 ov[~piece.opaque] = (255, 0, 255, 110)
                 dbg = Image.alpha_composite(dbg, Image.fromarray(ov))
-                dbg.save(DEBUG_DIR / f"busts-{code}.png")
+                dbg.save(DEBUG_DIR / f"{source.stem}-{code}.png")
     return pieces
 
 
@@ -502,9 +515,11 @@ def run_farm(dry_run: bool) -> None:
     contact_sheet(files)
 
 
-def run_busts(dry_run: bool) -> None:
-    print(f"{BUSTS_SOURCE.name}:")
-    pieces = process_busts_sheet(dry_run)
+def run_busts(name: str, dry_run: bool) -> None:
+    variant = BUSTS_VARIANTS[name]
+    source, out_dir, contact = variant["source"], variant["out"], variant["contact"]
+    print(f"{source.name}:")
+    pieces = process_busts_sheet(source, dry_run)
     for p in pieces:
         for idx, area, cx, cy, kept in p.pockets:
             print(f"  {p.code} pocket #{idx}: area {area} px, centre ({cx},{cy}) -> CLEAR")
@@ -516,26 +531,30 @@ def run_busts(dry_run: bool) -> None:
     base_scale = BUSTS_TALLEST_FRACTION * CANVAS / tallest
     if dry_run:
         return
-    BUSTS_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     files: dict[str, Path] = {}
     print("placing:")
     for p in pieces:
         canvas = place(rgbas[p.code], base_scale, BUSTS_NUDGE_X.get(p.code, 0), p.code, BUSTS_BOTTOM_MARGIN)
-        out = BUSTS_OUT_DIR / f"{p.code}.png"
+        out = out_dir / f"{p.code}.png"
         canvas.save(out, optimize=True, compress_level=9)
         files[p.code] = out
-    print(f"wrote {len(files)} pieces -> {BUSTS_OUT_DIR.relative_to(ROOT)}")
-    contact_sheet(files, BUSTS_CONTACT_SHEET)
+    print(f"wrote {len(files)} pieces -> {out_dir.relative_to(ROOT)}")
+    contact_sheet(files, contact)
 
 
 def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     dry_run = "--dry-run" in sys.argv
-    wanted = set(args) or {"farm", "farm-busts"}
+    wanted = set(args) or {"farm", *BUSTS_VARIANTS}
+    unknown = wanted - {"farm", *BUSTS_VARIANTS}
+    if unknown:
+        sys.exit(f"unknown set(s): {sorted(unknown)}; known: farm, {', '.join(BUSTS_VARIANTS)}")
     if "farm" in wanted:
         run_farm(dry_run)
-    if "farm-busts" in wanted:
-        run_busts(dry_run)
+    for name in BUSTS_VARIANTS:
+        if name in wanted:
+            run_busts(name, dry_run)
     if dry_run:
         print("dry run: nothing written")
 

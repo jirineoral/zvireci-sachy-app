@@ -79,6 +79,8 @@ app.innerHTML = `
       <button type="button" class="campaign">Kampaň</button>
     </div>
     <footer class="credits">
+      <p class="mission">Pro děti napořád zdarma. Nic se nikam neposílá, všechno zůstává v tomhle prohlížeči
+      (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich).</p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·

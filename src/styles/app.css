@@ -613,6 +613,12 @@ body {
   color: inherit;
 }
 
+.credits .mission {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: #b8bec8;
+}
+
 .new-game.start {
   animation: start-pulse 1.6s ease-in-out infinite;
 }

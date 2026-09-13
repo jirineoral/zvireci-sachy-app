@@ -250,31 +250,49 @@
   text-align: center;
   text-transform: uppercase;
   color: #ffd84a;
-  -webkit-text-stroke: 0.045em #4a2a10;
-  paint-order: stroke fill;
-  text-shadow:
-    0.04em 0.05em 0 #4a2a10,
-    0 0.12em 0.2em rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
 
-.splash-title span:first-child {
+/* Gradient-filled words. The span itself is the dark outline (opaque fill + a stroke
+   centred on the glyph edge + drop shadow); an ::after copy of the text (data-text) sits
+   on top with the gradient clipped to the glyphs and no stroke. Safari paints
+   -webkit-text-stroke over a background-clip:text fill otherwise, leaving lines inside
+   the letters — and a negative-z ::before would hide the gradient (the element's own
+   background paints below it). */
+.splash-word {
+  position: relative;
+  color: #4a2a10;
+  -webkit-text-fill-color: #4a2a10;
+  -webkit-text-stroke: 0.09em #4a2a10;
+  text-shadow:
+    0.04em 0.05em 0 #4a2a10,
+    0 0.12em 0.2em rgba(0, 0, 0, 0.35);
+}
+
+.splash-word::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
   background: linear-gradient(#fff2a8, #ffb400);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
 }
 
-.splash-title span:nth-child(2) {
+.splash-word:nth-child(2) {
   font-size: 1.25em;
-  color: #ff7a2a;
+}
+
+.splash-word:nth-child(2)::after {
   background: linear-gradient(#ffd27a, #ff6a1a);
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .splash-subtitle {
+  position: relative;
   margin-top: 0.25em;
   font-size: 0.38em;
   letter-spacing: 0.12em;

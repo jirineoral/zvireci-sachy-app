@@ -88,10 +88,17 @@ export function createIntro(opts: IntroOptions): IntroController {
   splashImg.decoding = 'async';
   const title = document.createElement('h1');
   title.className = 'splash-title';
+  // The outline is drawn by a ::before copy of the text (data-text) behind the gradient
+  // fill: iOS Safari paints -webkit-text-stroke over a background-clip:text fill, which
+  // leaves stroke lines inside the letters.
   const line1 = document.createElement('span');
+  line1.className = 'splash-word';
   line1.textContent = 'ZVÍŘECÍ';
+  line1.dataset.text = 'ZVÍŘECÍ';
   const line2 = document.createElement('span');
+  line2.className = 'splash-word';
   line2.textContent = 'ŠACHY';
+  line2.dataset.text = 'ŠACHY';
   const line3 = document.createElement('span');
   line3.className = 'splash-subtitle';
   line3.textContent = '(nejen) pro děti';

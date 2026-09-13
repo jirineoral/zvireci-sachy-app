@@ -21,10 +21,109 @@ body {
   padding: 24px;
 }
 
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+
 .board {
   width: 560px;
   height: 560px;
   flex: none;
+}
+
+/* The two kings watching the game (Phase 5B). `.cg-wrap` so the piece set styles them;
+   undo chessground's board layout for the piece element, as the promotion dialog does. */
+.spectator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  --spectator-size: 64px;
+}
+
+.spectator piece {
+  position: static;
+  display: block;
+  flex: none;
+  width: var(--spectator-size);
+  height: var(--spectator-size);
+  pointer-events: none;
+}
+
+.bubble {
+  position: relative;
+  max-width: 440px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: #f7f3e8;
+  color: #222;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.bubble::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-right: 9px solid #f7f3e8;
+  border-left: 0;
+}
+
+.bubble-in {
+  animation: bubble-in 150ms ease-out;
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-in {
+    animation: none;
+  }
+}
+
+.review-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.review-controls button {
+  flex: 1;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 1rem;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.review-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.move-list .current {
+  background: #4a5d3a;
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0 -4px;
 }
 
 .panel {
@@ -33,6 +132,7 @@ body {
   gap: 16px;
   width: 280px;
   height: 560px;
+  margin-top: 70px; /* level with the board: spectator height + stage gap */
 }
 
 .panel h1 {
@@ -183,7 +283,8 @@ body {
 }
 
 .new-game,
-.undo {
+.undo,
+.review {
   flex: 1;
   padding: 10px 16px;
   font-size: 1rem;
@@ -296,6 +397,29 @@ body {
   .panel {
     width: 100%;
     height: auto;
+    margin-top: 0;
+  }
+
+  .stage {
+    align-self: center;
+    width: min(100vw - 24px, 560px);
+    gap: 4px;
+  }
+
+  .board {
+    width: 100%;
+  }
+
+  .spectator {
+    height: 48px;
+    --spectator-size: 48px;
+    gap: 8px;
+  }
+
+  .bubble {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    max-width: calc(100% - 60px);
   }
 
   .panel h1 {

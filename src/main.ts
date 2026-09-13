@@ -10,7 +10,11 @@ import { requireElement } from './ui/dom';
 const app = requireElement<HTMLDivElement>(document, '#app');
 
 app.innerHTML = `
-  <div class="board"></div>
+  <div class="stage">
+    <div class="spectator spectator-top cg-wrap"><piece class="king black"></piece><div class="bubble" hidden></div></div>
+    <div class="board"></div>
+    <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="bubble" hidden></div></div>
+  </div>
   <aside class="panel">
     <h1>ŠACH KVÁK MEK!!!</h1>
     <details class="settings" open>
@@ -24,6 +28,12 @@ app.innerHTML = `
       </div>
     </details>
     <div class="status"></div>
+    <div class="review-controls" hidden>
+      <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
+      <button type="button" class="review-prev" aria-label="Předchozí tah">◀</button>
+      <button type="button" class="review-next" aria-label="Další tah">▶</button>
+      <button type="button" class="review-last" aria-label="Na konec">⏭</button>
+    </div>
     <details class="moves" open>
       <summary>Tahy <span class="moves-summary"></span></summary>
       <ol class="move-list"></ol>
@@ -31,6 +41,7 @@ app.innerHTML = `
     <div class="buttons">
       <button type="button" class="new-game">Nová hra</button>
       <button type="button" class="undo">Zpět</button>
+      <button type="button" class="review" hidden>Rozbor</button>
     </div>
     <footer class="credits">
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
@@ -73,9 +84,31 @@ controller = new GameController(
     sideSelect: requireElement<HTMLSelectElement>(app, '.side'),
     feedbackSelect: requireElement<HTMLSelectElement>(app, '.feedback'),
     promotionDialog: requireElement<HTMLDialogElement>(app, '.promotion-dialog'),
+    reviewButton: requireElement<HTMLButtonElement>(app, '.review'),
+    reviewControls: {
+      container: requireElement<HTMLElement>(app, '.review-controls'),
+      first: requireElement<HTMLButtonElement>(app, '.review-first'),
+      prev: requireElement<HTMLButtonElement>(app, '.review-prev'),
+      next: requireElement<HTMLButtonElement>(app, '.review-next'),
+      last: requireElement<HTMLButtonElement>(app, '.review-last'),
+    },
+    spectators: {
+      top: requireElement<HTMLElement>(app, '.spectator-top'),
+      bottom: requireElement<HTMLElement>(app, '.spectator-bottom'),
+    },
   },
   engine,
-  { feedbackEnabled: readFeedbackSetting(), onFeedbackChange: writeFeedbackSetting },
+  {
+    feedbackEnabled: readFeedbackSetting(),
+    onFeedbackChange: writeFeedbackSetting,
+    // The kings' noises follow the piece set; resolved lazily because the manifest loads
+    // after the controller exists.
+    animalOf: (color) => {
+      const set = pieceSets?.currentSet ?? null;
+      if (!set || set.whiteAnimal === null) return null;
+      return color === 'w' ? set.whiteAnimal : set.whiteAnimal === 'kuzlata' ? 'zabky' : 'kuzlata';
+    },
+  },
 );
 
 
@@ -84,8 +117,12 @@ controller = new GameController(
 const familySelect = requireElement<HTMLSelectElement>(app, '.piece-family');
 const animalSelect = requireElement<HTMLSelectElement>(app, '.animal');
 const sideSelect = requireElement<HTMLSelectElement>(app, '.side');
+let pieceSets: PieceSetManager | undefined;
 void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), humanColor: 'w' })
-  .then((manager) => wirePieceSetSelects(manager))
+  .then((manager) => {
+    pieceSets = manager;
+    wirePieceSetSelects(manager);
+  })
   .catch((err) => console.error('Piece sets failed to initialise', err));
 
 function wirePieceSetSelects(manager: PieceSetManager): void {
@@ -196,4 +233,3 @@ narrow.addEventListener('change', () => {
 });
 if (narrow.matches) movesPanel.open = false;
 syncPanels();
-

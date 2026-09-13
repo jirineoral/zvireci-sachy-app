@@ -9,7 +9,7 @@
  * transitions cannot interleave. An engine result is applied only if it is still the
  * pending search *and* was computed for the current position.
  */
-import { Chess, type Color, type Square } from 'chess.js';
+import { Chess, DEFAULT_POSITION, type Color, type Square } from 'chess.js';
 import {
   createBoardBridge,
   toBoardColor,
@@ -18,11 +18,18 @@ import {
 } from './board-bridge';
 import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type DifficultyLevel } from './difficulty';
 import { MATE_SCORE, type Analysis, type Engine, type PvLine, type Search, type UciMove } from './engine';
-import { ANALYSIS, classifyMove, sacrificeOf, type Glyph } from './feedback';
+import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
+import { commentaryFor, positionAt, type PlyRecord, type SpeakerAnimal } from './review';
 import { populateControls, renderControls } from './ui/controls';
 import { renderMoveList } from './ui/move-list';
 import { promptPromotion, type PromotionPiece } from './ui/promotion-dialog';
+import {
+  bindReviewControls,
+  renderReviewControls,
+  type ReviewControlElements,
+} from './ui/review-controls';
+import { renderSpectators, type SpectatorElements } from './ui/spectators';
 import { renderStatus, type EngineIndicator } from './ui/status';
 
 export interface GameControllerElements {
@@ -35,12 +42,18 @@ export interface GameControllerElements {
   sideSelect: HTMLSelectElement;
   feedbackSelect: HTMLSelectElement;
   promotionDialog: HTMLDialogElement;
+  /** "Rozbor": shown only once the game is over. */
+  reviewButton: HTMLButtonElement;
+  reviewControls: ReviewControlElements;
+  spectators: SpectatorElements;
 }
 
 export interface GameControllerOptions {
   /** Move feedback (glyphs) on/off at start; persisted by the caller via onFeedbackChange. */
   feedbackEnabled: boolean;
   onFeedbackChange: (enabled: boolean) => void;
+  /** Which animal a colour currently is (piece set), for the kings' noises; view-only. */
+  animalOf: (color: Color) => SpeakerAnimal;
 }
 
 type EngineState = 'loading' | 'ready' | 'failed';
@@ -74,9 +87,11 @@ export class GameController {
   /** True while analysis B runs: board locked, status "hodnotím…". */
   private evaluating = false;
   private preMove: PreMoveInfo | null = null;
-  /** Glyph per ply (index = ply of the human's move); null/undefined = none. */
-  private annotations: (Glyph | null)[] = [];
+  /** Feedback per ply (index = ply of the human's move); missing = none. */
+  private plies: (PlyRecord | null)[] = [];
   private engineMode: EngineMode = 'play';
+  /** Post-game review (Phase 5B): the ply being shown, or null while playing. */
+  private reviewPly: number | null = null;
 
   constructor(
     private readonly els: GameControllerElements,
@@ -111,6 +126,14 @@ export class GameController {
         console.error('setFeedback failed', err),
       );
     });
+    els.reviewButton.addEventListener('click', () => this.startReview());
+    bindReviewControls(els.reviewControls, {
+      onFirst: () => this.reviewGo(0),
+      onPrev: () => this.reviewGo((this.reviewPly ?? 0) - 1),
+      onNext: () => this.reviewGo((this.reviewPly ?? 0) + 1),
+      onLast: () => this.reviewGo(this.chess.history().length),
+      isActive: () => this.reviewPly !== null,
+    });
 
     engine.ready
       .then(() => {
@@ -128,14 +151,15 @@ export class GameController {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
     this.chess.reset();
-    this.annotations = [];
+    this.plies = [];
     this.preMove = null;
+    this.reviewPly = null;
     if (this.engineState === 'ready') this.engine.newGame();
     this.afterPositionChange(); // engine opens (new search) only if the human is black
   }
 
   async undo(): Promise<void> {
-    if (this.chess.history().length === 0) return;
+    if (this.chess.history().length === 0 || this.reviewPly !== null) return;
     // Evaluated before the await: the position cannot change during it (board locked or idle).
     const wasEngineTurn = this.chess.turn() !== this.humanColor;
     const t = await this.beginTransition();
@@ -146,7 +170,7 @@ export class GameController {
     //  - two-player fallback: pop 1 ply
     const plies = this.engineState === 'failed' ? 1 : wasEngineTurn ? 1 : 2;
     for (let i = 0; i < plies && this.chess.history().length > 0; i++) this.chess.undo();
-    this.annotations.length = Math.min(this.annotations.length, this.chess.history().length);
+    this.plies.length = Math.min(this.plies.length, this.chess.history().length);
     this.preMove = null;
     this.afterPositionChange();
   }
@@ -166,6 +190,21 @@ export class GameController {
   setHumanColor(color: Color): Promise<void> {
     this.humanColor = color;
     return this.newGame();
+  }
+
+  /** Enters the review of the finished game at the start position. */
+  startReview(): void {
+    if (this.reviewPly !== null || this.chess.history().length === 0 || !gameStatus(this.chess).over) return;
+    this.reviewPly = 0;
+    this.refreshView();
+  }
+
+  private reviewGo(ply: number): void {
+    if (this.reviewPly === null) return;
+    const clamped = Math.max(0, Math.min(this.chess.history().length, ply));
+    if (clamped === this.reviewPly) return;
+    this.reviewPly = clamped;
+    this.refreshView();
   }
 
   async setFeedback(enabled: boolean): Promise<void> {
@@ -357,7 +396,8 @@ export class GameController {
       played,
       sacrificed: sacrificeOf(fenBefore, this.humanColor, played, reply),
     });
-    this.annotations[ply] = glyph;
+    const wantsBetter = glyph === '?!' || glyph === '?' || glyph === '??';
+    this.plies[ply] = { glyph, betterSan: wantsBetter ? sanOf(fenBefore, pre.bestMove) : null };
   }
 
   private applyEngineMove(uci: UciMove): void {
@@ -433,6 +473,15 @@ export class GameController {
   }
 
   private syncBoard(status: GameStatus): void {
+    if (this.reviewPly !== null) {
+      const shown = positionAt(this.startFen(), this.chess.history(), this.reviewPly);
+      this.board.sync(shown, {
+        orientation: toBoardColor(this.humanColor),
+        movableColor: null,
+        annotation: this.annotationAt(shown, this.reviewPly),
+      });
+      return;
+    }
     this.board.sync(this.chess, {
       orientation: toBoardColor(this.humanColor),
       movableColor: this.movableColor(status),
@@ -448,9 +497,23 @@ export class GameController {
   }
 
   private render(status: GameStatus): void {
-    renderMoveList(this.els.moveList, this.chess.history(), this.annotations);
+    const sans = this.chess.history();
+    const glyphs = this.plies.map((p) => p?.glyph ?? null);
+    renderMoveList(this.els.moveList, sans, glyphs, this.reviewPly);
     renderStatus(this.els.status, { status, engine: this.engineIndicator() });
     this.renderControls();
+    this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null);
+    renderReviewControls(this.els.reviewControls, {
+      active: this.reviewPly !== null,
+      ply: this.reviewPly ?? 0,
+      plies: sans.length,
+    });
+    const bubbles: { white: string | null; black: string | null } = { white: null, black: null };
+    if (this.reviewPly !== null) {
+      const { main, reaction } = commentaryFor(this.startFen(), sans, this.reviewPly, this.plies, this.options.animalOf);
+      for (const b of [main, reaction]) if (b) bubbles[b.speaker === 'w' ? 'white' : 'black'] = b.text;
+    }
+    renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles });
   }
 
   private engineIndicator(): EngineIndicator {
@@ -464,10 +527,23 @@ export class GameController {
     const history = this.chess.history({ verbose: true });
     for (let ply = history.length - 1; ply >= 0; ply--) {
       if (history[ply].color !== this.humanColor) continue;
-      const glyph = this.annotations[ply];
+      const glyph = this.plies[ply]?.glyph ?? null;
       return glyph ? { square: history[ply].to, glyph } : null;
     }
     return null;
+  }
+
+  /** Where the game's move list starts: the initial position unless a FEN was loaded. */
+  private startFen(): string {
+    return this.chess.getHeaders().FEN ?? DEFAULT_POSITION;
+  }
+
+  /** Review: the badge of the move that led to `shown` (ply index `ply - 1`), if any. */
+  private annotationAt(shown: Chess, ply: number): { square: Square; glyph: Glyph } | null {
+    if (ply === 0) return null;
+    const glyph = this.plies[ply - 1]?.glyph ?? null;
+    const last = shown.history({ verbose: true }).at(-1);
+    return glyph && last ? { square: last.to, glyph } : null;
   }
 
   private renderControls(): void {
@@ -475,7 +551,7 @@ export class GameController {
       difficulty: this.difficultyLevel,
       humanColor: this.humanColor,
       feedbackEnabled: this.feedbackEnabled,
-      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen,
+      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null,
       disabled: this.promotionOpen,
     });
   }
@@ -487,5 +563,15 @@ export class GameController {
       feedback: this.els.feedbackSelect,
       undo: this.els.undoButton,
     };
+  }
+}
+
+/** SAN of a UCI move in the position `fen`, or null when chess.js rejects it. */
+function sanOf(fen: string, uci: UciMove | null): string | null {
+  if (!uci) return null;
+  try {
+    return new Chess(fen).move(uciToMove(uci)).san;
+  } catch {
+    return null;
   }
 }

@@ -33,6 +33,15 @@ engine in its footer. The board is [chessground](https://github.com/lichess-org/
 (GPL-3.0-or-later) and the rules are [chess.js](https://github.com/jhlywa/chess.js)
 (BSD-2-Clause). Whether the GPL reaches the app's own code is an open item (backlog B6).
 
+## Game review
+
+Two kings watch the game beside the board (the active piece set's own kings). Once a game
+is over, "Rozbor" replays it ply by ply with comic-strip speech bubbles: Czech, funny,
+written for a young club player. Texts are templates in `src/commentary.ts` (tone rules in
+its header), chosen deterministically per ply from the move's situation (chess.js flags)
+and the feedback glyph; mistakes name the engine's better move. No engine runs during
+the review.
+
 ## Publishing
 
 The public site is a GitHub Pages build in a separate repository. `npm ci` (not

@@ -386,6 +386,164 @@ body {
   cursor: pointer;
 }
 
+/* "Vlastní figurky" dialog (MVP M1-M3). */
+.user-sets-open {
+  grid-column: 1 / -1;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.user-sets-dialog {
+  width: min(92vw, 720px);
+  max-height: 92vh;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #eee;
+}
+
+.user-sets-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.user-sets-dialog h2,
+.user-sets-dialog h3 {
+  margin: 0 0 8px;
+}
+
+.user-sets-dialog .us-note {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
+.user-sets-dialog .us-warn {
+  color: #f7c631;
+}
+
+.us-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.us-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.us-controls select,
+.us-controls input {
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #1e1e1e;
+  color: #eee;
+}
+
+.us-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.us-slot {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1e1e1e;
+  cursor: pointer;
+}
+
+.us-thumb {
+  grid-row: 1 / 3;
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+  background: #dce6f0 center / contain no-repeat;
+}
+
+.us-label {
+  font-size: 0.85rem;
+}
+
+.us-status {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.us-status.us-ok {
+  color: #7fd17a;
+}
+
+.us-slot input[type='file'] {
+  grid-column: 1 / -1;
+  width: 100%;
+  font-size: 0.7rem;
+  color: #aaa;
+}
+
+.us-msg {
+  min-height: 1.2em;
+  margin: 10px 0;
+  font-size: 0.9rem;
+  color: #7fd17a;
+}
+
+.us-msg.us-error {
+  color: #ffa459;
+}
+
+.us-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.us-actions button,
+.us-copy {
+  padding: 8px 14px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.us-actions .us-save {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: #fff;
+}
+
+.us-prompt {
+  border-top: 1px solid #444;
+  padding-top: 10px;
+}
+
+.us-prompt p {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
 /* Narrow screens (phones, portrait tablets): board on top at full width, panel below.
    Chessground re-measures the board through a ResizeObserver, so CSS alone is enough. */
 @media (max-width: 899px) {

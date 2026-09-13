@@ -34,7 +34,8 @@ export interface Search {
 export interface AnalysisLimits {
   depth: number;
   movetimeMs: number;
-  multiPv: 1 | 2;
+  /** 1-10: move feedback uses 2, the weak levels' "top N" choice up to 8. */
+  multiPv: number;
 }
 
 /** One principal variation. `scoreCp` is mate-normalised (±(10000 - plies)) and from the side to move's point of view. */

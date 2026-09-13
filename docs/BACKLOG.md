@@ -40,11 +40,12 @@ A pair generated from a freshly-written prompt will not match.
 
 ---
 
-## B2 — PROMPTS.md
+## B2 — PROMPTS.md — RESOLVED in the MVP release (`docs/PROMPTS.md`, shipped by "Zkopírovat prompt")
 
 Record the exact DALL-E prompts that produced the goat and frog character
 sheets, and the splash screen, in `public/piece-sets/PROMPTS.md`. Needed before
-B1 is viable. Cheap to do, do it whenever.
+B1 is viable. Cheap to do, do it whenever. (The exact per-animal wording of the
+Phase 6 sheets was not archived; PROMPTS.md carries the cumulative prompt.)
 
 ---
 
@@ -202,10 +203,16 @@ piece sets, the difficulty ladder.
   human review step by someone who actually plays. Do not ship generated
   instruction unreviewed.
 
-## B14 — User-created piece sets (placeholder)
+## B14 — User-created piece sets — variant A RESOLVED in the MVP release
 
-Referenced by B15 (IndexedDB for user-created piece sets). Not specified yet — the entry
-exists so the numbering and the boundary in B15 make sense; the brief is still to come.
+Variant A (twelve ready-made images, IndexedDB, delete, prompt button) shipped. Variant B
+(cutting twelve pieces out of one uploaded character sheet) is explicitly not planned:
+Phase 3/6 showed it needs hand-set cuts, pocket verdicts and per-piece nudges.
+
+Ideas noted while building A, not done: drag-and-drop onto the slots; a "download this set
+as a zip" export so a set can move between devices without a server (stays below the B15
+line); a per-set board palette; splitting one uploaded 6-piece row into six files with a
+simple equal-width cut (a light version of B that would work for the prompt's output).
 
 ## B15 — The client-side / server-side boundary
 

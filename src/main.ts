@@ -6,6 +6,8 @@ import { createEngine } from './engine';
 import { GameController } from './game-controller';
 import { initPieceSets, type ColorPreference, type PieceSetManager } from './piece-sets';
 import { setDifficultyLabels } from './ui/controls';
+import { buildUserSetsDialog } from './ui/user-sets-dialog';
+import { openUserSetStore } from './user-sets';
 import { requireElement } from './ui/dom';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
@@ -27,6 +29,7 @@ app.innerHTML = `
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
+        <button type="button" class="user-sets-open">Vlastní figurky…</button>
       </div>
     </details>
     <div class="matchup"></div>
@@ -51,10 +54,12 @@ app.innerHTML = `
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
       deska <a href="https://github.com/lichess-org/chessground">chessground</a> ·
-      pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a>
+      pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a> ·
+      grafika figurek je vygenerovaná umělou inteligencí
     </footer>
   </aside>
   <dialog class="promotion-dialog"></dialog>
+  <dialog class="user-sets-dialog"></dialog>
 `;
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
@@ -125,14 +130,24 @@ const opponentSelect = requireElement<HTMLSelectElement>(app, '.opponent');
 const sideSelect = requireElement<HTMLSelectElement>(app, '.side');
 const difficultySelect = requireElement<HTMLSelectElement>(app, '.difficulty');
 const matchupEl = requireElement<HTMLElement>(app, '.matchup');
+const userSetsButton = requireElement<HTMLButtonElement>(app, '.user-sets-open');
+const userSetsDialog = requireElement<HTMLDialogElement>(app, '.user-sets-dialog');
 let pieceSets: PieceSetManager | undefined;
 
 sideSelect.replaceChildren(new Option('náhodně', 'random'), new Option('bílá', 'w'), new Option('černá', 'b'));
 
-void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage() })
-  .then((manager) => {
+// User sets (IndexedDB, or memory when blocked) are read first so a reload can restore one.
+void openUserSetStore()
+  .then(async (store) => {
+    const userSets = await store.list().catch((err) => {
+      console.warn('Could not read user piece sets', err);
+      return [];
+    });
+    const manager = await initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), userSets });
     pieceSets = manager;
-    wirePieceSetSelects(manager);
+    const rerender = wirePieceSetSelects(manager);
+    const dialog = buildUserSetsDialog({ dialog: userSetsDialog, store, manager, onChanged: rerender });
+    userSetsButton.addEventListener('click', () => dialog.open());
     // The controller opened its first game before the preferences were known: draw again
     // (no move has been played yet; a new game is what a colour change means anyway).
     void game.newGame().catch((err) => console.error('newGame failed', err));
@@ -154,19 +169,20 @@ function renderMatchup(): void {
   matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Soupeř: ${them?.name ?? '?'} (${COLOR_NAME[other]})`;
 }
 
-function wirePieceSetSelects(manager: PieceSetManager): void {
-  if (manager.families.length === 0) {
-    familySelect.replaceChildren(new Option('Klasické (vestavěné)', ''));
-    familySelect.disabled = true;
-    for (const sel of [animalSelect, opponentSelect]) {
-      sel.replaceChildren(new Option('—', ''));
-      sel.disabled = true;
-    }
-    return;
-  }
-  familySelect.replaceChildren(...manager.families.map((f) => new Option(f.name, f.id)));
-
+/** Wires the selects; returns the re-render used after user sets change. */
+function wirePieceSetSelects(manager: PieceSetManager): () => void {
   const render = (): void => {
+    if (manager.families.length === 0) {
+      familySelect.replaceChildren(new Option('Klasické (vestavěné)', ''));
+      familySelect.disabled = true;
+      for (const sel of [animalSelect, opponentSelect]) {
+        sel.replaceChildren(new Option('—', ''));
+        sel.disabled = true;
+      }
+      return;
+    }
+    familySelect.disabled = false;
+    familySelect.replaceChildren(...manager.families.map((f) => new Option(f.name, f.id)));
     familySelect.value = manager.familyId ?? manager.families[0].id;
     sideSelect.value = manager.colorPreference;
     if (manager.isLibrary) {
@@ -208,6 +224,7 @@ function wirePieceSetSelects(manager: PieceSetManager): void {
     render();
   });
   render();
+  return render;
 }
 
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';

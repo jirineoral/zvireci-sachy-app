@@ -16,8 +16,8 @@ import {
   type BoardBridge,
   type BoardColor,
 } from './board-bridge';
-import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type DifficultyLevel } from './difficulty';
-import { MATE_SCORE, type Analysis, type Engine, type PvLine, type Search, type UciMove } from './engine';
+import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type Difficulty, type DifficultyLevel } from './difficulty';
+import { MATE_SCORE, type Analysis, type Engine, type EngineOptions, type PvLine, type Search, type UciMove } from './engine';
 import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
 import { commentaryFor, positionAt, type PlyRecord, type SpeakerVoice } from './review';
@@ -137,7 +137,7 @@ export class GameController {
     engine.ready
       .then(() => {
         this.engineState = 'ready';
-        this.engine.setOptions({ ...difficulty(this.difficultyLevel).options, multiPv: 1 });
+        this.engine.setOptions(this.playOptions());
         this.engineMode = 'play';
         this.afterPositionChange(); // an engine turn that waited during loading starts now
       })
@@ -183,7 +183,7 @@ export class GameController {
     const wasThinking = this.pendingSearch !== null;
     const t = await this.beginTransition();
     if (t !== this.transition) return;
-    this.engine.setOptions({ ...difficulty(level).options, multiPv: 1 }); // no search outstanding here
+    this.engine.setOptions(this.playOptions()); // no search outstanding here
     this.engineMode = 'play';
     if (wasThinking) this.afterPositionChange(); // restarts the search with the new settings
   }
@@ -248,8 +248,13 @@ export class GameController {
   /** Restores the level's play options after an analysis. Caller guarantees nothing outstanding. */
   private ensurePlayOptions(): void {
     if (this.engineMode === 'play' || this.engineState !== 'ready') return;
-    this.engine.setOptions({ ...difficulty(this.difficultyLevel).options, multiPv: 1 });
+    this.engine.setOptions(this.playOptions());
     this.engineMode = 'play';
+  }
+
+  /** The level's engine options; MultiPV defaults to 1 (the weak levels ask for their top-N). */
+  private playOptions(): EngineOptions {
+    return { multiPv: 1, ...difficulty(this.difficultyLevel).options };
   }
 
   /** Runs one analysis at full strength; resolves null when cancelled. Caller guarantees nothing outstanding. */
@@ -418,12 +423,9 @@ export class GameController {
     this.ensurePlayOptions();
 
     const d = difficulty(this.difficultyLevel);
-    // Weak levels: sometimes play a random legal move instead of asking the engine. It is
-    // wrapped as a Search so the identity + FEN guards below apply unchanged.
-    const search =
-      Math.random() < d.randomMoveChance
-        ? this.randomMoveSearch()
-        : this.engine.search(this.chess.fen(), d.limits);
+    // Weak levels: draw the move among the engine's top candidates instead of taking the
+    // best one. Wrapped as a Search so the identity + FEN guards below apply unchanged.
+    const search = d.topMoves > 1 ? this.topMovesSearch(d) : this.engine.search(this.chess.fen(), d.limits);
     this.pendingSearch = search;
     this.refreshView(); // locks the board, shows "přemýšlím…"
 
@@ -441,12 +443,21 @@ export class GameController {
       .catch((err) => console.error('engine search failed', err));
   }
 
-  /** A uniformly random legal move (rules from chess.js), shaped like an engine search. */
-  private randomMoveSearch(): Search {
-    const moves = this.chess.moves({ verbose: true });
-    const pick = moves[Math.floor(Math.random() * moves.length)];
-    const uci: UciMove = `${pick.from}${pick.to}${pick.promotion ?? ''}`;
-    return { fen: this.chess.fen(), result: Promise.resolve(uci) };
+  /**
+   * The weak levels' move: the same weak search with MultiPV, then a uniform draw among
+   * the lines within `topWindowCp` of the best. Shaped like an engine search; null when
+   * the analysis was cancelled (the caller discards it exactly like a cancelled search).
+   */
+  private topMovesSearch(d: Difficulty): Search {
+    const analysis = this.engine.analyse(this.chess.fen(), { ...d.limits, multiPv: d.topMoves });
+    const result = analysis.result.then((lines) => {
+      if (lines === null || lines.length === 0) return null;
+      const best = lines[0].scoreCp;
+      const candidates = lines.filter((l) => l.pv[0] !== undefined && best - l.scoreCp <= d.topWindowCp);
+      const pick = candidates[Math.floor(Math.random() * candidates.length)] ?? lines[0];
+      return pick.pv[0] ?? null;
+    });
+    return { fen: analysis.fen, result };
   }
 
   /** Sync + render + (maybe) start the engine. */

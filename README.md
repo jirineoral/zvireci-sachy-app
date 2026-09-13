@@ -42,6 +42,25 @@ its header), chosen deterministically per ply from the move's situation (chess.j
 and the feedback glyph; mistakes name the engine's better move. No engine runs during
 the review.
 
+## Your own pieces
+
+"Vlastní figurky…" in the settings takes up to twelve PNG/JPG images (one per piece; the
+missing ones show the classic set), downsizes them to 256×256 and keeps them in the
+browser's IndexedDB — nothing leaves the device, a set lives in one browser on one device
+and is gone when the site data is cleared. Files are sniffed by content (PNG/JPEG
+signatures only, never SVG) and re-encoded through a canvas before they reach the page.
+"Zkopírovat prompt" copies the image-generation prompt from `docs/PROMPTS.md`.
+
+## Difficulty
+
+Six levels (`src/difficulty.ts`): Stockfish with a Skill Level and a depth cap; the two
+weakest levels draw their move at random among the engine's best few candidates so they
+play weakly but coherently. The levels were tuned by a tournament-playing child and an
+adult club-level player — feedback on whether the lower levels suit a real beginner is
+especially welcome.
+
+All piece artwork (the character library) is AI-generated.
+
 ## Publishing
 
 The public site is a GitHub Pages build in a separate repository. `npm ci` (not

@@ -48,6 +48,15 @@ public/piece-sets/animals/<id>/pieces.css                generated, scoped rules
   contact sheets. The player's own character is never drawn as a random opponent;
   choosing the same character on both sides deliberately is allowed.
 
+## User sets (uploaded in the app)
+
+"Vlastní figurky…" accepts up to twelve PNG/JPG files (`wK wQ wR wB wN wP bK bQ bR bB bN bP`),
+sniffs them by content (never SVG), redraws each into a 256×256 PNG and keeps the set in
+the browser's IndexedDB (`skm` / `userSets`). The set appears in the "Figurky" selector as
+`Moje: <name>` and is styled through a constructed stylesheet with object URLs; missing
+pieces show the classic set. Browser-local only: one browser, one device, gone with the
+site data. Nothing under `public/` is involved.
+
 ## Pair sets
 
 A pair set is one folder under `public/piece-sets/<id>/` plus one entry in `sets.json`.

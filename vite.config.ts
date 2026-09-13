@@ -12,6 +12,8 @@ import { defineConfig, type Plugin } from 'vite';
  *    (WebAssembly.instantiateStreaming). Without it the engine fails and the app silently
  *    falls back to two-player mode. It permits wasm compilation only, not JS eval.
  *  - img-src data:: the built-in cburnett piece set is data:image/svg+xml in the bundled CSS.
+ *  - img-src blob:: the player's own piece sets (MVP M1) are object URLs of PNGs that our
+ *    own code re-encoded from sniffed uploads; no other blob: source exists.
  *  - connect-src 'self': sets.json, the wasm HEAD pre-check and the worker's wasm fetch.
  *  - frame-ancestors cannot be expressed in a <meta> policy; a header would be needed.
  */
@@ -19,7 +21,7 @@ const CSP = [
   "default-src 'none'",
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self'",
-  "img-src 'self' data:",
+  "img-src 'self' data: blob:",
   "connect-src 'self'",
   "worker-src 'self'",
   "base-uri 'none'",

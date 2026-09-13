@@ -11,11 +11,15 @@
  *    promotion dialog and the spectators follow automatically.
  *  - a *pair* family (Phase 5A): one folder per "which animal is white"; the set is
  *    resolved from (family, animal, colour). `cburnett` is the built-in pair.
+ *  - a *user* family (MVP M1/M2): twelve optional blobs uploaded by the player, styled
+ *    through a constructed stylesheet (CSSOM, so `style-src 'self'` is not involved) with
+ *    the same `<html>`-class scoping; missing pieces show the built-in classic ones.
  *
  * Fallbacks: a missing/invalid manifest or a stylesheet that fails to load leaves the
  * bundled cburnett styling (src/styles/pieces.css) in place, so the board stays playable.
  */
 import type { Color } from 'chess.js';
+import { PIECE_CODES, type PieceCode, type UserSet } from './user-sets';
 
 /** A character of the library (id, Czech names, noises, difficulty labels). */
 export interface Animal {
@@ -60,7 +64,12 @@ export interface PieceFamily {
   sets: readonly PieceSet[];
   /** Non-null when the family is a character library (and it loaded). */
   library: AnimalLibrary | null;
+  /** Non-null for a family made of the player's own uploaded pieces. */
+  userSet: UserSet | null;
 }
+
+export const USER_FAMILY_PREFIX = 'user-';
+const USER_BOARD = { light: '#dce6f0', dark: '#8fa3bd' };
 
 export type ColorPreference = 'random' | Color;
 /** 'random' or a character id. */
@@ -88,6 +97,10 @@ export interface PieceSetManager {
   drawColor(): Color;
   /** A new game starts with this colour: re-draws a random opponent, re-applies the styling. */
   startGame(color: Color): void;
+  /** Adds or replaces the player's own set as a family and selects it. */
+  useUserSet(set: UserSet): void;
+  /** Removes a user family; falls back to the first family when it was selected. */
+  removeUserSet(id: string): void;
 }
 
 export interface PieceSetOptions {
@@ -95,6 +108,8 @@ export interface PieceSetOptions {
   /** The chessground wrapper (`.cg-wrap`) that carries --board-light / --board-dark. */
   boardEl: HTMLElement;
   storage: Storage | null;
+  /** The player's own sets, already read from storage. */
+  userSets?: readonly UserSet[];
 }
 
 export const FAMILY_STORAGE_KEY = 'skm.pieceFamily';
@@ -121,7 +136,8 @@ export function resolvePair(family: PieceFamily, animal: string, color: Color): 
 }
 
 export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetManager> {
-  const families = await loadFamilies(opts.baseUrl);
+  const families: PieceFamily[] = await loadFamilies(opts.baseUrl);
+  for (const set of opts.userSets ?? []) families.push(userFamily(set));
   let familyId: string | null = null;
   let animal = DEFAULT_ANIMAL;
   let opponentPreference: OpponentPreference = 'random';
@@ -151,6 +167,14 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   const apply = (): void => {
     const f = family();
     if (!f) return;
+    if (f.userSet) {
+      removePairLinks();
+      appliedPairSet = null;
+      userStyles.ensure(f.userSet);
+      setHtmlClasses([`${HTML_CLASS_PREFIX}user-${f.userSet.id}`]);
+      applyBoard(USER_BOARD);
+      return;
+    }
     if (f.library) {
       const librarySet = f.sets.find((s) => s.library !== null) ?? f.sets[0];
       const player = findAnimal(animal) ?? f.library.animals[0];
@@ -256,8 +280,77 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       if (opponentPreference === 'random') opponent = pickOpponent();
       apply();
     },
+    useUserSet(set: UserSet): void {
+      const fam = userFamily(set);
+      const at = families.findIndex((f) => f.id === fam.id);
+      if (at >= 0) families[at] = fam;
+      else families.push(fam);
+      userStyles.drop(set.id); // a replaced set gets a fresh stylesheet and fresh object URLs
+      familyId = fam.id;
+      apply();
+      writeStored(opts.storage, FAMILY_STORAGE_KEY, fam.id);
+    },
+    removeUserSet(id: string): void {
+      const famId = USER_FAMILY_PREFIX + id;
+      const at = families.findIndex((f) => f.id === famId);
+      if (at < 0) return;
+      families.splice(at, 1);
+      userStyles.drop(id);
+      if (familyId === famId) {
+        familyId = families[0]?.id ?? null;
+        if (familyId) writeStored(opts.storage, FAMILY_STORAGE_KEY, familyId);
+        apply();
+      }
+    },
   };
 }
+
+function userFamily(set: UserSet): PieceFamily {
+  const pseudo: PieceSet = {
+    id: USER_FAMILY_PREFIX + set.id,
+    name: `Moje: ${set.name}`,
+    family: USER_FAMILY_PREFIX + set.id,
+    whiteAnimal: null,
+    pair: 'user',
+    board: USER_BOARD,
+    stylesheet: null,
+    library: null,
+  };
+  return { id: pseudo.id, name: pseudo.name, sets: [pseudo], library: null, userSet: set };
+}
+
+// ---- user sets: constructed stylesheets ------------------------------------------------
+const ROLE_NAME: Record<string, string> = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' };
+
+/** One constructed stylesheet per user set, rules only for the pieces it has. */
+const userStyles = {
+  sheets: new Map<string, { sheet: CSSStyleSheet; urls: string[] }>(),
+  ensure(set: UserSet): void {
+    if (this.sheets.has(set.id)) return;
+    const sheet = new CSSStyleSheet();
+    const urls: string[] = [];
+    const scope = `html.${HTML_CLASS_PREFIX}user-${set.id} .cg-wrap piece`;
+    for (const code of PIECE_CODES) {
+      const blob = set.pieces[code as PieceCode];
+      if (!blob) continue;
+      const url = URL.createObjectURL(blob);
+      urls.push(url);
+      const color = code[0] === 'w' ? 'white' : 'black';
+      sheet.insertRule(
+        `${scope}.${ROLE_NAME[code[1]]}.${color} { background-image: url("${url}"); background-size: contain; background-position: center; background-repeat: no-repeat; }`,
+      );
+    }
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    this.sheets.set(set.id, { sheet, urls });
+  },
+  drop(id: string): void {
+    const entry = this.sheets.get(id);
+    if (!entry) return;
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== entry.sheet);
+    for (const url of entry.urls) URL.revokeObjectURL(url);
+    this.sheets.delete(id);
+  },
+};
 
 function isPairAnimal(value: unknown): value is PairAnimal {
   return typeof value === 'string' && (PAIR_ANIMALS as readonly string[]).includes(value);
@@ -277,7 +370,7 @@ async function loadFamilies(baseUrl: string): Promise<PieceFamily[]> {
     const libraryEntry = members.find((s) => s.library !== null);
     const library = libraryEntry ? await loadLibrary(baseUrl, libraryEntry.library as string) : null;
     if (libraryEntry && !library) continue; // unusable library: the family disappears, fallback styling stays
-    families.push({ id, name: members[0].name, sets: members, library });
+    families.push({ id, name: members[0].name, sets: members, library, userSet: null });
   }
   return families;
 }

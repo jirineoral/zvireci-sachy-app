@@ -224,3 +224,34 @@ App
     new dependency; security checklist run (new storage keys validated, no new sinks).
 
 Wrap-up: preview on 4173 rebuilt, Pages redeployed, DoD table appended here with deviations.
+
+## DoD results (executed 2026-09-13)
+
+Commits: `7c0c404` extraction, `b27da22` app. Tested in the Vite dev server (Chromium)
+with a temporary `debugLoadFen` / `debugHumanMove` / `debugCommentary` hook (removed
+before the commit; `git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty). Selects were
+driven by real `change` events, buttons by clicks.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Contact sheets | PASS | `docs/piece-contact-sheet-animals-{1,2}.png`, 19 characters × (light row, dark row) at 40 px on both squares + grey + 96 px: all identifiable; light vs dark rows distinct in grey for every character (the penguins' light row is white with dark outlines, the sharks' light row blue — both read fine); the crosses/sceptres survive; no white fringe on the dark square. "King not tallest" warnings for tučňáci light (1 px), mouchy dark (5 px), lamy dark (2 px), zizaly dark (2 px) — judged harmless on the sheet, shipped |
+| 2 | Pocket verdicts | PASS | 66+ candidates over the first 15 sheets, later 19: every `CLEAR` is flat sheet white (mean ≥ 252, std ≤ 2), every `keep` is warm-tinted drawn white (blue channel 243–249: mitres, eye whites, penguin bellies). No override was needed (`POCKET_OVERRIDES` empty). **Found during this item:** the top row's text labels touch the light kings' crosses on 5 sheets — fixed by measuring the label band from the loose letters/words and trimming bottom busts above it (at most a few px of a cross tip) |
+| 3 | Reproducible | PASS | Rerun after the commit → `git status` empty |
+| 4 | First visit + 10 draws | PASS | `Hlavy` / `kůzlata` / `náhodně` / `náhodně`; 10 × Nová hra → 8 distinct pairings, both colours drawn, kůzlata never the opponent, orientation follows the colour, spectators show the pair, `<html>` carries exactly `skm-white-<a> skm-black-<b>` |
+| 5 | Explicit choices | PASS | hadi / žraloci / černá → dark snakes below, blue sharks above, orientation black; → bílá → new game, light snakes below, dark sharks above. Promotion dialog (žáby + bílá in 5A's test; the mechanism is unchanged and the dialog renders `.cg-wrap piece.*`) — re-verified this phase for kočky white: the four dialog pieces come from `animals/kocky/light/` |
+| 6 | Mid-game change | PASS | `Hraju za` → kočky mid-game: pieces swap, position/status unchanged, `Soupeř: náhodně` keeps the current opponent until the next game; levels relabelled (`6 · Kočičí král`) |
+| 7 | Same character both sides | PASS | kočky vs kočky: one `<link>`, both classes, light K vs dark K; `náhodně` never mirrors (0 of 10 draws + rule in `pickOpponent`) |
+| 8 | Persistence + garbage | PASS | Reload keeps `skm.animal/opponent/color` (žáby / člověk / černá → engine opened `1.e3`, we are black); `drak` / `green` / 10 kB → defaults + `console.warn`; legacy `zabky` valid |
+| 9 | Pair families | PASS | `Celé figurky`: character selects disabled `—`, frog level names, matchup line "Hraješ za černé."; `Klasické`: built-in data URIs + classic palette; back to `Hlavy`: characters and labels restored |
+| 10 | Missing manifests | PASS with note | `animals.json` missing → the `Hlavy` family is dropped and the first remaining style (`Celé figurky`) is used, playable — **deviation:** the plan said "Hlavy shows built-in pieces"; dropping the style gives a styled, playable board instead. One character's `pieces.css` missing → that side shows the built-in pieces, the other side keeps its character, playable (dev server answers HTML 200 so no error is logged there; a static host logs it) |
+| 11 | Voices | PASS | `commentaryFor` with člověk (white) vs hadi: `exd5` → had: "Sss… Viděl jsem to a stejně jsem neuhnul."; `Qxd5` (black takes) → člověk: "Au! Kdo to počítá? Já, bohužel."; `Sss!` in the snakes' own line; spectators show the pair's kings |
+| 12 | Mobile 375 px | PASS | Six selects right-aligned at x=363 of 375, `scrollWidth` = viewport (no horizontal scroll) |
+| 13 | Build / grep / deps / security | PASS | `tsc` strict clean; grep empty; `package.json` unchanged; `npm audit` 0; new keys validated (`skm.opponent`, `skm.color`), no new DOM sink (the only `innerHTML` is still the constant template) |
+
+Deviations from the plan:
+- 19 characters instead of 13 (six sheets arrived mid-phase); the human is "člověk".
+- Difficulty labels per character and `hurt` voices added on the user's request (decisions 14–15).
+- Missing `animals.json` drops the style instead of showing built-in pieces (item 10).
+- Label-band trimming (item 2) was not in the plan; it removes text only, never art beyond a cross tip.
+- Characters wider than the canvas (flies' wings) are scaled down as a whole (`fits()` guard) rather than nudged; recorded in the script.
+- Library size: 19 × 12 PNGs ≈ 15 MB in the repo/Pages; a game loads only the two characters in play (~1.5 MB).

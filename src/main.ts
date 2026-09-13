@@ -27,7 +27,7 @@ app.innerHTML = `
     <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="bubble" hidden></div></div>
   </div>
   <aside class="panel">
-    <h1>ŠACH KVÁK MEK!!!</h1>
+    <h1>Zvířecí šachy <small class="subtitle">(nejen) pro děti</small></h1>
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">

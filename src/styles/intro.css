@@ -265,13 +265,23 @@
   -webkit-text-fill-color: transparent;
 }
 
-.splash-title span:last-child {
+.splash-title span:nth-child(2) {
   font-size: 1.25em;
   color: #ff7a2a;
   background: linear-gradient(#ffd27a, #ff6a1a);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.splash-subtitle {
+  margin-top: 0.25em;
+  font-size: 0.38em;
+  letter-spacing: 0.12em;
+  text-transform: none;
+  color: #fff7dc;
+  -webkit-text-stroke: 0.06em #4a2a10;
+  text-shadow: 0.05em 0.07em 0 #4a2a10;
 }
 
 .splash-bottom {

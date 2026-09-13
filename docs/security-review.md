@@ -241,3 +241,9 @@ re-validated by replay before a record is opened. New IndexedDB store `games` (D
 records are shape-checked on read. No new network use, no new sink, CSP unchanged.
 1 `npm audit` 0 · 2 grep empty · 3 sinks as above · 4 storage keys unchanged ·
 5–6 on Pages after the deploy · 7 tree unchanged in kind · 8 unchanged.
+
+### 2026-09-13 — rename
+The Pages repository `sach-kvak-mek-web` was renamed to `zvireci-sachy`; the site now lives
+at https://jirineoral.github.io/zvireci-sachy/ (the old URL is not redirected — accepted).
+Same origin, so the players' `localStorage` and IndexedDB carry over. The source repository
+keeps its name. Checklist items referring to the old name apply unchanged.

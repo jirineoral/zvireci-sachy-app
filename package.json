@@ -1,6 +1,6 @@
 {
-  "name": "sach-kvak-mek",
-  "description": "ŠACH KVÁK MEK!!!",
+  "name": "zvireci-sachy",
+  "description": "Zvířecí šachy (nejen) pro děti",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "postinstall": "node scripts/copy-engine.mjs",
-    "build:pages": "tsc --noEmit && vite build --base /sach-kvak-mek-web/"
+    "build:pages": "tsc --noEmit && vite build --base /zvireci-sachy/"
   },
   "dependencies": {
     "@lichess-org/chessground": "10.1.1",

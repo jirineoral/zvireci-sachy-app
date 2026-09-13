@@ -89,10 +89,13 @@ export function createIntro(opts: IntroOptions): IntroController {
   const title = document.createElement('h1');
   title.className = 'splash-title';
   const line1 = document.createElement('span');
-  line1.textContent = 'ŠACH KVÁK';
+  line1.textContent = 'ZVÍŘECÍ';
   const line2 = document.createElement('span');
-  line2.textContent = 'MEK!!!';
-  title.append(line1, line2);
+  line2.textContent = 'ŠACHY';
+  const line3 = document.createElement('span');
+  line3.className = 'splash-subtitle';
+  line3.textContent = '(nejen) pro děti';
+  title.append(line1, line2, line3);
   const play = document.createElement('button');
   play.type = 'button';
   play.className = 'splash-play';

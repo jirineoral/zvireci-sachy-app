@@ -1,4 +1,6 @@
-# ŠACH KVÁK MEK!!!
+# Zvířecí šachy (nejen) pro děti
+
+*Working title until 2026-09-13: ŠACH KVÁK MEK!!! (the source repository still carries that name.)*
 
 A personalized chess app for a young competitive player. Phase 1 was a local
 human-vs-human board in the browser; Phase 2 adds a Stockfish opponent with adjustable

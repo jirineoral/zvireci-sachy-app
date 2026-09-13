@@ -7,8 +7,9 @@ above is updated; findings that change get a new dated entry, everything else st
 ## Threat model, as it actually is
 
 A static site on GitHub Pages: no backend, no accounts, no payments, no analytics, no
-third-party scripts, no data of the player beyond two `localStorage` keys (`skm.pieceSetId`,
-`skm.moveFeedback`) that contain a piece-set id and `on`/`off`. Everything the page loads
+third-party scripts, no data of the player beyond three `localStorage` keys
+(`skm.pieceFamily`, `skm.animal`, `skm.moveFeedback` — since Phase 5A; `skm.pieceSetId`
+before) that contain a piece-set family id, an animal id and `on`/`off`. Everything the page loads
 comes from its own origin; the only "input" the code processes that it did not write itself
 is the engine's UCI text, a hand-written `sets.json`, and whatever a curious user types into
 `localStorage`. What can realistically go wrong: (1) a compromised or malicious npm package
@@ -178,3 +179,16 @@ git grep -n -e innerHTML -e insertAdjacentHTML -e "setAttribute(" -- src
 `securitypolicyviolation` events, the only resource origin is `https://jirineoral.github.io`,
 `engine/LICENSE-GPL-3.0.txt` → 200, the old bundle `index-Au1RDG7G.js` → 404) · 7 clean after `publish-pages.mjs` (stale bundles removed) ·
 8 GPL text ships, footer live.
+
+### 2026-09-13 — end of Phase 5, at `2fcaeca` (+ CSS fix)
+1 `npm audit` 0 · 2 grep empty at HEAD · 3 sinks unchanged (the constant template in
+`main.ts`; the piece-set `href` still built only from a validated id; the four new review
+files use `textContent` only — `git grep innerHTML` over them empty) · 4 `getItem` reads
+are `skm.pieceFamily` (matched against the manifest), `skm.animal` (matched against the
+fixed list), `skm.moveFeedback` (`!== 'off'`), legacy `skm.pieceSetId` (matched, then
+removed); garbage values (10 kB string, unknown animal) fall back with `console.warn` ·
+5 Pages: single origin `https://jirineoral.github.io`, zero `securitypolicyviolation` ·
+6 Pages: CSP present, engine answered `1.e3 e6`, spectators and review render · 7 Pages
+tree: one JS, one CSS, `engine/` ×3, `piece-sets/` (3 sets + inverse), `index.html`,
+`.nojekyll`, `README.md`, `LICENSE-GPL-3.0.txt` · 8 `dist/engine/LICENSE-GPL-3.0.txt`
+present, no new dependency.

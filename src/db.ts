@@ -8,6 +8,7 @@ export const DB_NAME = 'skm';
 export const DB_VERSION = 2;
 export const STORE_USER_SETS = 'userSets';
 export const STORE_GAMES = 'games';
+const OPEN_TIMEOUT_MS = 4000;
 
 let opening: Promise<IDBDatabase> | null = null;
 
@@ -34,9 +35,26 @@ export function openDatabase(): Promise<IDBDatabase> {
           games.createIndex('playedAt', 'playedAt');
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error ?? new Error('indexedDB.open failed'));
-      request.onblocked = () => reject(new Error('indexedDB.open blocked'));
+      // An open queued behind another tab's pending delete/upgrade fires no event at all;
+      // do not let the whole app wait on it — fall back to memory after a few seconds.
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        settled = true;
+        reject(new Error('indexedDB.open timed out'));
+      }, OPEN_TIMEOUT_MS);
+      request.onsuccess = () => {
+        window.clearTimeout(timer);
+        if (settled) request.result.close(); // too late: the caller already fell back
+        else resolve(request.result);
+      };
+      request.onerror = () => {
+        window.clearTimeout(timer);
+        reject(request.error ?? new Error('indexedDB.open failed'));
+      };
+      request.onblocked = () => {
+        window.clearTimeout(timer);
+        reject(new Error('indexedDB.open blocked'));
+      };
     });
     opening.catch(() => {
       opening = null; // let a later caller try again (e.g. after the user allows storage)

@@ -337,7 +337,7 @@ this list unprompted. Treat that as the strongest signal in the whole backlog. H
 ordering is preserved in the titles; the suggested build order at the end is the
 parent's. **The GATE at the top applies to every item.**
 
-### R1 — Show approximate Elo next to each bot difficulty level
+### R1 — Show approximate Elo next to each bot difficulty level — SHIPPED as option (c) in Phase 14 (`Bilance` in `Partie`: own record per level / campaign / opponent; no Elo numbers)
 Trivial to display, not trivial to know. After the M5 rework, levels 1–2 play a
 weak self-search with randomisation among top-N moves, and nobody has measured
 what Elo that actually is. Inventing a number and showing it to a tournament
@@ -432,7 +432,7 @@ will tell him so rather than leaving it open.
 ### Suggested build order (mine, not his)
 R4 → R2 → R5 → R1 → the two server-free parts of R3 → R6 → R7.
 
-## B19 — Only-move positions in the live feedback
+## B19 — Only-move positions in the live feedback — DONE in Phase 14 (forced human move: no analysis A / no glyph; forced reply: analysis B after the reply)
 
 Stockfish answers a position with exactly one legal move immediately, with a depth-1
 score. The whole-game analysis (Phase 9) compensates by taking the next position's eval;

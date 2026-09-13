@@ -415,6 +415,7 @@ export class GameController {
       black: names.black,
       plies: this.plies.map((p) => (p ? { ...p } : null)),
       source: 'app',
+      level: this.currentDifficulty().level,
     };
   }
 
@@ -588,10 +589,10 @@ export class GameController {
   }
 
   /** Runs one analysis at full strength; resolves null when cancelled. Caller guarantees nothing outstanding. */
-  private async runAnalysis(multiPv: 1 | 2): Promise<PvLine[] | null> {
+  private async runAnalysis(multiPv: 1 | 2, fen: string = this.chess.fen()): Promise<PvLine[] | null> {
     this.engine.setOptions({ skillLevel: 20, multiPv });
     this.engineMode = 'analysis';
-    const analysis = this.engine.analyse(this.chess.fen(), { depth: ANALYSIS.depth, movetimeMs: ANALYSIS.movetimeMs, multiPv });
+    const analysis = this.engine.analyse(fen, { depth: ANALYSIS.depth, movetimeMs: ANALYSIS.movetimeMs, multiPv });
     this.pendingAnalysis = analysis;
     const lines = await analysis.result;
     if (this.pendingAnalysis === analysis) {
@@ -608,6 +609,12 @@ export class GameController {
   /** Analysis A: evaluate the position the human is about to move in (runs while they think). */
   private startPreMoveAnalysis(): void {
     if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
+    // B19: a forced move cannot be judged — Stockfish answers a one-move position with a
+    // depth-1 score. No analysis A, hence no glyph for that move (it was the best one).
+    if (this.chess.moves().length <= 1) {
+      this.preMove = null;
+      return;
+    }
     const gen = this.transition;
     const fen = this.chess.fen();
     this.runAnalysis(2)
@@ -709,19 +716,37 @@ export class GameController {
       // Nothing to search in a finished game: mate delivered = best possible, any draw = 0.
       evalAfter = this.chess.isCheckmate() ? MATE_SCORE : 0;
     } else {
-      this.evaluating = true;
-      this.refreshView();
-      let lines: PvLine[] | null = null;
-      try {
-        lines = await this.runAnalysis(1);
-      } finally {
-        this.evaluating = false;
+      // B19: when the opponent's reply is forced, Stockfish would answer with a depth-1
+      // score; evaluate the position after the forced reply instead (human to move, so
+      // the score is already from the human's point of view).
+      const legal = this.chess.moves({ verbose: true });
+      const forced = legal.length === 1 ? legal[0] : null;
+      let probeFen = this.chess.fen();
+      let probeOver: number | null = null;
+      if (forced) {
+        reply = `${forced.from}${forced.to}${forced.promotion ?? ''}`;
+        const probe = new Chess(probeFen);
+        probe.move(forced.san);
+        probeFen = probe.fen();
+        if (probe.isGameOver()) probeOver = probe.isCheckmate() ? -MATE_SCORE : 0;
       }
-      if (gen !== this.transition || lines === null) return;
-      const best = lines.find((l) => l.multipv === 1);
-      if (!best) return;
-      evalAfter = -best.scoreCp; // B is opponent-to-move
-      reply = best.pv[0];
+      if (probeOver !== null) {
+        evalAfter = probeOver;
+      } else {
+        this.evaluating = true;
+        this.refreshView();
+        let lines: PvLine[] | null = null;
+        try {
+          lines = await this.runAnalysis(1, probeFen);
+        } finally {
+          this.evaluating = false;
+        }
+        if (gen !== this.transition || lines === null) return;
+        const best = lines.find((l) => l.multipv === 1);
+        if (!best) return;
+        evalAfter = forced ? best.scoreCp : -best.scoreCp; // B is opponent-to-move unless the reply was forced
+        if (!forced) reply = best.pv[0];
+      }
     }
 
     const glyph = classifyMove({

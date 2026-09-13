@@ -76,6 +76,13 @@ them) under a `KŮZLATA vs. HADI` announcement — `soupeř 7 z 18` in the campa
 click or key skips it; the engine waits for it. Setting `Nástup figurek` (`skm.pieceDrop`);
 reduced motion shows the announcement only.
 
+## Your record
+
+`Partie` opens with `Bilance`: wins : draws : losses per difficulty level (named after
+your character), for the campaign, and per opponent — computed from the games saved in
+this browser. Endgame training and pasted PGNs are left out. No Elo estimates are shown:
+nothing has been measured, and a made-up number is worse than none.
+
 ## Endgame training
 
 `Koncovky` sets up one of 17 textbook endgames (`src/endgames.ts`: mates with queen, rook,

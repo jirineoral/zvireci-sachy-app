@@ -35,6 +35,60 @@ export interface GameRecord {
   startEvalCp?: number;
   startBestSan?: string | null;
   source: 'app' | 'pgn';
+  /** Phase 14: the difficulty level in force (1–6; a campaign step rounds to the nearest). Absent in old records. */
+  level?: number;
+  /** Phase 14: how the game came about. Absent in old records (= play). */
+  mode?: GameMode;
+}
+
+export type GameMode = 'play' | 'campaign' | 'training';
+
+export interface Tally {
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+export interface GameStats {
+  /** Index 0 unused; 1–6 by level (games with a known level, mode play). */
+  byLevel: Tally[];
+  campaign: Tally;
+  /** Games without a level (records from before Phase 14). */
+  unknown: Tally;
+  total: Tally;
+  /** By opponent display name, in order of first appearance. */
+  byOpponent: { name: string; tally: Tally }[];
+}
+
+const emptyTally = (): Tally => ({ wins: 0, draws: 0, losses: 0 });
+
+function addTo(t: Tally, record: GameRecord): void {
+  if (record.result === '1/2-1/2') t.draws++;
+  else if ((record.result === '1-0') === (record.humanColor === 'w')) t.wins++;
+  else t.losses++;
+}
+
+/**
+ * The player's own record (R1, option c): finished games the app played, training and
+ * imported PGNs left out. Old records without a level count in the total only.
+ */
+export function statsFrom(records: readonly GameRecord[]): GameStats {
+  const stats: GameStats = { byLevel: Array.from({ length: 7 }, emptyTally), campaign: emptyTally(), unknown: emptyTally(), total: emptyTally(), byOpponent: [] };
+  for (const r of records) {
+    if (r.source !== 'app' || r.humanColor === null || r.result === '*' || r.mode === 'training') continue;
+    addTo(stats.total, r);
+    if (r.mode === 'campaign') addTo(stats.campaign, r);
+    else if (r.level !== undefined && r.level >= 1 && r.level <= 6) addTo(stats.byLevel[r.level], r);
+    else addTo(stats.unknown, r);
+    const opponent = r.humanColor === 'w' ? r.black : r.white;
+    let row = stats.byOpponent.find((o) => o.name === opponent);
+    if (!row) {
+      row = { name: opponent, tally: emptyTally() };
+      stats.byOpponent.push(row);
+    }
+    addTo(row.tally, r);
+  }
+  return stats;
 }
 
 export interface GameStore {
@@ -107,7 +161,9 @@ function isGameRecord(value: unknown): value is GameRecord {
     typeof v.white === 'string' &&
     typeof v.black === 'string' &&
     Array.isArray(v.plies) &&
-    (v.source === 'app' || v.source === 'pgn')
+    (v.source === 'app' || v.source === 'pgn') &&
+    (v.level === undefined || (typeof v.level === 'number' && Number.isInteger(v.level) && v.level >= 1 && v.level <= 6)) &&
+    (v.mode === undefined || v.mode === 'play' || v.mode === 'campaign' || v.mode === 'training')
   );
 }
 

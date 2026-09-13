@@ -154,6 +154,7 @@ controller = new GameController(
       black: pieceSets?.animalOf('b')?.name ?? 'černý',
     }),
     onGameRecord: (record) => {
+      record.mode = endgamePanel.current ? 'training' : campaignOpponent ? 'campaign' : 'play';
       void saveGame(record);
       campaignHooks?.afterGame(record);
       endgamePanel.onGameRecord(record);
@@ -243,7 +244,12 @@ function saveGame(record: GameRecord): Promise<void> {
 }
 void openGameStore().then((store) => {
   gameStore = store;
-  const dialog = buildGamesDialog({ dialog: requireElement<HTMLDialogElement>(app, '.games-dialog'), store, open: (r) => game.loadGame(r) });
+  const dialog = buildGamesDialog({
+    dialog: requireElement<HTMLDialogElement>(app, '.games-dialog'),
+    store,
+    open: (r) => game.loadGame(r),
+    levelLabel: (level) => difficultySelect.options[level - 1]?.text ?? String(level),
+  });
   requireElement<HTMLButtonElement>(app, '.games').addEventListener('click', () => dialog.open());
   for (const r of pendingRecords.splice(0)) void saveGame(r);
 });

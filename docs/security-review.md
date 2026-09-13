@@ -278,3 +278,12 @@ New key `skm.endgames` (JSON, validated: only known ids kept). Positions are con
 in `src/endgames.ts`, loaded through chess.js; all text via `textContent`. No new
 network use, no new sink, CSP unchanged. 1 `npm audit` 0 · 2 grep empty · 3–4 as above ·
 5–6 on Pages after the deploy · 7 tree unchanged · 8 nothing new.
+
+### 2026-09-13 — Phase 14 (record per level, B19)
+`GameRecord` gains optional `level` (integer 1–6) and `mode` (`play|campaign|training`),
+both validated in `isGameRecord`; the statistics are computed from validated records and
+rendered through `textContent`. Hardening found on the way: `indexedDB.open` queued
+behind a pending delete/upgrade in another tab fires no event — the app now falls back to
+memory after 4 s instead of never initialising the piece sets. No new network use, CSP
+unchanged. 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy ·
+7 tree unchanged · 8 nothing new.

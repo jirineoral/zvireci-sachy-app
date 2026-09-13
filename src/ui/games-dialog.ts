@@ -2,13 +2,15 @@
  * "Partie" dialog (Phase 9): saved games (open in the review / delete) and a PGN paste
  * box. All text through `textContent`; PGN is parsed by chess.js only.
  */
-import { PgnError, RESULT_LABEL, recordFromPgn, type GameRecord, type GameStore } from '../games';
+import { PgnError, RESULT_LABEL, recordFromPgn, statsFrom, type GameRecord, type GameStore, type Tally } from '../games';
 
 export interface GamesDialogDeps {
   dialog: HTMLDialogElement;
   store: GameStore;
   /** Opens a record in the review; resolves false when its moves do not replay. */
   open: (record: GameRecord) => Promise<boolean>;
+  /** Display name of a difficulty level (1–6) — the player's character names (Phase 14). */
+  levelLabel: (level: number) => string;
 }
 
 export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
@@ -24,6 +26,8 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
       : 'Tenhle prohlížeč ukládání blokuje — partie vydrží jen do zavření záložky.',
     'us-note',
   );
+  const stats = document.createElement('section');
+  stats.className = 'games-stats';
   const list = document.createElement('ul');
   list.className = 'games-list';
   const empty = el('p', 'Zatím žádná dohraná partie.', 'us-note');
@@ -44,7 +48,7 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
   const actions = document.createElement('div');
   actions.className = 'us-actions';
   actions.append(closeBtn);
-  dialog.append(h2, note, list, empty, message, pgnSection, actions);
+  dialog.append(h2, note, stats, el('h3', 'Uložené partie'), list, empty, message, pgnSection, actions);
 
   let lastPgnRecord: GameRecord | null = null;
 
@@ -56,8 +60,37 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
   const fmtDate = (ms: number): string =>
     new Date(ms).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  const renderStats = (games: GameRecord[]): void => {
+    const st = statsFrom(games);
+    stats.replaceChildren();
+    if (st.total.wins + st.total.draws + st.total.losses === 0) return;
+    const fmt = (t: Tally): string => (t.wins + t.draws + t.losses === 0 ? '—' : `${t.wins} : ${t.draws} : ${t.losses}`);
+    const table = (title: string, rows: [string, Tally, boolean?][]): HTMLElement => {
+      const t = document.createElement('table');
+      t.className = 'stats-table';
+      const cap = document.createElement('caption');
+      cap.textContent = title;
+      const head = document.createElement('tr');
+      for (const h of ['', 'výhry : remízy : prohry']) head.append(el('th', h));
+      t.append(cap, head);
+      for (const [label, tally, total] of rows) {
+        const tr = document.createElement('tr');
+        if (total) tr.className = 'stats-total';
+        tr.append(el('td', label), el('td', fmt(tally)));
+        t.append(tr);
+      }
+      return t;
+    };
+    const levelRows: [string, Tally, boolean?][] = [1, 2, 3, 4, 5, 6].map((l) => [deps.levelLabel(l), st.byLevel[l]]);
+    levelRows.push(['Kampaň', st.campaign]);
+    if (st.unknown.wins + st.unknown.draws + st.unknown.losses > 0) levelRows.push(['starší partie (bez úrovně)', st.unknown]);
+    levelRows.push(['celkem', st.total, true]);
+    stats.append(el('h3', 'Bilance'), table('Podle obtížnosti', levelRows), table('Podle soupeře', st.byOpponent.map((o) => [o.name, o.tally])));
+  };
+
   const render = async (): Promise<void> => {
     const games = await store.list();
+    renderStats(games);
     list.replaceChildren(
       ...games.map((g) => {
         const li = document.createElement('li');

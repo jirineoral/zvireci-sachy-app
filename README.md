@@ -24,9 +24,22 @@ npm run build
 
 ## Engine
 
-The opponent is [Stockfish.js](https://github.com/nmrugg/stockfish.js) (Stockfish 18,
-single-threaded lite WASM build), licensed under the **GPL-3.0**. `npm install` copies
-the engine files into `public/engine/`.
+The opponent is [Stockfish 18](https://github.com/official-stockfish/Stockfish) in the
+WebAssembly packaging of [nmrugg/stockfish.js](https://github.com/nmrugg/stockfish.js)
+(single-threaded "lite" build, npm package `stockfish`), licensed under the **GPL-3.0**.
+`npm install` copies the engine files and the GPL text into `public/engine/`, so the
+published site ships `engine/LICENSE-GPL-3.0.txt` next to the binaries and credits the
+engine in its footer. The board is [chessground](https://github.com/lichess-org/chessground)
+(GPL-3.0-or-later) and the rules are [chess.js](https://github.com/jhlywa/chess.js)
+(BSD-2-Clause). Whether the GPL reaches the app's own code is an open item (backlog B6).
+
+## Publishing
+
+The public site is a GitHub Pages build in a separate repository. `npm ci` (not
+`npm install`) restores the exact locked dependencies; `npm run build:pages` builds with
+the Pages base path and injects the Content Security Policy (`vite.config.ts`);
+`node scripts/publish-pages.mjs <pages-working-copy>` replaces the previous build there.
+Security notes and the per-phase checklist: [`docs/security-review.md`](docs/security-review.md).
 
 ## Piece sets
 

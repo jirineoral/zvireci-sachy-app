@@ -94,9 +94,22 @@ the frog side a green one → the piece-set manifest must carry `--board-light` 
 
 ---
 
-## B6 — GPL-3.0
-Stockfish.js is GPL-3.0. Private repo, no issue today. If this is ever published, the
-whole app must be GPL-3.0. Decide before publishing, not after.
+## B6 — GPL-3.0 (OPEN — publication made it live, 2026-09-13)
+Stockfish.js is GPL-3.0 and the site has been public on GitHub Pages since 2026-09-12.
+Done (security review, C6): the GPL text ships next to the engine files
+(`engine/LICENSE-GPL-3.0.txt`), attribution with upstream links is in the README and in
+the site footer.
+
+Unresolved: whether the GPL propagates to the app's own code. The argument that it does
+not for the engine: Stockfish runs in a separate Web Worker and the app talks to it only
+by UCI text over `postMessage` — a separate program, not a linked library. That is a
+defensible position, not a settled one. Note that the **board library is the stronger
+case**: `@lichess-org/chessground` is GPL-3.0-or-later and is bundled *into* the app's
+JavaScript, which is ordinary linking. The Pages README currently states that the app is
+GPL-3.0 "as a consequence of its dependencies" — that sentence is a statement of intent,
+not a legal finding. For a non-commercial project the cheapest resolution is to release
+the app under GPL-3.0 explicitly (a LICENSE file in the source repo); nobody has decided
+that yet. No legal opinion is sought here; record only.
 
 ## B7 — Two-player mode as a deliberate choice
 Phase 2 gets local two-player play only as the engine-failure fallback. Promoting it to a
@@ -160,3 +173,31 @@ Note `ENGINE_WASM_BYTES` in `src/main.ts` must track the vendored file.
 ## B12 — bounded re-cancel loop (RESOLVED in Phase 3)
 `beginTransition()` re-cancels at most twice; on the third attempt it logs
 `console.error` and breaks out instead of hanging.
+
+## B13 — "Zvířecí šachy": teaching app (one day, maybe)
+
+Not scope. Not a commitment. Recorded so that today's decisions don't
+foreclose it.
+
+The idea: the animal-set gamification plus Czech-language, AI-assisted chess
+lessons for children. Non-commercial. The differentiator would be Czech, not
+the animals — English chess tutorials for kids are abundant, Czech ones are
+not. The animals are why a child stays; the lessons are what it's for.
+
+**Infrastructure this would need, already being built for other reasons:**
+move feedback (?? ? ?! !? ! !!), the game replay component (B9/B3), swappable
+piece sets, the difficulty ladder.
+
+**Decisions to take before it becomes real — cheap now, expensive later:**
+- GPL-3.0. Stockfish is GPL; a widely-shared app makes the propagation
+  question live rather than academic. Either keep `engine.ts` behind a narrow
+  enough interface that the engine is replaceable, or simply release the whole
+  app as GPL-3.0 — costs nothing for a non-commercial project. (See B6: the
+  bundled chessground raises the same question independently of the engine.)
+- Artwork licensing. Check the image generator's terms for public
+  distribution before drawing many more animal sets. The provider's terms, not
+  copyright, are the relevant constraint.
+- Content accuracy. AI-generated chess lessons are a domain where a mistake
+  teaches many children the wrong thing at once. Any lesson content needs a
+  human review step by someone who actually plays. Do not ship generated
+  instruction unreviewed.

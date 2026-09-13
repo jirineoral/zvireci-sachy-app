@@ -31,6 +31,13 @@ app.innerHTML = `
       <button type="button" class="new-game">Nová hra</button>
       <button type="button" class="undo">Zpět</button>
     </div>
+    <footer class="credits">
+      Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
+      (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
+      <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
+      deska <a href="https://github.com/lichess-org/chessground">chessground</a> ·
+      pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a>
+    </footer>
   </aside>
   <dialog class="promotion-dialog"></dialog>
 `;

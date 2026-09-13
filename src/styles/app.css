@@ -171,6 +171,17 @@ body {
   gap: 8px;
 }
 
+.credits {
+  margin-top: auto;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #8a8f98;
+}
+
+.credits a {
+  color: inherit;
+}
+
 .new-game,
 .undo {
   flex: 1;

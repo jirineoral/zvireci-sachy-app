@@ -103,7 +103,7 @@ mirror each other (mitre + bow). No further action.
 
 ---
 
-## B5 — Goat palette: green belongs to the frogs
+## B5 — Goat palette: green belongs to the frogs — MOOT (the full-figure farm pair left the manifest on 2026-09-13; the `Hlavy` library has per-character light/dark variants)
 
 **OPEN — higher priority after the B4 regeneration.** The goat sheet now carries
 green on the bishop's cape, the queen's and king's cloaks, and the king's crown
@@ -154,7 +154,7 @@ real option in the side selector is roughly a select entry plus a branch in
 game, potentially not in B3 (chess.com import). Fix when something feels slow: keep the
 `Move` object returned by `chess.move()` and pass it into `sync()`.
 
-## B9 — Victory animation (Phase 5 input)
+## B9 — Victory animation (Phase 5 input) — behaviour SHIPPED in Phase 17 as CSS on the spectator kings (jump / slump / nod); the storyboard panels remain content work
 A storyboard exists for both sides (goat headbutt / frog tongue), 6 panels, ~2.5 s each,
 produced as a single reference image.
 
@@ -274,7 +274,7 @@ Not ruled out forever, but it stops being "click a link and play" and becomes a
 Czech alternative to chess.com. That is a decision to take deliberately, not to
 arrive at by adding one more feature.
 
-## B16 — Per-set victory cry (placeholder)
+## B16 — Per-set victory cry — RESOLVED in Phase 17 (the character's `sound` opens the win line)
 
 Referenced by B18 (`victoryCry` per set, played on a win only). Not specified yet.
 
@@ -309,7 +309,7 @@ light, black side always dark — so a chosen pair is readable by construction a
 no lightness value or swap offer exists yet. That requirement becomes relevant
 only if the child may pick *which* variant plays which colour; open until decided.
 
-## B18 — Win and loss animations under free mix
+## B18 — Win and loss animations under free mix — RULE SHIPPED in Phase 17 (after a win or a loss the opponent's king is not on the screen; `Rozbor` brings it back by the child's choice)
 
 **Loss shows nothing about the opponent at all.** Not a milder version, not a
 restrained version — the winning animal does not appear. Show the child's own

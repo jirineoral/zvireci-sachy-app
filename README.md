@@ -68,6 +68,14 @@ selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess s
 the opponent's move plays itself, then you find the solution; the two kings comment.
 Progress lives in the browser (`skm.puzzles`).
 
+## Game end
+
+When a game the child played ends, their king reacts: a win makes it jump and shout its
+own noise, a loss makes it slump with one quiet line, a draw makes both kings nod. After
+a win or a loss the opponent's king is not on the screen at all (a child who just lost
+should not watch the other animal); `Rozbor` brings both back. Reduced motion → no
+movement.
+
 ## Piece drop
 
 `Hrát!` rains the pieces into the starting position (≈ 1 s, chessground's own piece

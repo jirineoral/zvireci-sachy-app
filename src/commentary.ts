@@ -294,3 +294,30 @@ export const REACTIONS = {
     'Gratuluju. Naučil jsem se toho dneska hodně.',
   ],
 } as const;
+
+/**
+ * Game end (Phase 17 / B9, B16, B18): the child's king speaks; the opponent is not on
+ * the screen after a win or a loss. `{zvuk}` = the character's own noise (B16's victory
+ * cry). The loss lines are quiet on purpose — no gloating anywhere.
+ */
+export const ENDINGS = {
+  win: [
+    '{zvuk} Vyhrál jsem! To byla partie!',
+    '{zvuk} Mat! Koruna zůstává doma.',
+    '{zvuk} Hurá! Kdo je tu král? Já!',
+    '{zvuk} Vítězství! Tohle si budu pamatovat.',
+    '{zvuk} Jo! Ještě jednu? Klidně hned.',
+  ],
+  loss: [
+    'Prohrál jsem. Sundávám korunu… Dáme si to znovu?',
+    'Tentokrát ne. Odpočinu si a příště to bude jiné.',
+    'Au. Byla to dobrá partie, i když ne pro mě. Ještě jednou?',
+    'Nevadí. Každý král občas prohraje. Nová hra?',
+    'Tak tohle bolelo. Ale už vím, co příště jinak.',
+  ],
+  draw: [
+    'Remíza. Podáme si ruce?',
+    'Nerozhodně! Nikdo nespadl z trůnu.',
+    'Půl bodu pro každého. Odveta?',
+  ],
+} as const;

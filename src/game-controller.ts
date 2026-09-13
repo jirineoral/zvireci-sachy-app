@@ -20,7 +20,8 @@ import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type Difficulty, typ
 import { MATE_SCORE, type Analysis, type Engine, type EngineOptions, type PvLine, type Search, type UciMove } from './engine';
 import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
-import { commentaryFor, positionAt, type PlyRecord, type SpeakerVoice } from './review';
+import { commentaryFor, pick, positionAt, type PlyRecord, type SpeakerVoice } from './review';
+import { DEFAULT_VOICE, ENDINGS } from './commentary';
 import { analyseGame, type AnalysisHandle } from './analysis';
 import { newGameId, replayRecord, resultOf, type GameRecord } from './games';
 import { renderEvalBar } from './ui/eval-bar';
@@ -32,7 +33,7 @@ import {
   renderReviewControls,
   type ReviewControlElements,
 } from './ui/review-controls';
-import { renderSpectators, type SpectatorElements } from './ui/spectators';
+import { renderSpectators, type Outcome, type SpectatorElements } from './ui/spectators';
 import { renderStatus, type EngineIndicator } from './ui/status';
 
 export interface GameControllerElements {
@@ -907,7 +908,20 @@ export class GameController {
     } else if (this.puzzle) {
       bubbles[this.humanColor === 'w' ? 'white' : 'black'] = this.puzzleBubble();
     }
-    renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles });
+    const outcome = this.outcome(status);
+    if (outcome) {
+      const zvuk = this.options.voiceOf(this.humanColor)?.sound ?? DEFAULT_VOICE.sound;
+      bubbles[this.humanColor === 'w' ? 'white' : 'black'] = pick(ENDINGS[outcome], sans.join(' ')).replace('{zvuk}', zvuk);
+    }
+    renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles, outcome });
+  }
+
+  /** Phase 17: how a game the child just played ended for them (null outside that case). */
+  private outcome(status: GameStatus): Outcome | null {
+    if (!status.over || !this.started || this.reviewPly !== null || this.puzzle !== null || this.chess.history().length === 0) return null;
+    if (this.record?.source === 'pgn' || (this.record && this.record.humanColor === null)) return null; // a loaded game
+    if (!this.chess.isCheckmate()) return 'draw';
+    return this.chess.turn() === this.humanColor ? 'loss' : 'win';
   }
 
   private engineIndicator(): EngineIndicator {

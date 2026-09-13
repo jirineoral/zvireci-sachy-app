@@ -42,6 +42,54 @@ body {
   align-items: stretch;
 }
 
+/* Game end (Phase 17): the opponent's king leaves after a win or a loss (B18); the
+   child's king jumps, slumps or nods. Visibility keeps the layout, so the board stays put. */
+.spectator-gone {
+  visibility: hidden;
+}
+
+.spectator piece.king-jump {
+  animation: king-jump 1.5s ease-in-out;
+}
+
+.spectator piece.king-sit {
+  animation: king-sit 1.2s ease-out forwards;
+}
+
+.spectator piece.king-nod {
+  animation: king-nod 1s ease-in-out;
+}
+
+@keyframes king-jump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  12% { transform: translateY(-22px) scale(1.06); }
+  24% { transform: translateY(0) scale(0.96, 1.04); }
+  40% { transform: translateY(-28px) scale(1.08) rotate(-6deg); }
+  56% { transform: translateY(0) scale(0.96, 1.04); }
+  72% { transform: translateY(-16px) scale(1.04) rotate(5deg); }
+  86% { transform: translateY(0) scale(1); }
+}
+
+@keyframes king-sit {
+  0% { transform: translateY(0) rotate(0); }
+  40% { transform: translateY(4px) rotate(-4deg); }
+  100% { transform: translateY(10px) rotate(-14deg) scale(0.94); opacity: 0.85; }
+}
+
+@keyframes king-nod {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(8deg) translateY(2px); }
+  60% { transform: rotate(-3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spectator piece.king-jump,
+  .spectator piece.king-sit,
+  .spectator piece.king-nod {
+    animation: none;
+  }
+}
+
 /* Announcement over the board during the piece drop (Phase 12). */
 .announce {
   position: absolute;

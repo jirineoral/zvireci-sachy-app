@@ -256,3 +256,12 @@ text via `textContent`. New key `skm.puzzles` (JSON, validated: known band, id p
 numeric attempts, capped). No engine use in puzzle mode, no new sink, CSP unchanged.
 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy · 7 tree +
 `puzzles/` · 8 CC0 source recorded in the file and the README.
+
+### 2026-09-13 — Phase 11 (campaign)
+New key `skm.campaign` (JSON, validated: ids filtered against the loaded library, order
+completed from the default list, loss counts finite/positive/capped). Character images in
+the campaign grid are `<img>` elements with a same-origin URL built from a validated
+library id (`characterImage`); all text via `textContent`; `window.confirm` for the reset.
+No new network source, no engine change beyond option values from the existing table, CSP
+unchanged. 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy ·
+7 tree unchanged · 8 no new third-party material.

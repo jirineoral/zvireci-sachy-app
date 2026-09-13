@@ -97,6 +97,13 @@ export interface PieceSetManager {
   drawColor(): Color;
   /** A new game starts with this colour: re-draws a random opponent, re-applies the styling. */
   startGame(color: Color): void;
+  /**
+   * Campaign (Phase 11): the next games are against this character regardless of the
+   * stored preference; null lifts it. Not persisted. Applies to the view at once.
+   */
+  forceOpponent(id: string | null): void;
+  /** Same-origin URL of a character's piece image (library families only). */
+  characterImage(id: string, variant: 'light' | 'dark', role: 'K' | 'Q' | 'R' | 'B' | 'N' | 'P'): string | null;
   /** Adds or replaces the player's own set as a family and selects it. */
   useUserSet(set: UserSet): void;
   /** Removes a user family; falls back to the first family when it was selected. */
@@ -144,6 +151,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   let colorPreference: ColorPreference = 'random';
   let humanColor: Color = 'w';
   let opponent: string | null = null; // the drawn/chosen opponent of the current game
+  let forcedOpponent: string | null = null; // campaign: overrides the preference while set
   let appliedPairSet: PieceSet | null = null;
 
   const family = (): PieceFamily | null => families.find((f) => f.id === familyId) ?? null;
@@ -153,6 +161,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   const pickOpponent = (): string | null => {
     const lib = library();
     if (!lib) return null;
+    if (forcedOpponent !== null && forcedOpponent !== animal && findAnimal(forcedOpponent)) return forcedOpponent;
     if (opponentPreference !== 'random' && findAnimal(opponentPreference)) return opponentPreference;
     const candidates = lib.animals.filter((a) => a.id !== animal);
     const pool = candidates.length > 0 ? candidates : lib.animals;
@@ -277,8 +286,23 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     startGame(color: Color): void {
       humanColor = color;
-      if (opponentPreference === 'random') opponent = pickOpponent();
+      if (opponentPreference === 'random' || forcedOpponent !== null) opponent = pickOpponent();
       apply();
+    },
+    forceOpponent(id: string | null): void {
+      if (id !== null && !findAnimal(id)) {
+        console.warn(`Unknown campaign opponent "${id}"`);
+        return;
+      }
+      forcedOpponent = id;
+      opponent = pickOpponent();
+      apply();
+    },
+    characterImage(id, variant, role): string | null {
+      const f = family();
+      if (!f?.library || !findAnimal(id)) return null;
+      const folder = f.sets.find((s) => s.library !== null)?.library ?? 'animals';
+      return `${opts.baseUrl}piece-sets/${folder}/${id}/${variant}/${role}.png`;
     },
     useUserSet(set: UserSet): void {
       const fam = userFamily(set);

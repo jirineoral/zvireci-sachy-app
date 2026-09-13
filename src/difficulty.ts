@@ -44,3 +44,27 @@ export function difficulty(level: DifficultyLevel): Difficulty {
 export function isDifficultyLevel(value: number): value is DifficultyLevel {
   return DIFFICULTIES.some((d) => d.level === value);
 }
+
+/**
+ * A point on the ladder between two levels (campaign, Phase 11): `x` in [1, 6], the
+ * numbers linearly interpolated between the neighbouring levels and rounded. `x = 3.5`
+ * plays between "Žabka" and "Skokan"; whole numbers reproduce the table exactly.
+ */
+export function interpolateDifficulty(x: number): Difficulty {
+  const clamped = Math.min(6, Math.max(1, Number.isFinite(x) ? x : DEFAULT_DIFFICULTY));
+  const lo = difficulty(Math.floor(clamped) as DifficultyLevel);
+  const hi = difficulty(Math.ceil(clamped) as DifficultyLevel);
+  const t = clamped - Math.floor(clamped);
+  const lerp = (a: number, b: number): number => Math.round(a + (b - a) * t);
+  const topMoves = lerp(lo.topMoves, hi.topMoves);
+  const options: EngineOptions = { skillLevel: lerp(lo.options.skillLevel, hi.options.skillLevel) };
+  if (topMoves > 1) options.multiPv = topMoves;
+  return {
+    level: Math.round(clamped) as DifficultyLevel,
+    label: `Kampaň (${clamped.toFixed(1)})`,
+    options,
+    limits: { depth: lerp(lo.limits.depth, hi.limits.depth), movetimeMs: lerp(lo.limits.movetimeMs, hi.limits.movetimeMs) },
+    topMoves,
+    topWindowCp: lerp(lo.topWindowCp, hi.topWindowCp),
+  };
+}

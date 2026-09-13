@@ -94,14 +94,16 @@ interface PreMoveInfo {
   secondBestEval: number | null; // human POV
 }
 
-/** Engine options currently loaded: the level's play settings, or full-strength analysis. */
-type EngineMode = 'play' | 'analysis';
+/** Engine options currently loaded: the level's play settings, full-strength analysis, or stale (level changed; reload before the next search). */
+type EngineMode = 'play' | 'analysis' | 'stale';
 
 export class GameController {
   private readonly chess: Chess;
   private readonly board: BoardBridge;
   private humanColor: Color = 'w';
   private difficultyLevel: DifficultyLevel = DEFAULT_DIFFICULTY;
+  /** Phase 11: the campaign's interpolated strength, replacing the selected level while set. */
+  private difficultyOverride: Difficulty | null = null;
   private engineState: EngineState = 'loading';
   /** The one in-flight search, or null. */
   private pendingSearch: Search | null = null;
@@ -412,13 +414,33 @@ export class GameController {
 
   async setDifficulty(level: DifficultyLevel): Promise<void> {
     this.difficultyLevel = level;
+    await this.applyDifficulty();
+  }
+
+  /**
+   * Campaign (Phase 11): plays at `d` regardless of the selected level until cleared. The
+   * select shows the nearest level and is locked meanwhile.
+   */
+  async setDifficultyOverride(d: Difficulty | null): Promise<void> {
+    this.difficultyOverride = d;
+    await this.applyDifficulty();
+  }
+
+  /** The strength in force: the override, else the selected level. */
+  currentDifficulty(): Difficulty {
+    return this.difficultyOverride ?? difficulty(this.difficultyLevel);
+  }
+
+  private async applyDifficulty(): Promise<void> {
+    // Whatever the engine has loaded no longer matches: the next idle moment reloads it
+    // (beginTransition / maybeStartEngine call ensurePlayOptions). Marking instead of
+    // setting here keeps a newGame() that follows immediately from racing this await.
+    this.engineMode = 'stale';
     this.renderControls();
     if (this.engineState !== 'ready') return;
     const wasThinking = this.pendingSearch !== null;
-    const t = await this.beginTransition();
-    if (t !== this.transition) return;
-    this.engine.setOptions(this.playOptions()); // no search outstanding here
-    this.engineMode = 'play';
+    const t = await this.beginTransition(); // reloads the options once nothing is outstanding
+    if (t !== this.transition) return; // a later transition took over and reloaded them itself
     if (wasThinking) this.afterPositionChange(); // restarts the search with the new settings
   }
 
@@ -511,7 +533,7 @@ export class GameController {
 
   /** The level's engine options; MultiPV defaults to 1 (the weak levels ask for their top-N). */
   private playOptions(): EngineOptions {
-    return { multiPv: 1, ...difficulty(this.difficultyLevel).options };
+    return { multiPv: 1, ...this.currentDifficulty().options };
   }
 
   /** Runs one analysis at full strength; resolves null when cancelled. Caller guarantees nothing outstanding. */
@@ -684,7 +706,7 @@ export class GameController {
     if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
     this.ensurePlayOptions();
 
-    const d = difficulty(this.difficultyLevel);
+    const d = this.currentDifficulty();
     // Weak levels: draw the move among the engine's top candidates instead of taking the
     // best one. Wrapped as a Search so the identity + FEN guards below apply unchanged.
     const search = d.topMoves > 1 ? this.topMovesSearch(d) : this.engine.search(this.chess.fen(), d.limits);
@@ -844,7 +866,8 @@ export class GameController {
 
   private renderControls(): void {
     renderControls(this.controlsElements(), {
-      difficulty: this.difficultyLevel,
+      difficulty: this.difficultyOverride?.level ?? this.difficultyLevel,
+      difficultyLocked: this.difficultyOverride !== null,
       feedbackEnabled: this.feedbackEnabled,
       undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null,
       disabled: this.promotionOpen,

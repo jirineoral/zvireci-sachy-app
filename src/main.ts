@@ -12,6 +12,9 @@ import { openUserSetStore } from './user-sets';
 import { RESULT_LABEL, openGameStore, type GameRecord, type GameStore } from './games';
 import { buildGamesDialog } from './ui/games-dialog';
 import { buildPuzzlePanel } from './ui/puzzle-panel';
+import { buildCampaignDialog } from './ui/campaign-dialog';
+import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
+import { interpolateDifficulty } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
@@ -43,6 +46,7 @@ app.innerHTML = `
       </div>
     </details>
     <div class="matchup"></div>
+    <div class="campaign-bar" hidden><span class="campaign-text"></span><button type="button" class="campaign-next" hidden></button><button type="button" class="campaign-open">Kampaň…</button></div>
     <div class="status"></div>
     <div class="review-controls" hidden>
       <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
@@ -62,6 +66,7 @@ app.innerHTML = `
       <button type="button" class="review" hidden>Rozbor</button>
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
+      <button type="button" class="campaign">Kampaň</button>
     </div>
     <footer class="credits">
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
@@ -75,6 +80,7 @@ app.innerHTML = `
   <dialog class="promotion-dialog"></dialog>
   <dialog class="user-sets-dialog"></dialog>
   <dialog class="games-dialog"></dialog>
+  <dialog class="campaign-dialog"></dialog>
 `;
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
@@ -130,6 +136,7 @@ controller = new GameController(
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
     nextColor: () => pieceSets?.drawColor() ?? 'w',
     onNewGame: (color) => {
+      campaignHooks?.beforeNewGame();
       pieceSets?.startGame(color);
       renderMatchup();
     },
@@ -137,7 +144,10 @@ controller = new GameController(
       white: pieceSets?.animalOf('w')?.name ?? 'bílý',
       black: pieceSets?.animalOf('b')?.name ?? 'černý',
     }),
-    onGameRecord: (record) => void saveGame(record),
+    onGameRecord: (record) => {
+      void saveGame(record);
+      campaignHooks?.afterGame(record);
+    },
     onGameLoaded: (record) => {
       const you = record.humanColor === 'w' ? ' (ty)' : '';
       const them = record.humanColor === 'b' ? ' (ty)' : '';
@@ -232,6 +242,7 @@ void openUserSetStore()
     const manager = await initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), userSets });
     pieceSets = manager;
     const rerender = wirePieceSetSelects(manager);
+    wireCampaign(manager, rerender);
     const dialog = buildUserSetsDialog({ dialog: userSetsDialog, store, manager, onChanged: rerender });
     userSetsButton.addEventListener('click', () => dialog.open());
     if (introWanted) {
@@ -286,8 +297,9 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
       animalSelect.value = manager.animal;
       animalSelect.disabled = false;
       opponentSelect.replaceChildren(new Option('náhodně', 'random'), ...manager.animals.map((a) => new Option(a.name, a.id)));
-      opponentSelect.value = manager.opponentPreference;
-      opponentSelect.disabled = false;
+      opponentSelect.value = campaignOpponent ?? manager.opponentPreference;
+      opponentSelect.disabled = campaignOpponent !== null;
+      opponentSelect.title = campaignOpponent !== null ? 'Soupeře určuje kampaň' : '';
       const me = manager.animalOf(manager.humanColor);
       setDifficultyLabels(difficultySelect, me?.levels ?? null);
     } else {
@@ -307,6 +319,7 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
   });
   animalSelect.addEventListener('change', () => {
     manager.setAnimal(animalSelect.value);
+    campaignHooks?.afterAnimalChange();
     render();
   });
   opponentSelect.addEventListener('change', () => {
@@ -321,6 +334,154 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
   });
   render();
   return render;
+}
+
+// ---- Campaign (Phase 11 / R8) -------------------------------------------------------------
+// Session state: the opponent being played (null = campaign not active) and, after a win,
+// the opponent the next `Nová hra` switches to. Progress itself is in `skm.campaign`.
+// The hooks exist once the piece-set manager (and with it the library) has loaded.
+let campaignOpponent: string | null = null;
+let campaignNext: string | null = null;
+let campaignHooks: { afterGame: (r: GameRecord) => void; beforeNewGame: () => void; afterAnimalChange: () => void } | null = null;
+const campaignBar = requireElement<HTMLElement>(app, '.campaign-bar');
+const campaignText = requireElement<HTMLElement>(app, '.campaign-text');
+const campaignNextBtn = requireElement<HTMLButtonElement>(app, '.campaign-next');
+const campaignOpenBtn = requireElement<HTMLButtonElement>(app, '.campaign-open');
+const campaignButton = requireElement<HTMLButtonElement>(app, '.campaign');
+
+function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): void {
+  const state: CampaignState = readCampaign(safeLocalStorage(), manager.animals);
+  const save = (): void => writeCampaign(safeLocalStorage(), state);
+  const other = (): 'w' | 'b' => (manager.humanColor === 'w' ? 'b' : 'w');
+  const nextUndefeated = (): string | null => campaignStep(state, manager.animals, manager.animal)?.animal.id ?? null;
+
+  /** Sets the engine strength of the step `opponentId` occupies; false when it is not an opponent. */
+  const applyStrength = (opponentId: string): boolean => {
+    const step = campaignStep(state, manager.animals, manager.animal, opponentId);
+    if (!step) return false;
+    void game.setDifficultyOverride(interpolateDifficulty(step.x)).catch((err) => console.error('setDifficultyOverride failed', err));
+    return true;
+  };
+
+  const renderBar = (): void => {
+    campaignBar.hidden = campaignOpponent === null;
+    if (campaignOpponent === null) return;
+    const step = campaignStep(state, manager.animals, manager.animal, campaignOpponent);
+    const next = campaignNext ? manager.animals.find((a) => a.id === campaignNext) : null;
+    const done = nextUndefeated() === null;
+    const losses = step ? (state.losses[step.animal.id] ?? 0) : 0;
+    campaignText.textContent = !step
+      ? 'Kampaň'
+      : done
+        ? `Kampaň hotová — všichni poraženi! (${step.index + 1}/${step.total})`
+        : `Kampaň ${step.index + 1}/${step.total} · soupeř ${step.animal.name}${losses > 0 ? ` · pokusů: ${losses}` : ''}`;
+    campaignNextBtn.hidden = !next;
+    if (next) campaignNextBtn.textContent = `Další: ${next.name}`;
+  };
+
+  const play = (opponentId: string): void => {
+    if (!manager.isLibrary || !applyStrength(opponentId)) return;
+    campaignOpponent = opponentId;
+    campaignNext = null;
+    manager.forceOpponent(opponentId);
+    rerenderSelects();
+    renderBar();
+    void game
+      .newGame()
+      .then(() => game.startPlaying())
+      .catch((err) => console.error('campaign newGame failed', err));
+  };
+
+  const leave = (): void => {
+    campaignOpponent = null;
+    campaignNext = null;
+    manager.forceOpponent(null);
+    void game.setDifficultyOverride(null).catch((err) => console.error('setDifficultyOverride failed', err));
+    rerenderSelects();
+    renderBar();
+  };
+
+  const dialog = buildCampaignDialog({
+    dialog: requireElement<HTMLDialogElement>(app, '.campaign-dialog'),
+    state: () => state,
+    animals: () => manager.animals,
+    playerId: () => manager.animal,
+    currentOpponent: () => campaignOpponent,
+    image: (id) => manager.characterImage(id, 'light', 'K'),
+    play,
+    skip: (id) => {
+      skipOpponent(state, id);
+      save();
+      if (campaignOpponent === id) campaignNext = nextUndefeated();
+      renderBar();
+      dialog.render();
+    },
+    move: (id, delta) => {
+      if (!moveInOrder(state, id, delta, manager.animal)) return;
+      save();
+      if (campaignOpponent) applyStrength(campaignOpponent); // the step number may have changed
+      renderBar();
+      dialog.render();
+    },
+    reset: () => {
+      resetProgress(state);
+      save();
+      campaignNext = null;
+      renderBar();
+      dialog.render();
+    },
+    leave,
+  });
+
+  campaignButton.addEventListener('click', () => {
+    if (!manager.isLibrary) {
+      window.alert('Kampaň potřebuje zvířecí figurky — vyber styl „Hlavy“.');
+      return;
+    }
+    dialog.open();
+  });
+  campaignOpenBtn.addEventListener('click', () => dialog.open());
+  campaignNextBtn.addEventListener('click', () => {
+    if (campaignNext) play(campaignNext);
+  });
+
+  campaignHooks = {
+    afterGame: (record) => {
+      if (campaignOpponent === null || record.source !== 'app' || record.humanColor === null || record.sans.length === 0) return;
+      if (manager.animalOf(other())?.id !== campaignOpponent) return;
+      const won = (record.result === '1-0' && record.humanColor === 'w') || (record.result === '0-1' && record.humanColor === 'b');
+      recordCampaignGame(state, campaignOpponent, won);
+      save();
+      if (won) {
+        campaignNext = nextUndefeated();
+        if (campaignNext) applyStrength(campaignNext); // the engine is idle: only future games are affected
+      }
+      renderBar();
+    },
+    beforeNewGame: () => {
+      if (campaignOpponent === null || campaignNext === null) return;
+      campaignOpponent = campaignNext;
+      campaignNext = null;
+      manager.forceOpponent(campaignOpponent);
+      rerenderSelects();
+      renderBar();
+    },
+    afterAnimalChange: () => {
+      if (campaignOpponent === null) return;
+      if (campaignOpponent === manager.animal) {
+        const next = nextUndefeated();
+        if (next === null) {
+          leave();
+          return;
+        }
+        campaignOpponent = next;
+        campaignNext = null;
+        manager.forceOpponent(next);
+      }
+      applyStrength(campaignOpponent); // the step count changed with the excluded character
+      renderBar();
+    },
+  };
 }
 
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';

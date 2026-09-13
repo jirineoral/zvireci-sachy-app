@@ -440,7 +440,7 @@ the live feedback's analysis A does not, so a human move made from a forced posi
 get a glyph based on a shallow "before" eval. Cheap fix: when the human has one legal
 move, skip analysis A and treat the move as best. Recorded, not done.
 
-### R8 — Campaign: beat every animal
+### R8 — Campaign: beat every animal — SHIPPED in Phase 11 (`Kampaň`, 18 opponents, interpolated ladder, reorder/skip/reset, `skm.campaign`)
 
 Requested by the player. Cheapest item on the list and the highest impact:
 no new data, no new artwork, no new engine work.

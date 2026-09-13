@@ -68,6 +68,15 @@ selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess s
 the opponent's move plays itself, then you find the solution; the two kings comment.
 Progress lives in the browser (`skm.puzzles`).
 
+## Campaign
+
+`Kampaň` lines up every character of the library except your own (18 opponents) in an
+order you can rearrange, from žížaly to člověk as the final boss. Each step plays at a
+point on the 1–6 ladder interpolated over the campaign (`interpolateDifficulty` in
+`src/difficulty.ts`), so the strength rises with every opponent instead of in six jumps.
+A win colours the opponent in; a loss costs nothing, and after three failed attempts an
+opponent can be skipped. Progress and order live in the browser (`skm.campaign`).
+
 ## Your own pieces
 
 "Vlastní figurky…" in the settings takes up to twelve PNG/JPG images (one per piece; the

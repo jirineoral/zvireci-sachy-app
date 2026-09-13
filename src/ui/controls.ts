@@ -8,6 +8,8 @@ export interface ControlsElements {
 
 export interface ControlsState {
   difficulty: DifficultyLevel;
+  /** Campaign: the strength comes from elsewhere; the select only shows the nearest level. */
+  difficultyLocked: boolean;
   feedbackEnabled: boolean;
   undoEnabled: boolean;
   /** Greys the selects while the promotion dialog is open. */
@@ -35,7 +37,8 @@ export function setDifficultyLabels(select: HTMLSelectElement, labels: readonly 
 export function renderControls(els: ControlsElements, state: ControlsState): void {
   els.difficulty.value = String(state.difficulty);
   els.feedback.value = state.feedbackEnabled ? 'on' : 'off';
-  els.difficulty.disabled = state.disabled;
+  els.difficulty.disabled = state.disabled || state.difficultyLocked;
+  els.difficulty.title = state.difficultyLocked ? 'Obtížnost řídí kampaň' : '';
   els.feedback.disabled = state.disabled;
   els.undo.disabled = !state.undoEnabled;
 }

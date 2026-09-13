@@ -9,6 +9,8 @@ import { initPieceSets, type ColorPreference, type PieceSetManager } from './pie
 import { setDifficultyLabels } from './ui/controls';
 import { buildUserSetsDialog } from './ui/user-sets-dialog';
 import { openUserSetStore } from './user-sets';
+import { RESULT_LABEL, openGameStore, type GameRecord, type GameStore } from './games';
+import { buildGamesDialog } from './ui/games-dialog';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
@@ -18,7 +20,10 @@ const app = requireElement<HTMLDivElement>(document, '#app');
 app.innerHTML = `
   <div class="stage">
     <div class="spectator spectator-top cg-wrap"><piece class="king black"></piece><div class="bubble" hidden></div></div>
-    <div class="board"></div>
+    <div class="board-row">
+      <div class="eval-bar" hidden><div class="eval-fill"></div><span class="eval-text"></span></div>
+      <div class="board"></div>
+    </div>
     <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="bubble" hidden></div></div>
   </div>
   <aside class="panel">
@@ -44,6 +49,7 @@ app.innerHTML = `
       <button type="button" class="review-next" aria-label="Další tah">▶</button>
       <button type="button" class="review-last" aria-label="Na konec">⏭</button>
     </div>
+    <button type="button" class="analyse" hidden>Analyzovat partii</button>
     <details class="moves" open>
       <summary>Tahy <span class="moves-summary"></span></summary>
       <ol class="move-list"></ol>
@@ -52,6 +58,7 @@ app.innerHTML = `
       <button type="button" class="new-game">Nová hra</button>
       <button type="button" class="undo">Zpět</button>
       <button type="button" class="review" hidden>Rozbor</button>
+      <button type="button" class="games">Partie</button>
     </div>
     <footer class="credits">
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
@@ -64,6 +71,7 @@ app.innerHTML = `
   </aside>
   <dialog class="promotion-dialog"></dialog>
   <dialog class="user-sets-dialog"></dialog>
+  <dialog class="games-dialog"></dialog>
 `;
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
@@ -107,6 +115,8 @@ controller = new GameController(
       top: requireElement<HTMLElement>(app, '.spectator-top'),
       bottom: requireElement<HTMLElement>(app, '.spectator-bottom'),
     },
+    analyseButton: requireElement<HTMLButtonElement>(app, '.analyse'),
+    evalBar: requireElement<HTMLElement>(app, '.eval-bar'),
   },
   engine,
   {
@@ -120,8 +130,36 @@ controller = new GameController(
       pieceSets?.startGame(color);
       renderMatchup();
     },
+    sideNames: () => ({
+      white: pieceSets?.animalOf('w')?.name ?? 'bílý',
+      black: pieceSets?.animalOf('b')?.name ?? 'černý',
+    }),
+    onGameRecord: (record) => void saveGame(record),
+    onGameLoaded: (record) => {
+      const you = record.humanColor === 'w' ? ' (ty)' : '';
+      const them = record.humanColor === 'b' ? ' (ty)' : '';
+      matchupEl.textContent = `Rozbor: ${record.white}${you} × ${record.black}${them} · ${RESULT_LABEL[record.result]}`;
+    },
   },
 );
+
+// Saved games (Phase 9): the store opens in the background; a record that arrives before
+// it is ready is written once it is.
+let gameStore: GameStore | null = null;
+const pendingRecords: GameRecord[] = [];
+function saveGame(record: GameRecord): Promise<void> {
+  if (!gameStore) {
+    pendingRecords.push(record);
+    return Promise.resolve();
+  }
+  return gameStore.save(record).catch((err) => console.warn('Saving the game failed', err));
+}
+void openGameStore().then((store) => {
+  gameStore = store;
+  const dialog = buildGamesDialog({ dialog: requireElement<HTMLDialogElement>(app, '.games-dialog'), store, open: (r) => game.loadGame(r) });
+  requireElement<HTMLButtonElement>(app, '.games').addEventListener('click', () => dialog.open());
+  for (const r of pendingRecords.splice(0)) void saveGame(r);
+});
 
 
 const game: GameController = controller;

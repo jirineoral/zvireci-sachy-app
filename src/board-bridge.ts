@@ -21,6 +21,8 @@ export interface BoardSyncOptions {
   movableColor: BoardColor | null;
   /** Move-feedback glyph to badge onto a square (the last human move's destination). */
   annotation?: { square: Square; glyph: Glyph } | null;
+  /** Review: the engine's best move for the shown position, drawn as a green arrow. */
+  arrow?: { from: Square; to: Square } | null;
 }
 
 /** Badge colours per glyph (chess.com palette). Kept here because the badge is drawn as SVG. */
@@ -89,9 +91,10 @@ export function createBoardBridge(
           dests: legalDests(chess),
         },
         drawable: {
-          autoShapes: opts.annotation
-            ? [{ orig: opts.annotation.square, customSvg: { html: glyphBadge(opts.annotation.glyph) } }]
-            : [],
+          autoShapes: [
+            ...(opts.arrow ? [{ orig: opts.arrow.from, dest: opts.arrow.to, brush: 'green' }] : []),
+            ...(opts.annotation ? [{ orig: opts.annotation.square, customSvg: { html: glyphBadge(opts.annotation.glyph) } }] : []),
+          ],
         },
       });
     },

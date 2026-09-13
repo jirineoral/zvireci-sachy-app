@@ -233,3 +233,11 @@ via the CSSOM from constants; all text (`ŠACH KVÁK MEK!!!`, `HRÁT`, `Příšt
 `sessionStorage['skm.introShown']`. No new dependency, no inline style/script, CSP unchanged.
 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy · 7 tree +
 `splash/` (2 files) · 8 unchanged.
+
+### 2026-09-13 — Phase 9 (saved games, PGN, whole-game analysis)
+New input: pasted PGN. It is parsed by chess.js only (`loadPgn`, `strict: false`, 200 kB
+cap), player names are trimmed to 60 chars and rendered through `textContent`, moves are
+re-validated by replay before a record is opened. New IndexedDB store `games` (DB v2);
+records are shape-checked on read. No new network use, no new sink, CSP unchanged.
+1 `npm audit` 0 · 2 grep empty · 3 sinks as above · 4 storage keys unchanged ·
+5–6 on Pages after the deploy · 7 tree unchanged in kind · 8 unchanged.

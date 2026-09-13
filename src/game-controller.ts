@@ -21,6 +21,9 @@ import { MATE_SCORE, type Analysis, type Engine, type EngineOptions, type PvLine
 import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
 import { commentaryFor, positionAt, type PlyRecord, type SpeakerVoice } from './review';
+import { analyseGame, type AnalysisHandle } from './analysis';
+import { newGameId, replayRecord, resultOf, type GameRecord } from './games';
+import { renderEvalBar } from './ui/eval-bar';
 import { populateControls, renderControls } from './ui/controls';
 import { renderMoveList } from './ui/move-list';
 import { promptPromotion, type PromotionPiece } from './ui/promotion-dialog';
@@ -45,6 +48,9 @@ export interface GameControllerElements {
   reviewButton: HTMLButtonElement;
   reviewControls: ReviewControlElements;
   spectators: SpectatorElements;
+  /** Phase 9: whole-game analysis button (in the review) and the eval bar beside the board. */
+  analyseButton: HTMLButtonElement;
+  evalBar: HTMLElement;
 }
 
 export interface GameControllerOptions {
@@ -57,6 +63,12 @@ export interface GameControllerOptions {
   nextColor: () => Color;
   /** Told after every new game which colour was drawn. */
   onNewGame: (color: Color) => void;
+  /** Display names of the two sides for saved games ("kůzlata", "hadi", …). */
+  sideNames: () => { white: string; black: string };
+  /** A game just ended (or its analysis finished): persist it. */
+  onGameRecord: (record: GameRecord) => void;
+  /** A saved/pasted game was opened in the review (the view shows its players). */
+  onGameLoaded: (record: GameRecord) => void;
 }
 
 type EngineState = 'loading' | 'ready' | 'failed';
@@ -95,6 +107,10 @@ export class GameController {
   private engineMode: EngineMode = 'play';
   /** Post-game review (Phase 5B): the ply being shown, or null while playing. */
   private reviewPly: number | null = null;
+  /** Phase 9: the record of the game on the board (saved on game end / loaded for review). */
+  private record: GameRecord | null = null;
+  private gameAnalysis: AnalysisHandle | null = null;
+  private analysisProgress: string | null = null;
   /**
    * Pre-game (Phase 8): after `Nová hra` the position is set up but nothing moves until the
    * player presses `Hrát` (or, playing white, simply makes a move). Lets the child pick the
@@ -133,6 +149,9 @@ export class GameController {
       );
     });
     els.reviewButton.addEventListener('click', () => this.startReview());
+    els.analyseButton.addEventListener('click', () => {
+      void this.analyseGame().catch((err) => console.error('analyseGame failed', err));
+    });
     bindReviewControls(els.reviewControls, {
       onFirst: () => this.reviewGo(0),
       onPrev: () => this.reviewGo((this.reviewPly ?? 0) - 1),
@@ -161,10 +180,79 @@ export class GameController {
     this.plies = [];
     this.preMove = null;
     this.reviewPly = null;
+    this.record = null;
     this.started = false; // wait for `Hrát` (or the human's first move)
     if (this.engineState === 'ready') this.engine.newGame();
     this.options.onNewGame(this.humanColor);
     this.afterPositionChange();
+  }
+
+  /** Opens a saved or pasted game in the review (Phase 9). Returns false when its moves do not replay. */
+  async loadGame(record: GameRecord): Promise<boolean> {
+    if (replayRecord(record) === null) return false;
+    const t = await this.beginTransition();
+    if (t !== this.transition) return false;
+    this.chess.load(record.startFen);
+    for (const san of record.sans) this.chess.move(san);
+    this.plies = record.plies.map((p) => (p ? { ...p } : null));
+    this.record = record;
+    this.preMove = null;
+    this.humanColor = record.humanColor ?? 'w';
+    this.started = true;
+    this.reviewPly = 0;
+    if (this.engineState === 'ready') this.engine.newGame();
+    this.options.onGameLoaded(record);
+    this.afterPositionChange();
+    return true;
+  }
+
+  /** Whole-game analysis in the review: evals + glyphs for both sides (Phase 9). */
+  async analyseGame(): Promise<void> {
+    if (this.reviewPly === null || this.gameAnalysis !== null || this.engineState !== 'ready') return;
+    const t = await this.beginTransition();
+    if (t !== this.transition || this.reviewPly === null) return;
+    this.engine.setOptions({ skillLevel: 20, multiPv: 2 });
+    this.engineMode = 'analysis';
+    const sans = this.chess.history();
+    const handle = analyseGame(this.engine, this.startFen(), sans, (p) => {
+      this.analysisProgress = `${p.done}/${p.total}`;
+      this.refreshView();
+    });
+    this.gameAnalysis = handle;
+    const result = await handle.result;
+    if (this.gameAnalysis === handle) this.gameAnalysis = null;
+    this.analysisProgress = null;
+    if (t !== this.transition || result === null) {
+      this.refreshView();
+      return;
+    }
+    this.plies = result.plies.map((p) => ({ glyph: p.glyph, betterSan: p.betterSan, evalCp: p.evalCp, bestSan: p.bestSan }));
+    if (this.record) {
+      this.record = { ...this.record, plies: this.plies, startEvalCp: result.startEvalCp, startBestSan: result.startBestSan };
+      this.options.onGameRecord(this.record);
+    } else {
+      this.record = this.buildRecord();
+      this.record.startEvalCp = result.startEvalCp;
+      this.record.startBestSan = result.startBestSan;
+    }
+    this.ensurePlayOptions();
+    this.refreshView();
+  }
+
+  private buildRecord(): GameRecord {
+    const names = this.options.sideNames();
+    return {
+      id: this.record?.id ?? newGameId(),
+      playedAt: this.record?.playedAt ?? Date.now(),
+      startFen: this.startFen(),
+      sans: this.chess.history(),
+      result: resultOf(this.chess),
+      humanColor: this.humanColor,
+      white: names.white,
+      black: names.black,
+      plies: this.plies.map((p) => (p ? { ...p } : null)),
+      source: 'app',
+    };
   }
 
   /** `Hrát`: the set-up game begins — the engine opens if it has white. */
@@ -208,6 +296,24 @@ export class GameController {
     if (this.reviewPly !== null || this.chess.history().length === 0 || !gameStatus(this.chess).over) return;
     this.reviewPly = 0;
     this.refreshView();
+  }
+
+  /** Eval of the shown review position (white POV), once analysed. */
+  private evalAt(ply: number): number | null {
+    if (ply === 0) return this.record?.startEvalCp ?? null;
+    return this.plies[ply - 1]?.evalCp ?? null;
+  }
+
+  /** The engine's best move in the shown review position, as an arrow, once analysed. */
+  private bestArrowAt(shown: Chess, ply: number): { from: Square; to: Square } | null {
+    const san = ply === 0 ? this.record?.startBestSan : this.plies[ply - 1]?.bestSan;
+    if (!san || shown.isGameOver()) return null;
+    try {
+      const move = new Chess(shown.fen()).move(san);
+      return { from: move.from, to: move.to };
+    } catch {
+      return null;
+    }
   }
 
   private reviewGo(ply: number): void {
@@ -257,6 +363,11 @@ export class GameController {
     this.pendingSearch = null;
     this.pendingAnalysis = null;
     this.evaluating = false;
+    if (this.gameAnalysis) {
+      this.gameAnalysis.cancel();
+      this.gameAnalysis = null;
+      this.analysisProgress = null;
+    }
     return this.engine.stop();
   }
 
@@ -481,6 +592,11 @@ export class GameController {
     const status = gameStatus(this.chess);
     this.syncBoard(status);
     this.render(status);
+    if (status.over && this.reviewPly === null && this.chess.history().length > 0 && this.record === null) {
+      this.record = this.buildRecord(); // the game just ended: keep it (Phase 9)
+      this.options.onGameRecord(this.record);
+    }
+    if (this.reviewPly !== null) return; // reviewing: nothing moves, nothing is analysed
     if (this.chess.turn() === this.humanColor) {
       if (this.feedbackActive(status)) this.startPreMoveAnalysis();
     } else {
@@ -502,6 +618,7 @@ export class GameController {
         orientation: toBoardColor(this.humanColor),
         movableColor: null,
         annotation: this.annotationAt(shown, this.reviewPly),
+        arrow: this.bestArrowAt(shown, this.reviewPly),
       });
       return;
     }
@@ -523,7 +640,12 @@ export class GameController {
     const sans = this.chess.history();
     const glyphs = this.plies.map((p) => p?.glyph ?? null);
     renderMoveList(this.els.moveList, sans, glyphs, this.reviewPly);
-    renderStatus(this.els.status, { status, engine: this.engineIndicator(), preGame: !this.started && sans.length === 0 && !status.over });
+    renderStatus(this.els.status, {
+      status,
+      engine: this.engineIndicator(),
+      preGame: !this.started && sans.length === 0 && !status.over,
+      analysing: this.analysisProgress,
+    });
     this.renderControls();
     const preGame = !this.started;
     this.els.newGameButton.textContent = preGame ? 'Hrát!' : 'Nová hra';
@@ -533,6 +655,15 @@ export class GameController {
       active: this.reviewPly !== null,
       ply: this.reviewPly ?? 0,
       plies: sans.length,
+    });
+    const analysed = this.reviewPly !== null && this.evalAt(this.reviewPly) !== null;
+    this.els.analyseButton.hidden = this.reviewPly === null || this.engineState !== 'ready';
+    this.els.analyseButton.disabled = this.gameAnalysis !== null || (analysed && this.evalAt(sans.length) !== null);
+    this.els.analyseButton.textContent = this.gameAnalysis !== null ? 'Analyzuji…' : analysed ? 'Zanalyzováno' : 'Analyzovat partii';
+    renderEvalBar(this.els.evalBar, {
+      visible: this.reviewPly !== null && analysed,
+      cp: this.reviewPly !== null ? this.evalAt(this.reviewPly) : null,
+      orientation: toBoardColor(this.humanColor),
     });
     const bubbles: { white: string | null; black: string | null } = { white: null, black: null };
     if (this.reviewPly !== null) {
@@ -576,7 +707,7 @@ export class GameController {
     renderControls(this.controlsElements(), {
       difficulty: this.difficultyLevel,
       feedbackEnabled: this.feedbackEnabled,
-      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null,
+      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null,
       disabled: this.promotionOpen,
     });
   }

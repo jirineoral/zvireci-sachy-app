@@ -8,11 +8,14 @@ import { Chess, type Color } from 'chess.js';
 import { CAPTURED_ACCUSATIVE, DEFAULT_VOICE, OPENING, REACTIONS, TEMPLATES, type Situation } from './commentary';
 import type { Glyph } from './feedback';
 
-/** What the app remembers about one ply (only the human's plies carry a glyph). */
+/** What the app remembers about one ply: play-time feedback (human plies) and, after a
+ *  whole-game analysis, both sides' glyphs plus evals (see games.ts PlyData). */
 export interface PlyRecord {
   glyph: Glyph | null;
   /** SAN of the engine's better move, kept for `?!`, `?` and `??` when known. */
   betterSan: string | null;
+  evalCp?: number;
+  bestSan?: string | null;
 }
 
 /** A king's voice: its noise and its "ouch"; null = no character (classic pieces). */

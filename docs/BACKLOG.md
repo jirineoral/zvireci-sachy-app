@@ -376,7 +376,7 @@ Three different things at three very different costs. **Do not treat as one
 item.**
 - His own chess.com games: public API, no auth, CORS-friendly — **no server**.
   (Merges with the existing B3.)
-- Games played in this app: IndexedDB — **no server**.
+- Games played in this app: IndexedDB — **no server**. *(Shipped in Phase 9: auto-saved, listed under `Partie`.)*
 - Live play against real people: accounts, matchmaking, a server, moderation,
   GDPR — **this hits the GATE**. Parked, not refused.
 
@@ -388,7 +388,7 @@ as rejected.
 PGN into chess.js, move-list navigator over existing infrastructure). Live play is the
 "above the line" case described in B15.*
 
-### R4 — Analysis view with game replay
+### R4 — Analysis view with game replay — SHIPPED in Phase 9 (saved games, PGN paste, whole-game analysis, eval bar, best-move arrow)
 Build this **first** despite not being his top priority: it is the shared
 infrastructure that R3 and R7 both need, and it has standalone value. Fully
 client-side. Overlaps the existing analysis/comic-bubble notes — merge.
@@ -431,3 +431,11 @@ will tell him so rather than leaving it open.
 
 ### Suggested build order (mine, not his)
 R4 → R2 → R5 → R1 → the two server-free parts of R3 → R6 → R7.
+
+## B19 — Only-move positions in the live feedback
+
+Stockfish answers a position with exactly one legal move immediately, with a depth-1
+score. The whole-game analysis (Phase 9) compensates by taking the next position's eval;
+the live feedback's analysis A does not, so a human move made from a forced position can
+get a glyph based on a shallow "before" eval. Cheap fix: when the human has one legal
+move, skip analysis A and treat the move as best. Recorded, not done.

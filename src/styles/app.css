@@ -34,6 +34,172 @@ body {
   flex: none;
 }
 
+/* Eval bar beside the board (Phase 9). */
+.board-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.eval-bar {
+  position: relative;
+  width: 14px;
+  flex: none;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #2a2a2a;
+  display: flex;
+  flex-direction: column-reverse; /* white's share grows from the bottom */
+}
+
+.eval-bar.flipped {
+  flex-direction: column; /* black at the bottom: white's share grows from the top */
+}
+
+.eval-fill {
+  width: 100%;
+  background: #f2f2f2;
+  transition: height 250ms ease-out;
+}
+
+.eval-text {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) rotate(-90deg);
+  bottom: 22px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #ddd;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.eval-bar.flipped .eval-text {
+  bottom: auto;
+  top: 22px;
+}
+
+.eval-text.on-white {
+  color: #333;
+}
+
+.eval-bar.flipped .eval-text.on-white,
+.eval-bar:not(.flipped) .eval-text.on-white {
+  color: #333;
+}
+
+.analyse {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.analyse:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* "Partie" dialog (Phase 9). */
+.games-dialog {
+  width: min(92vw, 640px);
+  max-height: 92vh;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #eee;
+}
+
+.games-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.games-dialog h2,
+.games-dialog h3 {
+  margin: 0 0 8px;
+}
+
+.games-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.games-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.games-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+
+.games-date {
+  color: #b8bec8;
+  font-size: 0.75rem;
+}
+
+.games-meta {
+  color: #8a8f98;
+  font-size: 0.75rem;
+}
+
+.games-list button,
+.games-pgn button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.games-pgn textarea {
+  width: 100%;
+  margin: 6px 0 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #1e1e1e;
+  color: #eee;
+  resize: vertical;
+}
+
+.games-dialog .us-msg {
+  min-height: 1.2em;
+  margin: 6px 0;
+  font-size: 0.9rem;
+  color: #7fd17a;
+}
+
+.games-dialog .us-msg.us-error {
+  color: #ffa459;
+}
+
+.games-dialog .us-note {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
 /* The two kings watching the game (Phase 5B). `.cg-wrap` so the piece set styles them;
    undo chessground's board layout for the piece element, as the promotion dialog does. */
 .spectator {
@@ -309,7 +475,8 @@ body {
 
 .new-game,
 .undo,
-.review {
+.review,
+.games {
   flex: 1;
   padding: 10px 16px;
   font-size: 1rem;
@@ -591,6 +758,15 @@ body {
 
   .board {
     width: 100%;
+  }
+
+  .board-row {
+    width: 100%;
+  }
+
+  .board-row .board {
+    flex: 1;
+    min-width: 0;
   }
 
   .spectator {

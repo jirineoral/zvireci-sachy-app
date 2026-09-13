@@ -1,9 +1,10 @@
 /**
  * User piece sets (MVP M1/M2): twelve optional PNG blobs plus a name, kept in IndexedDB
- * (`skm` / `userSets`). Browser-local storage only — nothing leaves the device. When
- * IndexedDB cannot be opened (private window, blocked or full storage) the store degrades
- * to an in-memory map for the session and says so through `persistent === false`.
+ * (`skm` / `userSets`, see db.ts). Browser-local storage only — nothing leaves the device.
+ * When IndexedDB cannot be opened (private window, blocked or full storage) the store
+ * degrades to an in-memory map for the session and says so through `persistent === false`.
  */
+import { STORE_USER_SETS as STORE, openDatabase, requestToPromise } from './db';
 
 export const PIECE_CODES = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'] as const;
 export type PieceCode = (typeof PIECE_CODES)[number];
@@ -39,10 +40,6 @@ export interface UserSetStore {
   remove(id: string): Promise<void>;
 }
 
-const DB_NAME = 'skm';
-const DB_VERSION = 1;
-const STORE = 'userSets';
-
 export function newSetId(): string {
   return `u${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
@@ -50,42 +47,12 @@ export function newSetId(): string {
 /** Opens the store; never throws — falls back to memory with a console.warn. */
 export async function openUserSetStore(): Promise<UserSetStore> {
   try {
-    const db = await openDb();
+    const db = await openDatabase();
     return new IdbStore(db);
   } catch (err) {
     console.warn('IndexedDB unavailable; user piece sets will last only for this session', err);
     return new MemoryStore();
   }
-}
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof indexedDB === 'undefined') {
-      reject(new Error('indexedDB is not defined'));
-      return;
-    }
-    let request: IDBOpenDBRequest;
-    try {
-      request = indexedDB.open(DB_NAME, DB_VERSION);
-    } catch (err) {
-      reject(err);
-      return;
-    }
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('indexedDB.open failed'));
-    request.onblocked = () => reject(new Error('indexedDB.open blocked'));
-  });
-}
-
-function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
-  });
 }
 
 class IdbStore implements UserSetStore {

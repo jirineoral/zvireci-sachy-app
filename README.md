@@ -51,6 +51,13 @@ click, tap or key skips it; `prefers-reduced-motion` skips it entirely; the sett
 `HRÁT` the game waits — choose the character and the colour, then press `Hrát!` (or, as
 white, just move). Images: `public/splash/`; geometry and timing: `src/intro/landing-spots.ts`.
 
+## Saved games and analysis
+
+Every finished game is saved in the browser (IndexedDB) and listed under `Partie`, where a
+PGN can also be pasted. Any game opens in the review; `Analyzovat partii` evaluates every
+position with the local engine and shows an eval bar, the engine's best move as an arrow
+and feedback glyphs for both sides — all client-side.
+
 ## Your own pieces
 
 "Vlastní figurky…" in the settings takes up to twelve PNG/JPG images (one per piece; the

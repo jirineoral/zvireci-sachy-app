@@ -232,3 +232,57 @@ as a hobby.
 Not ruled out forever, but it stops being "click a link and play" and becomes a
 Czech alternative to chess.com. That is a decision to take deliberately, not to
 arrive at by adding one more feature.
+
+## B16 — Per-set victory cry (placeholder)
+
+Referenced by B18 (`victoryCry` per set, played on a win only). Not specified yet.
+
+## B17 — Free animal mix (supersedes the "fixed pair" decision in B1)
+
+**B1's fixed-pair decision is withdrawn.** The child picks their own animal and
+their opponent's animal independently — "I play the cat, against the mouse".
+That choice is the child's, not a skin selection, and it is a large part of the
+appeal. Chicken vs. worm is a feature, not a bug.
+
+**Why the original objection no longer applies.** B1 rejected free mix because
+a grey cat against a grey mouse is unreadable. That is solved by every animal
+existing in a **light and a dark variant**: the child picks two animals, and
+the app assigns one the light variant and one the dark. 19 animals × 2 variants
+= 38 sheets, not 361 pairings.
+
+**Requirements:**
+- The same animal must be selectable on both sides (cat vs. cat). Children will
+  try this immediately; two variants make it work for free.
+- Each variant carries a numeric lightness value in `sets.json`. On selection,
+  check the two chosen variants differ enough; if not, **offer to swap** ("try
+  the dark chicken") rather than refusing the combination.
+- Manifest model changes from "set = a pair" to "set = one animal in two
+  variants". `farm-busts` stops being a goat+frog pair and becomes two
+  independent animals, goat and frog — cleaner, but it is a rebuild.
+
+*Status note (2026-09-13, Phase 6 shipped the same day this entry was written):*
+the free mix, the same animal on both sides and the "one animal = light + dark
+variant" manifest are implemented (`public/piece-sets/animals/animals.json`,
+`docs/phase-6-plan.md`). The variant is assigned by colour — white side always
+light, black side always dark — so a chosen pair is readable by construction and
+no lightness value or swap offer exists yet. That requirement becomes relevant
+only if the child may pick *which* variant plays which colour; open until decided.
+
+## B18 — Win and loss animations under free mix
+
+**Loss shows nothing about the opponent at all.** Not a milder version, not a
+restrained version — the winning animal does not appear. Show the child's own
+king sitting down and removing his crown, then offer "play again". A child who
+has just lost should not watch the other animal in any form. A chicken being
+strangled by a worm is exactly the outcome to design out.
+
+**This also removes the combinatorics.** The victory animation shows only the
+winner; the loss animation shows only the loser. Neither needs to know the
+other animal, so it is 19 animations and not 361. The per-set `victoryCry`
+(B16) plays on a win only — never the opponent's on a loss.
+
+*Note (2026-09-13):* the Phase 5B review already shows both kings and lets the
+mated king speak ("Prohrál jsem…"); B18's rule — after a loss the opponent's
+animal does not appear — will need the review's spectators and reactions to be
+revisited when B18 is implemented (e.g. hide the winner's bubbles on a loss, or
+gate the review behind the "play again" screen).

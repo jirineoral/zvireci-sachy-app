@@ -13,6 +13,7 @@ import { RESULT_LABEL, openGameStore, type GameRecord, type GameStore } from './
 import { buildGamesDialog } from './ui/games-dialog';
 import { buildPuzzlePanel } from './ui/puzzle-panel';
 import { buildCampaignDialog } from './ui/campaign-dialog';
+import { dropPieces, readPieceDropSetting, writePieceDropSetting, type Announcement } from './ui/piece-drop';
 import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
 import { interpolateDifficulty } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
@@ -27,6 +28,7 @@ app.innerHTML = `
     <div class="board-row">
       <div class="eval-bar" hidden><div class="eval-fill"></div><span class="eval-text"></span></div>
       <div class="board"></div>
+      <div class="announce" hidden></div>
     </div>
     <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="bubble" hidden></div></div>
   </div>
@@ -42,6 +44,7 @@ app.innerHTML = `
         <label>Figurky <select class="piece-family"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
         <label>Intro <select class="intro-setting"></select></label>
+        <label>Nástup figurek <select class="drop-setting"></select></label>
         <button type="button" class="user-sets-open">Vlastní figurky…</button>
       </div>
     </details>
@@ -153,6 +156,10 @@ controller = new GameController(
       const them = record.humanColor === 'b' ? ' (ty)' : '';
       matchupEl.textContent = `Rozbor: ${record.white}${you} × ${record.black}${them} · ${RESULT_LABEL[record.result]}`;
     },
+    onGameStart: () => {
+      if (!readPieceDropSetting(safeLocalStorage())) return null;
+      return dropPieces(boardEl, announceEl, announcement());
+    },
     onPuzzleStart: (color) => {
       pieceSets?.startGame(color);
       renderMatchup();
@@ -160,6 +167,25 @@ controller = new GameController(
     onPuzzleResult: (result) => puzzlePanel.onResult(result),
   },
 );
+
+// Piece drop (Phase 12): the announcement over the board names the two sides.
+const announceEl = requireElement<HTMLElement>(app, '.announce');
+const dropSelect = requireElement<HTMLSelectElement>(app, '.drop-setting');
+dropSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
+dropSelect.value = readPieceDropSetting(safeLocalStorage()) ? 'on' : 'off';
+dropSelect.addEventListener('change', () => writePieceDropSetting(safeLocalStorage(), dropSelect.value === 'on'));
+function announcement(): Announcement {
+  const manager = pieceSets;
+  if (!manager || !manager.isLibrary) {
+    const human = manager?.humanColor ?? 'w';
+    return { line1: human === 'w' ? 'BÍLÉ vs. ČERNÉ' : 'ČERNÉ vs. BÍLÉ' };
+  }
+  const me = manager.animalOf(manager.humanColor)?.name ?? '?';
+  const them = manager.animalOf(manager.humanColor === 'w' ? 'b' : 'w')?.name ?? '?';
+  const line1 = `${me} vs. ${them}`.toLocaleUpperCase('cs-CZ');
+  const step = campaignOpponent && campaignState ? campaignStep(campaignState, manager.animals, manager.animal, campaignOpponent) : null;
+  return step ? { line1, line2: `soupeř ${step.index + 1} z ${step.total}` } : { line1 };
+}
 
 // Puzzles (Phase 10): the panel loads the CC0 subset on first use.
 const puzzlePanel = buildPuzzlePanel({
@@ -342,6 +368,7 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
 // The hooks exist once the piece-set manager (and with it the library) has loaded.
 let campaignOpponent: string | null = null;
 let campaignNext: string | null = null;
+let campaignState: CampaignState | null = null;
 let campaignHooks: { afterGame: (r: GameRecord) => void; beforeNewGame: () => void; afterAnimalChange: () => void } | null = null;
 const campaignBar = requireElement<HTMLElement>(app, '.campaign-bar');
 const campaignText = requireElement<HTMLElement>(app, '.campaign-text');
@@ -351,6 +378,7 @@ const campaignButton = requireElement<HTMLButtonElement>(app, '.campaign');
 
 function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): void {
   const state: CampaignState = readCampaign(safeLocalStorage(), manager.animals);
+  campaignState = state;
   const save = (): void => writeCampaign(safeLocalStorage(), state);
   const other = (): 'w' | 'b' => (manager.humanColor === 'w' ? 'b' : 'w');
   const nextUndefeated = (): string | null => campaignStep(state, manager.animals, manager.animal)?.animal.id ?? null;

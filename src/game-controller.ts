@@ -69,6 +69,11 @@ export interface GameControllerOptions {
   onGameRecord: (record: GameRecord) => void;
   /** A saved/pasted game was opened in the review (the view shows its players). */
   onGameLoaded: (record: GameRecord) => void;
+  /**
+   * `Hrát!` (Phase 12): the view may run the piece drop; while the returned handle is
+   * pending the board stays locked and the engine waits. Null = start at once.
+   */
+  onGameStart: (humanColor: Color) => { done: Promise<void>; cancel: () => void } | null;
   /** Puzzle mode events (Phase 10): a puzzle started for the given human colour; a result. */
   onPuzzleStart: (humanColor: Color) => void;
   onPuzzleResult: (result: 'wrong' | 'correct' | 'solved') => void;
@@ -135,6 +140,8 @@ export class GameController {
    * character and the colour before the engine's first move.
    */
   private started = false;
+  /** Phase 12: the piece drop in progress (board locked, engine waiting), or null. */
+  private starting: { done: Promise<void>; cancel: () => void } | null = null;
 
   constructor(
     private readonly els: GameControllerElements,
@@ -388,11 +395,31 @@ export class GameController {
     };
   }
 
-  /** `Hrát`: the set-up game begins — the engine opens if it has white. */
+  /** `Hrát`: the set-up game begins — after the piece drop, if the view runs one — the engine opens if it has white. */
   startPlaying(): void {
     if (this.started) return;
     this.started = true;
-    this.afterPositionChange();
+    const drop = this.options.onGameStart(this.humanColor);
+    if (!drop) {
+      this.afterPositionChange();
+      return;
+    }
+    const t = this.transition;
+    this.starting = drop;
+    this.refreshView(); // locked board, "Figurky nastupují…"
+    void drop.done.then(() => {
+      if (this.starting !== drop) return; // cancelled by a transition, which re-rendered itself
+      this.starting = null;
+      if (t !== this.transition) return;
+      this.afterPositionChange();
+    });
+  }
+
+  private cancelStarting(): void {
+    if (!this.starting) return;
+    const drop = this.starting;
+    this.starting = null;
+    drop.cancel();
   }
 
   async undo(): Promise<void> {
@@ -494,6 +521,7 @@ export class GameController {
   /** Cancels the in-flight search and returns the generation of this transition. */
   private async beginTransition(): Promise<number> {
     const t = ++this.transition;
+    this.cancelStarting();
     // A search can only start synchronously inside afterPositionChange(); if one slipped
     // in while we were awaiting (e.g. the engine became ready), cancel again — but never
     // loop forever: later phases add more async entry points, and a hang here is worse
@@ -788,7 +816,7 @@ export class GameController {
   }
 
   private movableColor(status: GameStatus): BoardColor | null {
-    if (status.over || this.promotionOpen || this.pendingSearch !== null || this.evaluating) return null;
+    if (status.over || this.promotionOpen || this.pendingSearch !== null || this.evaluating || this.starting !== null) return null;
     if (this.engineState === 'failed') return toBoardColor(this.chess.turn()); // two-player fallback
     if (this.chess.turn() !== this.humanColor) return null; // engine's turn (or still loading)
     return toBoardColor(this.humanColor);
@@ -803,7 +831,7 @@ export class GameController {
       engine: this.engineIndicator(),
       preGame: !this.started && sans.length === 0 && !status.over,
       analysing: this.analysisProgress,
-      puzzle: this.puzzle ? this.puzzleStatusText() : null,
+      puzzle: this.puzzle ? this.puzzleStatusText() : this.starting ? 'Figurky nastupují…' : null,
     });
     this.renderControls();
     const preGame = !this.started;

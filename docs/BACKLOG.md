@@ -473,7 +473,7 @@ gets unlocked.
 
 *(The parent's note: beating "člověk" will not be much of a challenge. Queued after R2.)*
 
-### R9 — Piece-drop animation at the start of every game
+### R9 — Piece-drop animation at the start of every game — SHIPPED in Phase 12 (`Hrát!` drops chessground's piece elements, announcement, skip, setting `Nástup figurek`)
 
 Requested by the player. Reuses the phase 8 intro animation, but driven by the
 two animals the player actually chose instead of random ones: pick frog and

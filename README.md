@@ -68,6 +68,14 @@ selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess s
 the opponent's move plays itself, then you find the solution; the two kings comment.
 Progress lives in the browser (`skm.puzzles`).
 
+## Piece drop
+
+`Hrát!` rains the pieces into the starting position (≈ 1 s, chessground's own piece
+elements animated with the Web Animations API, so they end exactly where the board has
+them) under a `KŮZLATA vs. HADI` announcement — `soupeř 7 z 18` in the campaign. Any
+click or key skips it; the engine waits for it. Setting `Nástup figurek` (`skm.pieceDrop`);
+reduced motion shows the announcement only.
+
 ## Campaign
 
 `Kampaň` lines up every character of the library except your own (18 opponents) in an

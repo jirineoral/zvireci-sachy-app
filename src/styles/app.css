@@ -36,9 +36,44 @@ body {
 
 /* Eval bar beside the board (Phase 9). */
 .board-row {
+  position: relative;
   display: flex;
   gap: 6px;
   align-items: stretch;
+}
+
+/* Announcement over the board during the piece drop (Phase 12). */
+.announce {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
+  max-width: 96%;
+  padding: 0.3em 0.6em;
+  text-align: center;
+  font-weight: 900;
+  font-size: clamp(1.6rem, 6vmin, 3rem);
+  line-height: 1.1;
+  color: #ffd84a;
+  -webkit-text-stroke: 0.04em #3a2208;
+  paint-order: stroke fill;
+  text-shadow: 0.04em 0.05em 0 #3a2208, 0 0.1em 0.3em rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  user-select: none;
+}
+
+.announce[hidden] {
+  display: none;
+}
+
+.announce-sub {
+  font-size: 0.5em;
+  color: #fff7dc;
 }
 
 .eval-bar {

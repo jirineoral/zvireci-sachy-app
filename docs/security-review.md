@@ -265,3 +265,10 @@ library id (`characterImage`); all text via `textContent`; `window.confirm` for 
 No new network source, no engine change beyond option values from the existing table, CSP
 unchanged. 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy ·
 7 tree unchanged · 8 no new third-party material.
+
+### 2026-09-13 — Phase 12 (piece drop)
+New key `skm.pieceDrop` (`on`/`off`). The announcement text is built from library names
+and campaign numbers and set via `textContent`; the animations read only the pieces'
+own inline `transform`. No new source, sink or network use, CSP unchanged.
+1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy · 7 tree
+unchanged · 8 nothing new.

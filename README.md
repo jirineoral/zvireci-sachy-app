@@ -68,6 +68,12 @@ selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess s
 the opponent's move plays itself, then you find the solution; the two kings comment.
 Progress lives in the browser (`skm.puzzles`).
 
+## Two players
+
+`Barva` → „dva hráči (bez počítače)“ turns the board into a plain two-player board (white
+below): no engine, no move feedback, undo takes back one ply. Such games are saved but
+kept out of `Bilance`.
+
 ## Game end
 
 When a game the child played ends, their king reacts: a win makes it jump and shout its

@@ -143,7 +143,7 @@ not a legal finding. For a non-commercial project the cheapest resolution is to 
 the app under GPL-3.0 explicitly (a LICENSE file in the source repo); nobody has decided
 that yet. No legal opinion is sought here; record only.
 
-## B7 — Two-player mode as a deliberate choice
+## B7 — Two-player mode as a deliberate choice — DONE 2026-09-13 (`Barva` → „dva hráči (bez počítače)“: both colours movable, no engine, no feedback, undo pops one ply, games excluded from `Bilance`; the campaign switches the preference back to random)
 Phase 2 gets local two-player play only as the engine-failure fallback. Promoting it to a
 real option in the side selector is roughly a select entry plus a branch in
 `movableColor()`. Deferred: expected to be used rarely.

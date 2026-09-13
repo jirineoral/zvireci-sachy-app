@@ -62,6 +62,8 @@ export interface GameControllerOptions {
   voiceOf: (color: Color) => SpeakerVoice;
   /** Asked at every new game: which colour the human plays (the view holds the preference). */
   nextColor: () => Color;
+  /** B7: the next game is two people at one board — no engine, white below. */
+  twoPlayer: () => boolean;
   /** Told after every new game which colour was drawn. */
   onNewGame: (color: Color) => void;
   /** Display names of the two sides for saved games ("kůzlata", "hadi", …). */
@@ -143,6 +145,8 @@ export class GameController {
    * character and the colour before the engine's first move.
    */
   private started = false;
+  /** B7: two players at one board (no engine, both colours movable). Set per game. */
+  private twoPlayer = false;
   /** Phase 12: the piece drop in progress (board locked, engine waiting), or null. */
   private starting: { done: Promise<void>; cancel: () => void } | null = null;
 
@@ -203,7 +207,8 @@ export class GameController {
   async newGame(): Promise<void> {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
-    this.humanColor = this.options.nextColor();
+    this.twoPlayer = this.options.twoPlayer();
+    this.humanColor = this.twoPlayer ? 'w' : this.options.nextColor();
     this.chess.reset();
     this.plies = [];
     this.preMove = null;
@@ -230,6 +235,7 @@ export class GameController {
     this.record = null;
     this.reviewPly = null;
     this.clearPuzzle();
+    this.twoPlayer = false;
     this.humanColor = humanColor;
     this.started = true;
     if (this.engineState === 'ready') this.engine.newGame();
@@ -248,6 +254,7 @@ export class GameController {
     this.reviewPly = null;
     this.clearPuzzle();
     this.puzzle = { moves, index: 0, hint: 0, attempts: 0, message: 'start' };
+    this.twoPlayer = false;
     this.humanColor = this.chess.turn() === 'w' ? 'b' : 'w';
     this.started = true;
     this.options.onPuzzleStart(this.humanColor);
@@ -457,7 +464,7 @@ export class GameController {
     //  - engine to move (thinking, or game just ended after a human move): pop 1 ply
     //  - human to move: pop the engine reply and the human move: pop 2 plies
     //  - two-player fallback: pop 1 ply
-    const plies = this.engineState === 'failed' ? 1 : wasEngineTurn ? 1 : 2;
+    const plies = this.engineState === 'failed' || this.twoPlayer ? 1 : wasEngineTurn ? 1 : 2;
     for (let i = 0; i < plies && this.chess.history().length > 0; i++) this.chess.undo();
     this.plies.length = Math.min(this.plies.length, this.chess.history().length);
     this.preMove = null;
@@ -604,7 +611,7 @@ export class GameController {
   }
 
   private feedbackActive(status: GameStatus): boolean {
-    return this.feedbackEnabled && this.engineState === 'ready' && !status.over && this.puzzle === null;
+    return this.feedbackEnabled && this.engineState === 'ready' && !status.over && this.puzzle === null && !this.twoPlayer;
   }
 
   /** Analysis A: evaluate the position the human is about to move in (runs while they think). */
@@ -777,7 +784,7 @@ export class GameController {
   }
 
   private maybeStartEngine(status: GameStatus): void {
-    if (status.over || !this.started) return;
+    if (status.over || !this.started || this.twoPlayer) return;
     if (this.engineState !== 'ready') return;
     if (this.chess.turn() === this.humanColor) return;
     if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
@@ -866,7 +873,7 @@ export class GameController {
 
   private movableColor(status: GameStatus): BoardColor | null {
     if (status.over || this.promotionOpen || this.pendingSearch !== null || this.evaluating || this.starting !== null) return null;
-    if (this.engineState === 'failed') return toBoardColor(this.chess.turn()); // two-player fallback
+    if (this.engineState === 'failed' || this.twoPlayer) return toBoardColor(this.chess.turn()); // two people at one board
     if (this.chess.turn() !== this.humanColor) return null; // engine's turn (or still loading)
     return toBoardColor(this.humanColor);
   }
@@ -921,6 +928,7 @@ export class GameController {
     if (!status.over || !this.started || this.reviewPly !== null || this.puzzle !== null || this.chess.history().length === 0) return null;
     if (this.record?.source === 'pgn' || (this.record && this.record.humanColor === null)) return null; // a loaded game
     if (!this.chess.isCheckmate()) return 'draw';
+    if (this.twoPlayer) return null; // two people: the status line names the winner, nobody is sent off
     return this.chess.turn() === this.humanColor ? 'loss' : 'win';
   }
 

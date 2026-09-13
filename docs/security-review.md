@@ -314,3 +314,8 @@ strings ≤ 120 chars; round PGN split per game, comments stripped from the move
 each game parsed by chess.js via `recordFromPgn`; all text via `textContent`; no images
 from Lichess. Nothing stored. 1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages
 after the deploy · 7 tree unchanged · 8 nothing new.
+
+### 2026-09-13 — Phase 17 (game end) + B7 (two players)
+No new storage keys (`skm.color` accepts one more value, `two`, validated on read); no
+network; text via `textContent`; CSS animations only. 1 `npm audit` 0 · 2 grep empty ·
+3–8 unchanged.

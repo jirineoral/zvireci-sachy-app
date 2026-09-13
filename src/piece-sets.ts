@@ -71,7 +71,8 @@ export interface PieceFamily {
 export const USER_FAMILY_PREFIX = 'user-';
 const USER_BOARD = { light: '#dce6f0', dark: '#8fa3bd' };
 
-export type ColorPreference = 'random' | Color;
+/** 'two' = two players at one board (B7): white below, no engine. */
+export type ColorPreference = 'random' | Color | 'two';
 /** 'random' or a character id. */
 export type OpponentPreference = string;
 
@@ -282,7 +283,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     drawColor(): Color {
       if (colorPreference === 'random') return Math.random() < 0.5 ? 'w' : 'b';
-      return colorPreference;
+      return colorPreference === 'two' ? 'w' : colorPreference;
     },
     startGame(color: Color): void {
       humanColor = color;
@@ -592,7 +593,7 @@ function readOpponent(storage: Storage | null, families: readonly PieceFamily[])
 function readColor(storage: Storage | null): ColorPreference {
   const stored = readStoredRaw(storage, COLOR_STORAGE_KEY);
   if (stored === null || stored === 'random') return 'random';
-  if (stored === 'w' || stored === 'b') return stored;
+  if (stored === 'w' || stored === 'b' || stored === 'two') return stored;
   console.warn(`Stored colour "${stored.slice(0, 40)}" is unknown; using "random"`);
   return 'random';
 }

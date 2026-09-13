@@ -146,6 +146,7 @@ controller = new GameController(
     // loads after the controller exists (hence the late lookups).
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
     nextColor: () => pieceSets?.drawColor() ?? 'w',
+    twoPlayer: () => pieceSets?.colorPreference === 'two',
     onNewGame: (color) => {
       endgamePanel.close();
       campaignHooks?.beforeNewGame();
@@ -157,7 +158,7 @@ controller = new GameController(
       black: pieceSets?.animalOf('b')?.name ?? 'černý',
     }),
     onGameRecord: (record) => {
-      record.mode = endgamePanel.current ? 'training' : campaignOpponent ? 'campaign' : 'play';
+      record.mode = endgamePanel.current ? 'training' : campaignOpponent ? 'campaign' : pieceSets?.colorPreference === 'two' ? 'two' : 'play';
       void saveGame(record);
       campaignHooks?.afterGame(record);
       endgamePanel.onGameRecord(record);
@@ -302,7 +303,7 @@ const userSetsButton = requireElement<HTMLButtonElement>(app, '.user-sets-open')
 const userSetsDialog = requireElement<HTMLDialogElement>(app, '.user-sets-dialog');
 let pieceSets: PieceSetManager | undefined;
 
-sideSelect.replaceChildren(new Option('náhodně', 'random'), new Option('bílá', 'w'), new Option('černá', 'b'));
+sideSelect.replaceChildren(new Option('náhodně', 'random'), new Option('bílá', 'w'), new Option('černá', 'b'), new Option('dva hráči (bez počítače)', 'two'));
 
 // User sets (IndexedDB, or memory when blocked) are read first so a reload can restore one.
 void openUserSetStore()
@@ -345,6 +346,10 @@ function renderMatchup(): void {
   const me = manager.animalOf(manager.humanColor);
   const them = manager.animalOf(manager.humanColor === 'w' ? 'b' : 'w');
   const other = manager.humanColor === 'w' ? 'b' : 'w';
+  if (manager.colorPreference === 'two') {
+    matchupEl.textContent = `Dva hráči · ${COLOR_NAME[manager.humanColor]}: ${me?.name ?? '?'} · ${COLOR_NAME[other]}: ${them?.name ?? '?'}`;
+    return;
+  }
   matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Soupeř: ${them?.name ?? '?'} (${COLOR_NAME[other]})`;
 }
 
@@ -459,6 +464,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
 
   const play = (opponentId: string): void => {
     if (!manager.isLibrary || !applyStrength(opponentId)) return;
+    if (manager.colorPreference === 'two') manager.setColorPreference('random'); // the campaign is against the computer
     campaignOpponent = opponentId;
     campaignNext = null;
     manager.forceOpponent(opponentId);

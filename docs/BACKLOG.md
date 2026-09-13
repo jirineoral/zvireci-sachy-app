@@ -201,3 +201,34 @@ piece sets, the difficulty ladder.
   teaches many children the wrong thing at once. Any lesson content needs a
   human review step by someone who actually plays. Do not ship generated
   instruction unreviewed.
+
+## B14 — User-created piece sets (placeholder)
+
+Referenced by B15 (IndexedDB for user-created piece sets). Not specified yet — the entry
+exists so the numbering and the boundary in B15 make sense; the brief is still to come.
+
+## B15 — The client-side / server-side boundary
+
+A deliberate architectural line for this project: **anything that runs in the
+user's browser is cheap; anything that needs a server is a different project.**
+
+**Below the line (stays free, stays on GitHub Pages, no accounts, no GDPR
+surface):**
+- `localStorage` for settings — already in use.
+- **IndexedDB for user-created piece sets (B14).** This is *not* a server
+  database: it is browser-local storage that handles binary blobs, the same
+  category as `localStorage`. No backend, no hosting cost, no data reaching me.
+  Limitation to state plainly in the UI: a set lives in one browser on one
+  device and is lost if the user clears site data.
+- Game history within a session, replay, lessons, move feedback — all local.
+
+**Above the line (a different project, not a feature):**
+Accounts, leaderboards, cross-device sync, persistent game history, sharing
+sets between users. Each pulls in the next: database → hosting → cost →
+monetisation → auth → security → GDPR. And in a children's app with
+user-uploaded images, content moderation — which is not something to take on
+as a hobby.
+
+Not ruled out forever, but it stops being "click a link and play" and becomes a
+Czech alternative to chess.com. That is a decision to take deliberately, not to
+arrive at by adding one more feature.

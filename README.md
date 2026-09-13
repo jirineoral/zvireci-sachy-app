@@ -44,7 +44,9 @@ Security notes and the per-phase checklist: [`docs/security-review.md`](docs/sec
 ## Piece sets
 
 Piece artwork is data: one folder under `public/piece-sets/<id>/` plus an entry in
-`public/piece-sets/sets.json` (rules in `public/piece-sets/CONTRACT.md`). The classic set is
+`public/piece-sets/sets.json` (rules in `public/piece-sets/CONTRACT.md`). The player picks
+an animal (kůzlata / žáby) and a colour; the drawing style ("Figurky") is a family of sets,
+one per "which animal is white", and the app shows the matching one. The classic set is
 the built-in fallback (chess pieces by Colin M.L. Burnett, CC BY-SA 3.0, via chessground).
 
 ## Plans

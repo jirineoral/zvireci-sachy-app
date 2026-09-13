@@ -8,15 +8,27 @@ new set needs to satisfy; you should not have to read the code.
 
 ```json
 {
-  "id": "farm",
-  "name": "Kůzlata vs. žabky",
+  "id": "farm-busts-inverse",
+  "name": "Hlavy",
+  "family": "hlavy",
+  "whiteAnimal": "zabky",
   "pair": "kuzlata-zabky",
   "board": { "light": "#dce6f0", "dark": "#8fa3bd" }
 }
 ```
 
 - `id` — folder name; lowercase letters, digits and hyphens only.
-- `name` — shown in the "Figurky" selector.
+- `name` — label of the set's *family* in the "Figurky" selector (the first entry of a
+  family names it).
+- `family` — drawing style; sets of one family differ only in which animal is white.
+  Optional: an entry without it is a one-member family named after its `id`.
+- `whiteAnimal` — `kuzlata` or `zabky`: which animal the **white** pieces are. Optional;
+  absent means the set has no animals (classic). The player picks an animal and a colour;
+  the app shows the family's entry whose `whiteAnimal` matches (animal when playing white,
+  the other animal when playing black). A family with a single entry cannot honour the
+  animal choice — the selector is then disabled and shows the animal implied by the colour.
+  So a style that should work for both animals in both colours needs **two folders**, one
+  per `whiteAnimal`, and in each folder `w*` is always the white side, whatever the animal.
 - `pair` — documents which animal pairing the set belongs to (backlog B1). No code reads it.
 - `board.light` / `board.dark` — the board colours. They are **part of the set**, not a user
   setting, because readability depends on the pieces' palette (cream goats vanish on a
@@ -26,9 +38,11 @@ new set needs to satisfy; you should not have to read the code.
   the set stylesheet so the styling bundled into the app shows through. No other set should
   use it.
 
-The **first entry** is the default for a first visit. The chosen set is remembered in
-`localStorage` (`skm.pieceSetId`); an unknown stored id falls back to the first entry, and
-a missing or broken manifest falls back to the built-in classic pieces. A broken set must
+The **first entry's family** is the default for a first visit, with the animal `kuzlata`
+and the colour white. The chosen family and animal are remembered in `localStorage`
+(`skm.pieceFamily`, `skm.animal`; the pre-5A `skm.pieceSetId` is migrated once); unknown
+stored values fall back to the defaults, and a missing or broken manifest falls back to
+the built-in classic pieces. A broken set must
 never produce an unplayable board — worst case the classic pieces appear and an error is
 logged.
 
@@ -93,3 +107,6 @@ or the two kings are hard to tell apart in greyscale, the set is not done.
   `assets/source/frogs.png` (black); the twelve PNGs are extracted by
   `scripts/extract-pieces.py`, which holds the hand-tuned per-piece constants. Rerunning it
   reproduces the files.
+- `farm-busts` / `farm-busts-inverse`: AI-generated busts sheets `assets/source/farm-busts.png`
+  (light goats, dark frogs) and `assets/source/farm-busts-inverse.png` (dark goats, light
+  frogs), same script. In the inverse set the frogs are the white pieces.

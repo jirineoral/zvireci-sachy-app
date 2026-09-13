@@ -1,7 +1,20 @@
 [
   {
     "id": "farm-busts",
-    "name": "Kůzlata vs. žabky (hlavy)",
+    "name": "Hlavy",
+    "family": "hlavy",
+    "whiteAnimal": "kuzlata",
+    "pair": "kuzlata-zabky",
+    "board": {
+      "light": "#dce6f0",
+      "dark": "#8fa3bd"
+    }
+  },
+  {
+    "id": "farm-busts-inverse",
+    "name": "Hlavy",
+    "family": "hlavy",
+    "whiteAnimal": "zabky",
     "pair": "kuzlata-zabky",
     "board": {
       "light": "#dce6f0",
@@ -10,7 +23,9 @@
   },
   {
     "id": "farm",
-    "name": "Kůzlata vs. žabky",
+    "name": "Celé figurky",
+    "family": "cele",
+    "whiteAnimal": "kuzlata",
     "pair": "kuzlata-zabky",
     "board": {
       "light": "#dce6f0",
@@ -20,6 +35,7 @@
   {
     "id": "cburnett",
     "name": "Klasické",
+    "family": "klasicke",
     "pair": "classic",
     "board": {
       "light": "#f0d9b5",

@@ -95,22 +95,25 @@ FARM_LIGHT = (0xDC, 0xE6, 0xF0)
 FARM_DARK = (0x8F, 0xA3, 0xBD)
 
 # ---- farm-busts recipe -------------------------------------------------------------------
-# Two sheets with identical layout: light goats / dark frogs (the default set) and the
-# inverse palette (dark goats / light frogs). Both rows carry kings with a sceptre so the
-# king stays recognisable at 40 px.
+# Two sheets with identical layout (goats on the top row, frogs below): light goats / dark
+# frogs (the default set) and the inverse palette (dark goats / light frogs). Both carry
+# kings with a sceptre so the king stays recognisable at 40 px. In the inverse set the
+# *frogs* are the white pieces (light on the bottom row of the sheet), so its row mapping is
+# flipped: the set's contract is "w = white pieces", whatever the animal.
 BUSTS_VARIANTS = {
     "farm-busts": {
         "source": ROOT / "assets/source/farm-busts.png",
         "out": ROOT / "public/piece-sets/farm-busts",
         "contact": ROOT / "docs/piece-contact-sheet-busts.png",
+        "rows": {"w": (0, 430), "b": (430, None)},  # white = goats (top row)
     },
     "farm-busts-inverse": {
         "source": ROOT / "assets/source/farm-busts-inverse.png",
         "out": ROOT / "public/piece-sets/farm-busts-inverse",
         "contact": ROOT / "docs/piece-contact-sheet-busts-inverse.png",
+        "rows": {"w": (430, None), "b": (0, 430)},  # white = frogs (bottom row)
     },
 }
-BUSTS_ROWS = {"w": (0, 430), "b": (430, None)}  # goats above y=430, frogs below (sheet px)
 BUSTS_ORDER = ["P", "R", "N", "B", "Q", "K"]  # left -> right on this sheet
 BUSTS_BG_TOL = 36  # background is ~(27,28,29); outlines are near-black (sum diff ~70)
 BUSTS_NEAR_BG_TOL = 15
@@ -285,7 +288,7 @@ def process_sheet(side: str, path: Path, dry_run: bool) -> list[Piece]:
     return pieces
 
 
-def process_busts_sheet(source: Path, dry_run: bool) -> list[Piece]:
+def process_busts_sheet(source: Path, rows: dict[str, tuple[int, int | None]], dry_run: bool) -> list[Piece]:
     img = Image.open(source).convert("RGB")
     rgb = np.asarray(img).astype(np.int16)
     h, w = rgb.shape[:2]
@@ -303,7 +306,7 @@ def process_busts_sheet(source: Path, dry_run: bool) -> list[Piece]:
     for c in comps:
         ys, xs = np.where(c)
         cy = ys.mean()
-        for side, (y0, y1) in BUSTS_ROWS.items():
+        for side, (y0, y1) in rows.items():
             if cy >= y0 and (y1 is None or cy < y1):
                 by_row[side].append(c)
     pieces: list[Piece] = []
@@ -519,7 +522,7 @@ def run_busts(name: str, dry_run: bool) -> None:
     variant = BUSTS_VARIANTS[name]
     source, out_dir, contact = variant["source"], variant["out"], variant["contact"]
     print(f"{source.name}:")
-    pieces = process_busts_sheet(source, dry_run)
+    pieces = process_busts_sheet(source, variant["rows"], dry_run)
     for p in pieces:
         for idx, area, cx, cy, kept in p.pockets:
             print(f"  {p.code} pocket #{idx}: area {area} px, centre ({cx},{cy}) -> CLEAR")

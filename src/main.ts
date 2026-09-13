@@ -4,7 +4,7 @@ import './styles/app.css';
 
 import { createEngine } from './engine';
 import { GameController } from './game-controller';
-import { initPieceSets, type PieceSetManager } from './piece-sets';
+import { ANIMALS, ANIMAL_LABEL, initPieceSets, type Animal, type PieceSetManager } from './piece-sets';
 import { requireElement } from './ui/dom';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
@@ -17,8 +17,9 @@ app.innerHTML = `
       <summary>⚙ Nastavení</summary>
       <div class="controls">
         <label>Obtížnost <select class="difficulty"></select></label>
-        <label>Hraju za <select class="side"></select></label>
-        <label>Figurky <select class="piece-set"></select></label>
+        <label>Hraju za <select class="animal"></select></label>
+        <label>Barva <select class="side"></select></label>
+        <label>Figurky <select class="piece-family"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
       </div>
     </details>
@@ -78,21 +79,55 @@ controller = new GameController(
 );
 
 
-// Piece sets are view state only; the controller never learns about them.
-const pieceSetSelect = requireElement<HTMLSelectElement>(app, '.piece-set');
-void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage() })
-  .then((manager) => wirePieceSetSelect(pieceSetSelect, manager))
+// Piece sets are view state only; the controller never learns about them. The family
+// (drawing style), the animal and the colour together pick the set (piece-sets.ts).
+const familySelect = requireElement<HTMLSelectElement>(app, '.piece-family');
+const animalSelect = requireElement<HTMLSelectElement>(app, '.animal');
+const sideSelect = requireElement<HTMLSelectElement>(app, '.side');
+void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), humanColor: 'w' })
+  .then((manager) => wirePieceSetSelects(manager))
   .catch((err) => console.error('Piece sets failed to initialise', err));
 
-function wirePieceSetSelect(select: HTMLSelectElement, manager: PieceSetManager): void {
-  if (manager.sets.length === 0) {
-    select.replaceChildren(new Option('Klasické (vestavěné)', ''));
-    select.disabled = true;
+function wirePieceSetSelects(manager: PieceSetManager): void {
+  if (manager.families.length === 0) {
+    familySelect.replaceChildren(new Option('Klasické (vestavěné)', ''));
+    familySelect.disabled = true;
+    animalSelect.replaceChildren(new Option('—', ''));
+    animalSelect.disabled = true;
     return;
   }
-  select.replaceChildren(...manager.sets.map((set) => new Option(set.name, set.id)));
-  select.value = manager.currentId ?? manager.sets[0].id;
-  select.addEventListener('change', () => manager.select(select.value));
+  familySelect.replaceChildren(...manager.families.map((f) => new Option(f.name, f.id)));
+  animalSelect.replaceChildren(...ANIMALS.map((a) => new Option(ANIMAL_LABEL[a], a)));
+
+  const render = (): void => {
+    familySelect.value = manager.familyId ?? manager.families[0].id;
+    const choice = manager.animalChoice();
+    if (choice.effective === null) {
+      // No animals in this family: show a dash instead of a misleading animal.
+      if (!animalSelect.querySelector('option[value=""]')) animalSelect.add(new Option('—', ''));
+      animalSelect.value = '';
+    } else {
+      animalSelect.querySelector('option[value=""]')?.remove();
+      animalSelect.value = choice.effective;
+    }
+    animalSelect.disabled = !choice.enabled;
+  };
+
+  familySelect.addEventListener('change', () => {
+    manager.setFamily(familySelect.value);
+    render();
+  });
+  animalSelect.addEventListener('change', () => {
+    manager.setAnimal(animalSelect.value as Animal);
+    render();
+  });
+  // The controller owns the colour (its own listener starts a new game); the view only
+  // follows the same select to pick the matching set of the family.
+  sideSelect.addEventListener('change', () => {
+    manager.setHumanColor(sideSelect.value === 'b' ? 'b' : 'w');
+    render();
+  });
+  render();
 }
 
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';

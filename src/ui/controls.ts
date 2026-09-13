@@ -18,8 +18,8 @@ export interface ControlsState {
 }
 
 const SIDES: ReadonlyArray<{ value: Color; label: string }> = [
-  { value: 'w', label: 'bílé' },
-  { value: 'b', label: 'černé' },
+  { value: 'w', label: 'bílá' },
+  { value: 'b', label: 'černá' },
 ];
 
 /** Fills the two <select>s once from the data tables. */

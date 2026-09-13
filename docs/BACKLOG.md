@@ -439,3 +439,36 @@ score. The whole-game analysis (Phase 9) compensates by taking the next position
 the live feedback's analysis A does not, so a human move made from a forced position can
 get a glyph based on a shallow "before" eval. Cheap fix: when the human has one legal
 move, skip analysis A and treat the move as best. Recorded, not done.
+
+### R8 — Campaign: beat every animal
+
+Requested by the player. Cheapest item on the list and the highest impact:
+no new data, no new artwork, no new engine work.
+
+**Why it matters beyond being fun:** it removes the difficulty-selection
+problem entirely. The player never picks a number — they just move to the next
+opponent and the strength rises with them. That works for a beginner and for an
+adult alike, which is exactly what the ladder has never managed on its own.
+
+**Design decisions to take before building:**
+- **Order.** "Sorted by intelligence" is the requested framing, but 19 animals
+  against 6 difficulty levels means either several animals share a level or the
+  ladder gets finer. Finer is better anyway — 19 steps give a campaign a curve,
+  6 give it a staircase. And ranking an ant against an octopus is a joke, not a
+  fact: **let the player order the animals himself.** He will enjoy doing it
+  more than we would enjoy deciding it.
+- **Losing costs nothing.** No penalty, no lost progress, just "zkus to znovu".
+  A campaign that sends a child backwards is a campaign a child stops playing.
+  Allow skipping an opponent after a few losses so nobody is stuck forever.
+- **Visible progress.** A grid of all the animals: defeated in colour,
+  undefeated greyed out, the next one highlighted. This is the cheapest reward
+  mechanism that exists and it is what makes a child want the rest of the set.
+
+**Implementation:** no new system. The campaign is an ordering in `sets.json`
+plus a set of "defeated" records in IndexedDB. Fully client-side, no GATE
+issue.
+
+**Fits with phase 8:** the victory animation is exactly the moment an animal
+gets unlocked.
+
+*(The parent's note: beating "člověk" will not be much of a challenge. Queued after R2.)*

@@ -6,17 +6,6 @@
     "library": "animals"
   },
   {
-    "id": "farm",
-    "name": "Celé figurky",
-    "family": "cele",
-    "whiteAnimal": "kuzlata",
-    "pair": "kuzlata-zabky",
-    "board": {
-      "light": "#dce6f0",
-      "dark": "#8fa3bd"
-    }
-  },
-  {
     "id": "cburnett",
     "name": "Klasické",
     "family": "klasicke",

@@ -110,8 +110,10 @@ Piece artwork is data (rules in `public/piece-sets/CONTRACT.md`). The "Hlavy" st
 character library (`public/piece-sets/animals/`): nineteen characters, each drawn as light
 (white) and dark (black) pieces, so the player picks their character, the opponent's
 (or random) and a colour (or random — the default); the difficulty levels are named after
-the player's character. "Celé figurky" and "Klasické" are fixed pairs; the classic set is
-the built-in fallback (chess pieces by Colin M.L. Burnett, CC BY-SA 3.0, via chessground).
+the player's character. "Klasické" is the built-in fallback (chess pieces by Colin M.L.
+Burnett, CC BY-SA 3.0, via chessground). The full-figure farm pair (`public/piece-sets/farm/`,
+goats vs. frogs) is no longer listed in `sets.json` — the player found two styles of the
+same animals confusing — but the files and the extractor stay, one manifest entry away.
 New characters come from `scripts/extract-animals.py` (Pillow + numpy).
 
 ## Plans

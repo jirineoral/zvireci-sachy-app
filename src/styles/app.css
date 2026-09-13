@@ -102,6 +102,10 @@ body {
   gap: 6px;
 }
 
+.review-controls[hidden] {
+  display: none; /* the class rule above would otherwise beat the UA [hidden] rule */
+}
+
 .review-controls button {
   flex: 1;
   padding: 6px 0;

@@ -52,11 +52,13 @@ Security notes and the per-phase checklist: [`docs/security-review.md`](docs/sec
 
 ## Piece sets
 
-Piece artwork is data: one folder under `public/piece-sets/<id>/` plus an entry in
-`public/piece-sets/sets.json` (rules in `public/piece-sets/CONTRACT.md`). The player picks
-an animal (kůzlata / žáby) and a colour; the drawing style ("Figurky") is a family of sets,
-one per "which animal is white", and the app shows the matching one. The classic set is
+Piece artwork is data (rules in `public/piece-sets/CONTRACT.md`). The "Hlavy" style is a
+character library (`public/piece-sets/animals/`): nineteen characters, each drawn as light
+(white) and dark (black) pieces, so the player picks their character, the opponent's
+(or random) and a colour (or random — the default); the difficulty levels are named after
+the player's character. "Celé figurky" and "Klasické" are fixed pairs; the classic set is
 the built-in fallback (chess pieces by Colin M.L. Burnett, CC BY-SA 3.0, via chessground).
+New characters come from `scripts/extract-animals.py` (Pillow + numpy).
 
 ## Plans
 

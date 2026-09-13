@@ -5,7 +5,7 @@ recorded so that the design does not accidentally foreclose them.
 
 ---
 
-## B1 — Animal library (multiple piece-set pairs)
+## B1 — Animal library (multiple piece-set pairs) — RESOLVED in Phase 6 (character library, 19 characters, any vs. any)
 
 ### Idea
 Beyond goats vs. frogs, offer further animal pairs: pigs, dogs, cats, donkeys,

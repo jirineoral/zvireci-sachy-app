@@ -5,7 +5,7 @@
  * or the engine.
  */
 import { Chess, type Color } from 'chess.js';
-import { CAPTURED_ACCUSATIVE, OPENING, REACTIONS, SOUND, TEMPLATES, type Situation } from './commentary';
+import { CAPTURED_ACCUSATIVE, DEFAULT_VOICE, OPENING, REACTIONS, TEMPLATES, type Situation } from './commentary';
 import type { Glyph } from './feedback';
 
 /** What the app remembers about one ply (only the human's plies carry a glyph). */
@@ -15,7 +15,8 @@ export interface PlyRecord {
   betterSan: string | null;
 }
 
-export type SpeakerAnimal = 'kuzlata' | 'zabky' | null;
+/** A king's voice: its noise and its "ouch"; null = no character (classic pieces). */
+export type SpeakerVoice = { sound: string; hurt: string } | null;
 
 export interface Bubble {
   speaker: Color;
@@ -91,8 +92,8 @@ function fill(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (whole, key: string) => values[key] ?? whole);
 }
 
-function sound(animal: SpeakerAnimal): string {
-  return SOUND[animal ?? 'none'];
+function voice(v: SpeakerVoice): { zvuk: string; bolest: string } {
+  return { zvuk: v?.sound ?? DEFAULT_VOICE.sound, bolest: v?.hurt ?? DEFAULT_VOICE.hurt };
 }
 
 /**
@@ -104,12 +105,12 @@ export function commentaryFor(
   sans: readonly string[],
   ply: number,
   records: ReadonlyArray<PlyRecord | null | undefined>,
-  animalOf: (color: Color) => SpeakerAnimal,
+  voiceOf: (color: Color) => SpeakerVoice,
 ): PlyCommentary {
   if (ply < 0 || ply > sans.length) return { main: null, reaction: null };
   if (ply === 0) {
     const speaker: Color = new Chess(startFen).turn();
-    const text = fill(pick(OPENING, `open:${sans.length}:${sans[0] ?? ''}`), { zvuk: sound(animalOf(speaker)) });
+    const text = fill(pick(OPENING, `open:${sans.length}:${sans[0] ?? ''}`), voice(voiceOf(speaker)));
     return { main: { speaker, text }, reaction: null };
   }
 
@@ -124,18 +125,20 @@ export function commentaryFor(
     san: move.san,
     better: record?.betterSan ?? '',
     captured: move.captured ? CAPTURED_ACCUSATIVE[move.captured] ?? 'figuru' : 'figuru',
-    zvuk: sound(animalOf(speaker)),
+    ...voice(voiceOf(speaker)),
   };
   const main: Bubble = { speaker, text: fill(pick(TEMPLATES[situation], seed), values) };
 
   let reaction: Bubble | null = null;
-  const reactionValues = { zvuk: sound(animalOf(other)) };
+  const reactionValues = voice(voiceOf(other));
   if (situation === 'mate') {
     reaction = { speaker: other, text: fill(pick(REACTIONS.mated, seed), reactionValues) };
   } else if (record?.glyph === '??') {
     reaction = { speaker: other, text: fill(pick(REACTIONS.blunder, seed), reactionValues) };
   } else if (record?.glyph === '!!') {
     reaction = { speaker: other, text: fill(pick(REACTIONS.brilliant, seed), reactionValues) };
+  } else if (move.captured && !before.isGameOver()) {
+    reaction = { speaker: other, text: fill(pick(REACTIONS.captured, seed), reactionValues) };
   }
   return { main, reaction };
 }

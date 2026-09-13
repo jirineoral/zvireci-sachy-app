@@ -1,65 +1,93 @@
 /**
- * Piece sets as data. Reads `public/piece-sets/sets.json`, swaps the set stylesheet
- * (a <link> appended after the bundled CSS, so the set's rules win) and sets the board
- * colours on the chessground wrapper. Pure view state: nothing here touches the game,
- * the board bridge or the engine.
+ * Piece sets as data. Reads `public/piece-sets/sets.json` and, for the "Hlavy" style,
+ * the character library `public/piece-sets/animals/animals.json`. Pure view state: nothing
+ * here touches the game, the board bridge or the engine.
  *
- * Phase 5A: the player chooses a drawing style (a *family* of sets), an *animal* and a
- * colour. A family holds one set per "which animal is white" (`whiteAnimal`); the set to
- * display is resolved from (family, animal, human colour) — see `resolve()`. Families with
- * a single member cannot honour the animal choice; the caller shows the implied animal.
+ * Two kinds of style ("family", the "Figurky" selector):
+ *  - a *library* family: the player picks a character, an opponent (or random) and a
+ *    colour (or random); the white side shows the white character's `light/` pieces and
+ *    the black side the black character's `dark/` pieces. Each character's stylesheet is
+ *    scoped by classes on <html> (`skm-white-<id>`, `skm-black-<id>`), so the board, the
+ *    promotion dialog and the spectators follow automatically.
+ *  - a *pair* family (Phase 5A): one folder per "which animal is white"; the set is
+ *    resolved from (family, animal, colour). `cburnett` is the built-in pair.
  *
  * Fallbacks: a missing/invalid manifest or a stylesheet that fails to load leaves the
  * bundled cburnett styling (src/styles/pieces.css) in place, so the board stays playable.
- * The `cburnett` entry itself is the built-in set (`"stylesheet": null`): selecting it
- * removes the set <link>.
  */
 import type { Color } from 'chess.js';
 
-export type Animal = 'kuzlata' | 'zabky';
-export const ANIMALS: readonly Animal[] = ['kuzlata', 'zabky'];
-export const ANIMAL_LABEL: Record<Animal, string> = { kuzlata: 'kůzlata', zabky: 'žáby' };
+/** A character of the library (id, Czech names, noises, difficulty labels). */
+export interface Animal {
+  id: string;
+  /** Nominative plural ("kůzlata", "hadi"). */
+  name: string;
+  /** Accusative after "Hraju za …" ("kůzlata", "hady"). */
+  za: string;
+  /** The king's own noise in the review bubbles. */
+  sound: string;
+  /** The noise when one of their pieces is captured. */
+  hurt: string;
+  /** Six difficulty labels, weakest first; null = the default (frog) ladder names. */
+  levels: string[] | null;
+}
+
+export interface AnimalLibrary {
+  board: { light: string; dark: string };
+  animals: readonly Animal[];
+}
+
+/** The legacy pair sets keep the 5A animal ids. */
+export type PairAnimal = 'kuzlata' | 'zabky';
 
 export interface PieceSet {
   id: string;
   name: string;
-  /** Drawing style this set belongs to; sets of one family differ only in `whiteAnimal`. */
   family: string;
-  /** Which animal the white pieces are; null for sets without animals (classic). */
-  whiteAnimal: Animal | null;
+  /** Pair sets: which animal the white pieces are; null for sets without animals. */
+  whiteAnimal: PairAnimal | null;
   pair: string;
   board: { light: string; dark: string };
   /** Absolute stylesheet URL, or null for the built-in bundled styling. */
   stylesheet: string | null;
+  /** Library folder name (e.g. "animals") when this entry is a character library. */
+  library: string | null;
 }
 
 export interface PieceFamily {
   id: string;
-  /** Label of the family = `name` of its first entry. */
   name: string;
   sets: readonly PieceSet[];
+  /** Non-null when the family is a character library (and it loaded). */
+  library: AnimalLibrary | null;
 }
 
-/** What the "Hraju za" control should show for the current family and colour. */
-export interface AnimalChoice {
-  /** False when the family has no set for the other animal (or no animals at all). */
-  enabled: boolean;
-  /** The animal the player actually is with the current set, or null (classic). */
-  effective: Animal | null;
-}
+export type ColorPreference = 'random' | Color;
+/** 'random' or a character id. */
+export type OpponentPreference = string;
 
 export interface PieceSetManager {
-  /** Empty when the manifest could not be loaded. */
   readonly families: readonly PieceFamily[];
-  /** Null when running on the built-in fallback without a manifest. */
   readonly familyId: string | null;
-  readonly animal: Animal;
-  readonly currentSet: PieceSet | null;
-  animalChoice(): AnimalChoice;
+  /** True when the current family is a loaded character library. */
+  readonly isLibrary: boolean;
+  readonly animals: readonly Animal[];
+  /** The player's character id (library) / pair animal (pair families). */
+  readonly animal: string;
+  readonly opponentPreference: OpponentPreference;
+  readonly colorPreference: ColorPreference;
+  /** The colour the human plays in the current game. */
+  readonly humanColor: Color;
+  /** The character of a colour in the current game; null outside a library family. */
+  animalOf(color: Color): Animal | null;
   setFamily(id: string): void;
-  setAnimal(animal: Animal): void;
-  /** The colour the human plays; changes which set of the family is shown. */
-  setHumanColor(color: Color): void;
+  setAnimal(id: string): void;
+  setOpponentPreference(pref: OpponentPreference): void;
+  setColorPreference(pref: ColorPreference): void;
+  /** Draws the colour of the next game from the preference (the controller asks for it). */
+  drawColor(): Color;
+  /** A new game starts with this colour: re-draws a random opponent, re-applies the styling. */
+  startGame(color: Color): void;
 }
 
 export interface PieceSetOptions {
@@ -67,61 +95,91 @@ export interface PieceSetOptions {
   /** The chessground wrapper (`.cg-wrap`) that carries --board-light / --board-dark. */
   boardEl: HTMLElement;
   storage: Storage | null;
-  humanColor: Color;
 }
 
 export const FAMILY_STORAGE_KEY = 'skm.pieceFamily';
 export const ANIMAL_STORAGE_KEY = 'skm.animal';
+export const OPPONENT_STORAGE_KEY = 'skm.opponent';
+export const COLOR_STORAGE_KEY = 'skm.color';
 /** Pre-5A key; migrated to the family key once and removed. */
 const LEGACY_SET_STORAGE_KEY = 'skm.pieceSetId';
 const LINK_ATTR = 'data-piece-set';
 const ID_PATTERN = /^[a-z0-9-]+$/;
-const DEFAULT_ANIMAL: Animal = 'kuzlata';
+const PAIR_ANIMALS: readonly PairAnimal[] = ['kuzlata', 'zabky'];
+const DEFAULT_ANIMAL = 'kuzlata';
+const HTML_CLASS_PREFIX = 'skm-';
 
-export function otherAnimal(animal: Animal): Animal {
+export function otherPairAnimal(animal: PairAnimal): PairAnimal {
   return animal === 'kuzlata' ? 'zabky' : 'kuzlata';
 }
 
-/**
- * The set of `family` to show for a player who is `animal` and plays `color`: the entry
- * whose white pieces are the right animal, else the family's first entry.
- */
-export function resolve(family: PieceFamily, animal: Animal, color: Color): PieceSet {
-  const wantedWhite = color === 'w' ? animal : otherAnimal(animal);
+/** Pair families: the set whose white pieces are the right animal, else the first entry. */
+export function resolvePair(family: PieceFamily, animal: string, color: Color): PieceSet {
+  if (!isPairAnimal(animal)) return family.sets[0];
+  const wantedWhite = color === 'w' ? animal : otherPairAnimal(animal);
   return family.sets.find((s) => s.whiteAnimal === wantedWhite) ?? family.sets[0];
 }
 
-export function animalChoiceFor(family: PieceFamily, set: PieceSet, color: Color): AnimalChoice {
-  const whites = new Set(family.sets.map((s) => s.whiteAnimal).filter((a): a is Animal => a !== null));
-  if (set.whiteAnimal === null) return { enabled: false, effective: null };
-  const effective = color === 'w' ? set.whiteAnimal : otherAnimal(set.whiteAnimal);
-  return { enabled: whites.size >= 2, effective };
-}
-
 export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetManager> {
-  const families = groupFamilies(await loadManifest(opts.baseUrl));
+  const families = await loadFamilies(opts.baseUrl);
   let familyId: string | null = null;
-  let animal: Animal = readAnimal(opts.storage);
-  let humanColor: Color = opts.humanColor;
-  let currentSet: PieceSet | null = null;
+  let animal = DEFAULT_ANIMAL;
+  let opponentPreference: OpponentPreference = 'random';
+  let colorPreference: ColorPreference = 'random';
+  let humanColor: Color = 'w';
+  let opponent: string | null = null; // the drawn/chosen opponent of the current game
+  let appliedPairSet: PieceSet | null = null;
 
   const family = (): PieceFamily | null => families.find((f) => f.id === familyId) ?? null;
+  const library = (): AnimalLibrary | null => family()?.library ?? null;
+  const findAnimal = (id: string | null): Animal | null => library()?.animals.find((a) => a.id === id) ?? null;
+
+  const pickOpponent = (): string | null => {
+    const lib = library();
+    if (!lib) return null;
+    if (opponentPreference !== 'random' && findAnimal(opponentPreference)) return opponentPreference;
+    const candidates = lib.animals.filter((a) => a.id !== animal);
+    const pool = candidates.length > 0 ? candidates : lib.animals;
+    return pool[Math.floor(Math.random() * pool.length)].id;
+  };
+
+  const applyBoard = (board: { light: string; dark: string }): void => {
+    opts.boardEl.style.setProperty('--board-light', board.light);
+    opts.boardEl.style.setProperty('--board-dark', board.dark);
+  };
 
   const apply = (): void => {
     const f = family();
     if (!f) return;
-    const set = resolve(f, animal, humanColor);
-    if (set === currentSet) return;
-    currentSet = set;
-    applyStylesheet(set);
-    opts.boardEl.style.setProperty('--board-light', set.board.light);
-    opts.boardEl.style.setProperty('--board-dark', set.board.dark);
+    if (f.library) {
+      const librarySet = f.sets.find((s) => s.library !== null) ?? f.sets[0];
+      const player = findAnimal(animal) ?? f.library.animals[0];
+      animal = player.id;
+      if (!findAnimal(opponent)) opponent = pickOpponent();
+      const white = humanColor === 'w' ? player.id : (opponent ?? player.id);
+      const black = humanColor === 'w' ? (opponent ?? player.id) : player.id;
+      removePairLinks();
+      appliedPairSet = null;
+      ensureAnimalLink(opts.baseUrl, librarySet.library ?? 'animals', white);
+      if (black !== white) ensureAnimalLink(opts.baseUrl, librarySet.library ?? 'animals', black);
+      setHtmlClasses([`${HTML_CLASS_PREFIX}white-${white}`, `${HTML_CLASS_PREFIX}black-${black}`]);
+      applyBoard(f.library.board);
+      return;
+    }
+    setHtmlClasses([]);
+    const set = resolvePair(f, animal, humanColor);
+    if (set === appliedPairSet) return;
+    appliedPairSet = set;
+    applyPairStylesheet(set);
+    applyBoard(set.board);
   };
 
   if (families.length > 0) {
     const stored = readFamily(opts.storage, families);
-    if (stored.legacyAnimal && !readStoredRaw(opts.storage, ANIMAL_STORAGE_KEY)) animal = stored.legacyAnimal;
     familyId = stored.familyId ?? families[0].id;
+    animal = readAnimal(opts.storage, families) ?? stored.legacyAnimal ?? DEFAULT_ANIMAL;
+    opponentPreference = readOpponent(opts.storage, families);
+    colorPreference = readColor(opts.storage);
     apply();
   }
 
@@ -132,16 +190,27 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     get familyId() {
       return familyId;
     },
+    get isLibrary() {
+      return library() !== null;
+    },
+    get animals() {
+      return library()?.animals ?? [];
+    },
     get animal() {
       return animal;
     },
-    get currentSet() {
-      return currentSet;
+    get opponentPreference() {
+      return opponentPreference;
     },
-    animalChoice(): AnimalChoice {
-      const f = family();
-      if (!f || !currentSet) return { enabled: false, effective: null };
-      return animalChoiceFor(f, currentSet, humanColor);
+    get colorPreference() {
+      return colorPreference;
+    },
+    get humanColor() {
+      return humanColor;
+    },
+    animalOf(color: Color): Animal | null {
+      if (!library()) return null;
+      return color === humanColor ? findAnimal(animal) : findAnimal(opponent);
     },
     setFamily(id: string): void {
       if (!families.some((f) => f.id === id)) {
@@ -152,41 +221,82 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       apply();
       writeStored(opts.storage, FAMILY_STORAGE_KEY, id);
     },
-    setAnimal(next: Animal): void {
-      if (!ANIMALS.includes(next)) {
-        console.warn(`Unknown animal "${String(next)}"`);
+    setAnimal(id: string): void {
+      const lib = library();
+      const valid = lib ? lib.animals.some((a) => a.id === id) : isPairAnimal(id);
+      if (!valid) {
+        console.warn(`Unknown animal "${id}"`);
         return;
       }
-      animal = next;
+      animal = id;
+      if (opponent === id && opponentPreference === 'random') opponent = pickOpponent(); // never mirror by accident
       apply();
-      writeStored(opts.storage, ANIMAL_STORAGE_KEY, next);
+      writeStored(opts.storage, ANIMAL_STORAGE_KEY, id);
     },
-    setHumanColor(color: Color): void {
+    setOpponentPreference(pref: OpponentPreference): void {
+      if (pref !== 'random' && !findAnimal(pref)) {
+        console.warn(`Unknown opponent "${pref}"`);
+        return;
+      }
+      opponentPreference = pref;
+      if (pref !== 'random') opponent = pref; // an explicit choice applies at once (view-only)
+      apply();
+      writeStored(opts.storage, OPPONENT_STORAGE_KEY, pref);
+    },
+    setColorPreference(pref: ColorPreference): void {
+      colorPreference = pref;
+      writeStored(opts.storage, COLOR_STORAGE_KEY, pref);
+    },
+    drawColor(): Color {
+      if (colorPreference === 'random') return Math.random() < 0.5 ? 'w' : 'b';
+      return colorPreference;
+    },
+    startGame(color: Color): void {
       humanColor = color;
+      if (opponentPreference === 'random') opponent = pickOpponent();
       apply();
     },
   };
 }
 
-function groupFamilies(sets: PieceSet[]): PieceFamily[] {
+function isPairAnimal(value: unknown): value is PairAnimal {
+  return typeof value === 'string' && (PAIR_ANIMALS as readonly string[]).includes(value);
+}
+
+// ---- manifests --------------------------------------------------------------------------
+async function loadFamilies(baseUrl: string): Promise<PieceFamily[]> {
+  const sets = await loadSets(baseUrl);
   const byId = new Map<string, PieceSet[]>();
   for (const set of sets) {
     const list = byId.get(set.family) ?? [];
     list.push(set);
     byId.set(set.family, list);
   }
-  return Array.from(byId, ([id, members]) => ({ id, name: members[0].name, sets: members }));
+  const families: PieceFamily[] = [];
+  for (const [id, members] of byId) {
+    const libraryEntry = members.find((s) => s.library !== null);
+    const library = libraryEntry ? await loadLibrary(baseUrl, libraryEntry.library as string) : null;
+    if (libraryEntry && !library) continue; // unusable library: the family disappears, fallback styling stays
+    families.push({ id, name: members[0].name, sets: members, library });
+  }
+  return families;
 }
 
-async function loadManifest(baseUrl: string): Promise<PieceSet[]> {
-  const url = `${baseUrl}piece-sets/sets.json`;
-  let raw: unknown;
+async function fetchJson(url: string): Promise<unknown | null> {
   try {
     const response = await fetch(url, { cache: 'no-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    raw = await response.json();
+    return await response.json();
   } catch (err) {
-    console.error(`Piece-set manifest ${url} could not be loaded; using built-in pieces`, err);
+    console.error(`${url} could not be loaded`, err);
+    return null;
+  }
+}
+
+async function loadSets(baseUrl: string): Promise<PieceSet[]> {
+  const raw = await fetchJson(`${baseUrl}piece-sets/sets.json`);
+  if (raw === null) {
+    console.error('Piece-set manifest missing; using built-in pieces');
     return [];
   }
   if (!Array.isArray(raw)) {
@@ -195,7 +305,7 @@ async function loadManifest(baseUrl: string): Promise<PieceSet[]> {
   }
   const sets: PieceSet[] = [];
   for (const entry of raw) {
-    const set = validateEntry(entry, baseUrl);
+    const set = validateSet(entry, baseUrl);
     if (set) sets.push(set);
     else console.warn('Ignoring invalid piece-set entry', entry);
   }
@@ -203,33 +313,103 @@ async function loadManifest(baseUrl: string): Promise<PieceSet[]> {
   return sets;
 }
 
-function validateEntry(entry: unknown, baseUrl: string): PieceSet | null {
+function validateSet(entry: unknown, baseUrl: string): PieceSet | null {
   if (typeof entry !== 'object' || entry === null) return null;
   const e = entry as Record<string, unknown>;
-  const board = e.board as Record<string, unknown> | undefined;
   if (typeof e.id !== 'string' || !ID_PATTERN.test(e.id)) return null;
   if (typeof e.name !== 'string' || e.name.length === 0) return null;
-  if (!board || typeof board.light !== 'string' || typeof board.dark !== 'string') return null;
   if ('stylesheet' in e && e.stylesheet !== null) return null; // only `null` (built-in) or absent
   if ('family' in e && (typeof e.family !== 'string' || !ID_PATTERN.test(e.family))) return null;
-  if ('whiteAnimal' in e && !isAnimal(e.whiteAnimal)) return null;
+  if ('whiteAnimal' in e && !isPairAnimal(e.whiteAnimal)) return null;
+  if ('library' in e && (typeof e.library !== 'string' || !ID_PATTERN.test(e.library))) return null;
+  const library = typeof e.library === 'string' ? e.library : null;
+  const board = e.board as Record<string, unknown> | undefined;
+  const hasBoard = !!board && typeof board.light === 'string' && typeof board.dark === 'string';
+  if (!hasBoard && !library) return null; // a library brings its own palette
   return {
     id: e.id,
     name: e.name,
     family: typeof e.family === 'string' ? e.family : e.id,
-    whiteAnimal: isAnimal(e.whiteAnimal) ? e.whiteAnimal : null,
+    whiteAnimal: isPairAnimal(e.whiteAnimal) ? e.whiteAnimal : null,
     pair: typeof e.pair === 'string' ? e.pair : '',
-    board: { light: board.light, dark: board.dark },
-    stylesheet: 'stylesheet' in e ? null : `${baseUrl}piece-sets/${e.id}/pieces.css`,
+    board: hasBoard ? { light: board.light as string, dark: board.dark as string } : { light: '#dce6f0', dark: '#8fa3bd' },
+    stylesheet: 'stylesheet' in e || library ? null : `${baseUrl}piece-sets/${e.id}/pieces.css`,
+    library,
   };
 }
 
-function isAnimal(value: unknown): value is Animal {
-  return typeof value === 'string' && (ANIMALS as readonly string[]).includes(value);
+async function loadLibrary(baseUrl: string, folder: string): Promise<AnimalLibrary | null> {
+  const raw = await fetchJson(`${baseUrl}piece-sets/${folder}/animals.json`);
+  if (raw === null || typeof raw !== 'object') {
+    console.error(`Character library "${folder}" could not be loaded; its style is unavailable`);
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  const board = r.board as Record<string, unknown> | undefined;
+  if (!board || typeof board.light !== 'string' || typeof board.dark !== 'string' || !Array.isArray(r.animals)) {
+    console.error(`Character library "${folder}" is malformed; its style is unavailable`);
+    return null;
+  }
+  const animals: Animal[] = [];
+  for (const entry of r.animals) {
+    const animal = validateAnimal(entry);
+    if (animal) animals.push(animal);
+    else console.warn('Ignoring invalid character entry', entry);
+  }
+  if (animals.length === 0) {
+    console.error(`Character library "${folder}" has no valid characters; its style is unavailable`);
+    return null;
+  }
+  return { board: { light: board.light, dark: board.dark }, animals };
 }
 
-function applyStylesheet(set: PieceSet): void {
-  const previous = Array.from(document.head.querySelectorAll<HTMLLinkElement>(`link[${LINK_ATTR}]`));
+function validateAnimal(entry: unknown): Animal | null {
+  if (typeof entry !== 'object' || entry === null) return null;
+  const e = entry as Record<string, unknown>;
+  if (typeof e.id !== 'string' || !ID_PATTERN.test(e.id)) return null;
+  for (const key of ['name', 'za', 'sound', 'hurt']) {
+    if (typeof e[key] !== 'string' || (e[key] as string).length === 0) return null;
+  }
+  let levels: string[] | null = null;
+  if ('levels' in e) {
+    if (!Array.isArray(e.levels) || e.levels.length !== 6 || !e.levels.every((l) => typeof l === 'string' && l.length > 0)) return null;
+    levels = e.levels as string[];
+  }
+  return { id: e.id, name: e.name as string, za: e.za as string, sound: e.sound as string, hurt: e.hurt as string, levels };
+}
+
+// ---- styling ----------------------------------------------------------------------------
+function setHtmlClasses(classes: string[]): void {
+  const root = document.documentElement;
+  for (const c of Array.from(root.classList)) if (c.startsWith(HTML_CLASS_PREFIX)) root.classList.remove(c);
+  for (const c of classes) root.classList.add(c);
+}
+
+/** Loads a character's scoped stylesheet once; the <html> classes decide what applies. */
+function ensureAnimalLink(baseUrl: string, folder: string, id: string): void {
+  const key = `animal:${id}`;
+  if (document.head.querySelector(`link[${LINK_ATTR}="${key}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `${baseUrl}piece-sets/${folder}/${id}/pieces.css`;
+  link.setAttribute(LINK_ATTR, key);
+  link.addEventListener('error', () => {
+    console.error(`Character stylesheet ${link.href} failed to load; that side shows the built-in pieces`);
+    link.remove();
+  });
+  document.head.appendChild(link);
+}
+
+function removePairLinks(): void {
+  for (const link of document.head.querySelectorAll<HTMLLinkElement>(`link[${LINK_ATTR}]`)) {
+    if (!(link.getAttribute(LINK_ATTR) ?? '').startsWith('animal:')) link.remove();
+  }
+}
+
+function applyPairStylesheet(set: PieceSet): void {
+  const previous = Array.from(document.head.querySelectorAll<HTMLLinkElement>(`link[${LINK_ATTR}]`)).filter(
+    (l) => !(l.getAttribute(LINK_ATTR) ?? '').startsWith('animal:'),
+  );
   if (set.stylesheet === null) {
     for (const link of previous) link.remove(); // built-in styling shows through
     return;
@@ -249,15 +429,12 @@ function applyStylesheet(set: PieceSet): void {
   document.head.appendChild(link);
 }
 
-/** Stored family id validated against the manifest; migrates the pre-5A `skm.pieceSetId`. */
-function readFamily(
-  storage: Storage | null,
-  families: readonly PieceFamily[],
-): { familyId: string | null; legacyAnimal: Animal | null } {
+// ---- storage ----------------------------------------------------------------------------
+function readFamily(storage: Storage | null, families: readonly PieceFamily[]): { familyId: string | null; legacyAnimal: string | null } {
   const stored = readStoredRaw(storage, FAMILY_STORAGE_KEY);
   if (stored !== null) {
     if (families.some((f) => f.id === stored)) return { familyId: stored, legacyAnimal: null };
-    console.warn(`Stored piece-set family "${stored.slice(0, 40)}" is not in sets.json; using "${families[0].id}"`);
+    console.warn(`Stored piece-set family "${stored.slice(0, 40)}" is not available; using "${families[0].id}"`);
     return { familyId: null, legacyAnimal: null };
   }
   const legacyId = readStoredRaw(storage, LEGACY_SET_STORAGE_KEY);
@@ -270,16 +447,37 @@ function readFamily(
       return { familyId: family.id, legacyAnimal: set.whiteAnimal };
     }
   }
-  console.warn(`Stored piece set "${legacyId.slice(0, 40)}" is not in sets.json; using "${families[0].id}"`);
   return { familyId: null, legacyAnimal: null };
 }
 
-function readAnimal(storage: Storage | null): Animal {
+function allAnimalIds(families: readonly PieceFamily[]): Set<string> {
+  const ids = new Set<string>(PAIR_ANIMALS);
+  for (const f of families) for (const a of f.library?.animals ?? []) ids.add(a.id);
+  return ids;
+}
+
+function readAnimal(storage: Storage | null, families: readonly PieceFamily[]): string | null {
   const stored = readStoredRaw(storage, ANIMAL_STORAGE_KEY);
-  if (stored === null) return DEFAULT_ANIMAL;
-  if (isAnimal(stored)) return stored;
+  if (stored === null) return null;
+  if (allAnimalIds(families).has(stored)) return stored;
   console.warn(`Stored animal "${stored.slice(0, 40)}" is unknown; using "${DEFAULT_ANIMAL}"`);
-  return DEFAULT_ANIMAL;
+  return null;
+}
+
+function readOpponent(storage: Storage | null, families: readonly PieceFamily[]): OpponentPreference {
+  const stored = readStoredRaw(storage, OPPONENT_STORAGE_KEY);
+  if (stored === null || stored === 'random') return 'random';
+  if (allAnimalIds(families).has(stored)) return stored;
+  console.warn(`Stored opponent "${stored.slice(0, 40)}" is unknown; using "random"`);
+  return 'random';
+}
+
+function readColor(storage: Storage | null): ColorPreference {
+  const stored = readStoredRaw(storage, COLOR_STORAGE_KEY);
+  if (stored === null || stored === 'random') return 'random';
+  if (stored === 'w' || stored === 'b') return stored;
+  console.warn(`Stored colour "${stored.slice(0, 40)}" is unknown; using "random"`);
+  return 'random';
 }
 
 function readStoredRaw(storage: Storage | null, key: string): string | null {

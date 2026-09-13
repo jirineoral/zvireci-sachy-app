@@ -11,7 +11,8 @@
  *    after substitution so the bubble never covers the board on a 360 px phone.
  *  - Placeholders: {san} the move as written, {better} the engine's better move (only in
  *    inaccuracy/mistake/blunder lines), {captured} the captured piece in the accusative
- *    ("pěšce", "dámu"), {zvuk} the speaker's noise.
+ *    ("pěšce", "dámu"), {zvuk} the speaker's noise, {bolest} the speaker's "ouch" noise
+ *    (reactions to losing a piece).
  */
 
 export type Situation =
@@ -44,11 +45,8 @@ export const CAPTURED_ACCUSATIVE: Record<string, string> = {
   k: 'krále',
 };
 
-export const SOUND: Record<'kuzlata' | 'zabky' | 'none', string> = {
-  kuzlata: 'Mééé!',
-  zabky: 'Kvák!',
-  none: 'Hm!',
-};
+/** Voice of a king when the piece set gives none (classic pieces). */
+export const DEFAULT_VOICE = { sound: 'Hm!', hurt: 'Au!' } as const;
 
 /** What the king of the side to move says before the first move (ply 0). */
 export const OPENING: readonly string[] = [
@@ -274,6 +272,16 @@ export const REACTIONS = {
     'Tak takhle vypadá oběť. Poznamenávám si to.',
     'Nehraje se tu náhodou proti mistrovi?',
     'Sedím tady s otevřenou pusou. Krásné.',
+  ],
+  captured: [
+    '{bolest} To bolelo.',
+    '{bolest} Tenhle mi bude chybět.',
+    '{bolest} Viděl jsem to a stejně jsem neuhnul.',
+    '{bolest} Nevadí, mám jich víc… snad.',
+    '{bolest} Tak to byl podraz.',
+    '{bolest} Kdo to počítá? Já, bohužel.',
+    '{bolest} Pomsta bude sladká.',
+    '{bolest} Hej! Toho jsem měl rád.',
   ],
   mated: [
     'Prohrál jsem. Ale příště? Příště to bude jiné!',

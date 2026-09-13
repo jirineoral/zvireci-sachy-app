@@ -20,7 +20,7 @@ import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type DifficultyLevel
 import { MATE_SCORE, type Analysis, type Engine, type PvLine, type Search, type UciMove } from './engine';
 import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
-import { commentaryFor, positionAt, type PlyRecord, type SpeakerAnimal } from './review';
+import { commentaryFor, positionAt, type PlyRecord, type SpeakerVoice } from './review';
 import { populateControls, renderControls } from './ui/controls';
 import { renderMoveList } from './ui/move-list';
 import { promptPromotion, type PromotionPiece } from './ui/promotion-dialog';
@@ -39,7 +39,6 @@ export interface GameControllerElements {
   newGameButton: HTMLButtonElement;
   undoButton: HTMLButtonElement;
   difficultySelect: HTMLSelectElement;
-  sideSelect: HTMLSelectElement;
   feedbackSelect: HTMLSelectElement;
   promotionDialog: HTMLDialogElement;
   /** "Rozbor": shown only once the game is over. */
@@ -52,8 +51,12 @@ export interface GameControllerOptions {
   /** Move feedback (glyphs) on/off at start; persisted by the caller via onFeedbackChange. */
   feedbackEnabled: boolean;
   onFeedbackChange: (enabled: boolean) => void;
-  /** Which animal a colour currently is (piece set), for the kings' noises; view-only. */
-  animalOf: (color: Color) => SpeakerAnimal;
+  /** The kings' voices in the review, by colour; view-only. */
+  voiceOf: (color: Color) => SpeakerVoice;
+  /** Asked at every new game: which colour the human plays (the view holds the preference). */
+  nextColor: () => Color;
+  /** Told after every new game which colour was drawn. */
+  onNewGame: (color: Color) => void;
 }
 
 type EngineState = 'loading' | 'ready' | 'failed';
@@ -117,10 +120,6 @@ export class GameController {
       }
       void this.setDifficulty(level).catch((err) => console.error('setDifficulty failed', err));
     });
-    els.sideSelect.addEventListener('change', () => {
-      const color = els.sideSelect.value === 'b' ? 'b' : 'w';
-      void this.setHumanColor(color).catch((err) => console.error('setHumanColor failed', err));
-    });
     els.feedbackSelect.addEventListener('change', () => {
       void this.setFeedback(els.feedbackSelect.value === 'on').catch((err) =>
         console.error('setFeedback failed', err),
@@ -150,11 +149,13 @@ export class GameController {
   async newGame(): Promise<void> {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
+    this.humanColor = this.options.nextColor();
     this.chess.reset();
     this.plies = [];
     this.preMove = null;
     this.reviewPly = null;
     if (this.engineState === 'ready') this.engine.newGame();
+    this.options.onNewGame(this.humanColor);
     this.afterPositionChange(); // engine opens (new search) only if the human is black
   }
 
@@ -185,11 +186,6 @@ export class GameController {
     this.engine.setOptions({ ...difficulty(level).options, multiPv: 1 }); // no search outstanding here
     this.engineMode = 'play';
     if (wasThinking) this.afterPositionChange(); // restarts the search with the new settings
-  }
-
-  setHumanColor(color: Color): Promise<void> {
-    this.humanColor = color;
-    return this.newGame();
   }
 
   /** Enters the review of the finished game at the start position. */
@@ -510,7 +506,7 @@ export class GameController {
     });
     const bubbles: { white: string | null; black: string | null } = { white: null, black: null };
     if (this.reviewPly !== null) {
-      const { main, reaction } = commentaryFor(this.startFen(), sans, this.reviewPly, this.plies, this.options.animalOf);
+      const { main, reaction } = commentaryFor(this.startFen(), sans, this.reviewPly, this.plies, this.options.voiceOf);
       for (const b of [main, reaction]) if (b) bubbles[b.speaker === 'w' ? 'white' : 'black'] = b.text;
     }
     renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles });
@@ -549,7 +545,6 @@ export class GameController {
   private renderControls(): void {
     renderControls(this.controlsElements(), {
       difficulty: this.difficultyLevel,
-      humanColor: this.humanColor,
       feedbackEnabled: this.feedbackEnabled,
       undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null,
       disabled: this.promotionOpen,
@@ -559,7 +554,6 @@ export class GameController {
   private controlsElements() {
     return {
       difficulty: this.els.difficultySelect,
-      side: this.els.sideSelect,
       feedback: this.els.feedbackSelect,
       undo: this.els.undoButton,
     };

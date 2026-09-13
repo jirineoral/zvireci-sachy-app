@@ -4,7 +4,8 @@ import './styles/app.css';
 
 import { createEngine } from './engine';
 import { GameController } from './game-controller';
-import { ANIMALS, ANIMAL_LABEL, initPieceSets, type Animal, type PieceSetManager } from './piece-sets';
+import { initPieceSets, type ColorPreference, type PieceSetManager } from './piece-sets';
+import { setDifficultyLabels } from './ui/controls';
 import { requireElement } from './ui/dom';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
@@ -20,13 +21,15 @@ app.innerHTML = `
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">
-        <label>Obtížnost <select class="difficulty"></select></label>
         <label>Hraju za <select class="animal"></select></label>
+        <label>Soupeř <select class="opponent"></select></label>
         <label>Barva <select class="side"></select></label>
+        <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
       </div>
     </details>
+    <div class="matchup"></div>
     <div class="status"></div>
     <div class="review-controls" hidden>
       <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
@@ -81,7 +84,6 @@ controller = new GameController(
     newGameButton: requireElement<HTMLButtonElement>(app, '.new-game'),
     undoButton: requireElement<HTMLButtonElement>(app, '.undo'),
     difficultySelect: requireElement<HTMLSelectElement>(app, '.difficulty'),
-    sideSelect: requireElement<HTMLSelectElement>(app, '.side'),
     feedbackSelect: requireElement<HTMLSelectElement>(app, '.feedback'),
     promotionDialog: requireElement<HTMLDialogElement>(app, '.promotion-dialog'),
     reviewButton: requireElement<HTMLButtonElement>(app, '.review'),
@@ -101,53 +103,90 @@ controller = new GameController(
   {
     feedbackEnabled: readFeedbackSetting(),
     onFeedbackChange: writeFeedbackSetting,
-    // The kings' noises follow the piece set; resolved lazily because the manifest loads
-    // after the controller exists.
-    animalOf: (color) => {
-      const set = pieceSets?.currentSet ?? null;
-      if (!set || set.whiteAnimal === null) return null;
-      return color === 'w' ? set.whiteAnimal : set.whiteAnimal === 'kuzlata' ? 'zabky' : 'kuzlata';
+    // Voices, colour preference and the drawn pair live in the piece-set manager, which
+    // loads after the controller exists (hence the late lookups).
+    voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
+    nextColor: () => pieceSets?.drawColor() ?? 'w',
+    onNewGame: (color) => {
+      pieceSets?.startGame(color);
+      renderMatchup();
     },
   },
 );
 
 
+const game: GameController = controller;
+
 // Piece sets are view state only; the controller never learns about them. The family
-// (drawing style), the animal and the colour together pick the set (piece-sets.ts).
+// (drawing style), the characters and the colour preference live in piece-sets.ts.
 const familySelect = requireElement<HTMLSelectElement>(app, '.piece-family');
 const animalSelect = requireElement<HTMLSelectElement>(app, '.animal');
+const opponentSelect = requireElement<HTMLSelectElement>(app, '.opponent');
 const sideSelect = requireElement<HTMLSelectElement>(app, '.side');
+const difficultySelect = requireElement<HTMLSelectElement>(app, '.difficulty');
+const matchupEl = requireElement<HTMLElement>(app, '.matchup');
 let pieceSets: PieceSetManager | undefined;
-void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), humanColor: 'w' })
+
+sideSelect.replaceChildren(new Option('náhodně', 'random'), new Option('bílá', 'w'), new Option('černá', 'b'));
+
+void initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage() })
   .then((manager) => {
     pieceSets = manager;
     wirePieceSetSelects(manager);
+    // The controller opened its first game before the preferences were known: draw again
+    // (no move has been played yet; a new game is what a colour change means anyway).
+    void game.newGame().catch((err) => console.error('newGame failed', err));
   })
   .catch((err) => console.error('Piece sets failed to initialise', err));
+
+const COLOR_NAME: Record<'w' | 'b', string> = { w: 'bílé', b: 'černé' };
+
+/** "Ty: kůzlata (bílé) · Soupeř: hadi (černé)" — the resolved pair of the current game. */
+function renderMatchup(): void {
+  const manager = pieceSets;
+  if (!manager || !manager.isLibrary) {
+    matchupEl.textContent = manager ? `Hraješ za ${COLOR_NAME[manager.humanColor]}.` : '';
+    return;
+  }
+  const me = manager.animalOf(manager.humanColor);
+  const them = manager.animalOf(manager.humanColor === 'w' ? 'b' : 'w');
+  const other = manager.humanColor === 'w' ? 'b' : 'w';
+  matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Soupeř: ${them?.name ?? '?'} (${COLOR_NAME[other]})`;
+}
 
 function wirePieceSetSelects(manager: PieceSetManager): void {
   if (manager.families.length === 0) {
     familySelect.replaceChildren(new Option('Klasické (vestavěné)', ''));
     familySelect.disabled = true;
-    animalSelect.replaceChildren(new Option('—', ''));
-    animalSelect.disabled = true;
+    for (const sel of [animalSelect, opponentSelect]) {
+      sel.replaceChildren(new Option('—', ''));
+      sel.disabled = true;
+    }
     return;
   }
   familySelect.replaceChildren(...manager.families.map((f) => new Option(f.name, f.id)));
-  animalSelect.replaceChildren(...ANIMALS.map((a) => new Option(ANIMAL_LABEL[a], a)));
 
   const render = (): void => {
     familySelect.value = manager.familyId ?? manager.families[0].id;
-    const choice = manager.animalChoice();
-    if (choice.effective === null) {
-      // No animals in this family: show a dash instead of a misleading animal.
-      if (!animalSelect.querySelector('option[value=""]')) animalSelect.add(new Option('—', ''));
-      animalSelect.value = '';
+    sideSelect.value = manager.colorPreference;
+    if (manager.isLibrary) {
+      animalSelect.replaceChildren(...manager.animals.map((a) => new Option(a.za, a.id)));
+      animalSelect.value = manager.animal;
+      animalSelect.disabled = false;
+      opponentSelect.replaceChildren(new Option('náhodně', 'random'), ...manager.animals.map((a) => new Option(a.name, a.id)));
+      opponentSelect.value = manager.opponentPreference;
+      opponentSelect.disabled = false;
+      const me = manager.animalOf(manager.humanColor);
+      setDifficultyLabels(difficultySelect, me?.levels ?? null);
     } else {
-      animalSelect.querySelector('option[value=""]')?.remove();
-      animalSelect.value = choice.effective;
+      // Pair styles have no choice of character: show a dash, keep the ladder's own names.
+      for (const sel of [animalSelect, opponentSelect]) {
+        sel.replaceChildren(new Option('—', ''));
+        sel.disabled = true;
+      }
+      setDifficultyLabels(difficultySelect, null);
     }
-    animalSelect.disabled = !choice.enabled;
+    renderMatchup();
   };
 
   familySelect.addEventListener('change', () => {
@@ -155,13 +194,17 @@ function wirePieceSetSelects(manager: PieceSetManager): void {
     render();
   });
   animalSelect.addEventListener('change', () => {
-    manager.setAnimal(animalSelect.value as Animal);
+    manager.setAnimal(animalSelect.value);
     render();
   });
-  // The controller owns the colour (its own listener starts a new game); the view only
-  // follows the same select to pick the matching set of the family.
+  opponentSelect.addEventListener('change', () => {
+    manager.setOpponentPreference(opponentSelect.value);
+    render();
+  });
+  // Colour is a preference; changing it means a new game (the controller draws via nextColor).
   sideSelect.addEventListener('change', () => {
-    manager.setHumanColor(sideSelect.value === 'b' ? 'b' : 'w');
+    manager.setColorPreference(sideSelect.value as ColorPreference);
+    void game.newGame().catch((err) => console.error('newGame failed', err));
     render();
   });
   render();

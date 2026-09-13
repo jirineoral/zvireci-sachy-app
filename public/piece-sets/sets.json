@@ -1,25 +1,9 @@
 [
   {
-    "id": "farm-busts",
+    "id": "hlavy",
     "name": "Hlavy",
     "family": "hlavy",
-    "whiteAnimal": "kuzlata",
-    "pair": "kuzlata-zabky",
-    "board": {
-      "light": "#dce6f0",
-      "dark": "#8fa3bd"
-    }
-  },
-  {
-    "id": "farm-busts-inverse",
-    "name": "Hlavy",
-    "family": "hlavy",
-    "whiteAnimal": "zabky",
-    "pair": "kuzlata-zabky",
-    "board": {
-      "light": "#dce6f0",
-      "dark": "#8fa3bd"
-    }
+    "library": "animals"
   },
   {
     "id": "farm",

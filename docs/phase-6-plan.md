@@ -118,6 +118,19 @@ cheaper one, DoD executed item by item. Decisions not written here are escalated
     showing `náhodně` (it is a preference, not the current colour); the current colour is
     visible from the board and from the spectators.
 
+### Added after the review (user request, 2026-09-13)
+14. **Difficulty labels follow the player's character.** `animals.json` entries carry
+    `levels` (six names, weakest first, e.g. kůzlata: Kůzle → Kozí král, člověk: Batole →
+    Král šachu); the ladder itself (`difficulty.ts`) is unchanged — only the option texts
+    of `Obtížnost` are relabelled when the character changes, and the frog names stay the
+    default for styles without characters.
+15. **"Ouch" voices.** Each character has `hurt` (člověk: "Au!") spoken by its king in the
+    review when one of its pieces is captured; the human's `sound` is "Hm!".
+16. The user's character is **"člověk"** (`Hraju za člověka`), not "táta".
+17. Six more sheets arrived during the phase (`moucha`, `vosa`, `lama`, `pštros`,
+    `šavlozubá veverka`, `žížala`) → `mouchy`, `vosy`, `lamy`, `pstrosi`, `veverky`,
+    `zizaly`; 19 characters in total.
+
 ### Extraction
 11. **New recipe `busts-light`** in `scripts/extract-pieces.py` for white-background busts
     sheets: rows `dark` = top, `light` = bottom; border flood with tolerance 40 (outlines

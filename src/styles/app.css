@@ -145,6 +145,11 @@ body {
   line-height: 1.2;
 }
 
+.matchup {
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
 .status {
   font-size: 1.125rem;
   font-weight: 600;

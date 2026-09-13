@@ -354,7 +354,7 @@ Options:
 
 (c) optionally combined with (b). No server: records live in IndexedDB.
 
-### R2 — Puzzles (diagrams) with selectable difficulty
+### R2 — Puzzles (diagrams) with selectable difficulty — SHIPPED in Phase 10 (3 200 CC0 puzzles in four bands, `Úlohy`)
 Best value-to-effort ratio on the whole list.
 
 The Lichess puzzle database is CC0 — roughly 6 million puzzles as CSV, each

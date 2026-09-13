@@ -104,6 +104,69 @@ body {
   cursor: default;
 }
 
+/* Puzzle panel (Phase 10). */
+.puzzle-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #242424;
+  font-size: 0.85rem;
+}
+
+.puzzle-panel[hidden] {
+  display: none;
+}
+
+.puzzle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.puzzle-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.puzzle-row select {
+  font: inherit;
+  padding: 3px 4px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #1e1e1e;
+  color: #eee;
+}
+
+.puzzle-row button {
+  padding: 5px 10px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.puzzle-info,
+.puzzle-progress {
+  color: #b8bec8;
+  font-size: 0.8rem;
+}
+
+.puzzle-msg {
+  min-height: 1.1em;
+  color: #7fd17a;
+}
+
+.puzzle-msg.us-error {
+  color: #ffa459;
+}
+
 /* "Partie" dialog (Phase 9). */
 .games-dialog {
   width: min(92vw, 640px);
@@ -450,6 +513,7 @@ body {
 
 .buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -483,7 +547,8 @@ body {
 .new-game,
 .undo,
 .review,
-.games {
+.games,
+.puzzles {
   flex: 1;
   padding: 10px 16px;
   font-size: 1rem;

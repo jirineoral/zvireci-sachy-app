@@ -60,6 +60,14 @@ PGN can also be pasted. Any game opens in the review; `Analyzovat partii` evalua
 position with the local engine and shows an eval bar, the engine's best move as an arrow
 and feedback glyphs for both sides — all client-side.
 
+## Puzzles
+
+`Úlohy` offers 3 200 tactics puzzles in four bands (začátečník 400–999 … těžší 1800–2300),
+a subset of the [Lichess puzzle database](https://database.lichess.org/#puzzles) (CC0),
+selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess semantics:
+the opponent's move plays itself, then you find the solution; the two kings comment.
+Progress lives in the browser (`skm.puzzles`).
+
 ## Your own pieces
 
 "Vlastní figurky…" in the settings takes up to twelve PNG/JPG images (one per piece; the

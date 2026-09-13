@@ -247,3 +247,12 @@ The Pages repository `sach-kvak-mek-web` was renamed to `zvireci-sachy`; the sit
 at https://jirineoral.github.io/zvireci-sachy/ (the old URL is not redirected — accepted).
 Same origin, so the players' `localStorage` and IndexedDB carry over. The source repository
 keeps its name. Checklist items referring to the old name apply unchanged.
+
+### 2026-09-13 — Phase 10 (puzzles)
+New static data: `public/puzzles/puzzles.json` (3 200 rows from the CC0 Lichess database,
+built by `scripts/build-puzzles.py`). Rows are validated on load (id `/^[A-Za-z0-9]{3,12}$/`,
+UCI pattern, numeric rating) and replayed through chess.js before a puzzle is shown; all
+text via `textContent`. New key `skm.puzzles` (JSON, validated: known band, id pattern,
+numeric attempts, capped). No engine use in puzzle mode, no new sink, CSP unchanged.
+1 `npm audit` 0 · 2 grep empty · 3–4 as above · 5–6 on Pages after the deploy · 7 tree +
+`puzzles/` · 8 CC0 source recorded in the file and the README.

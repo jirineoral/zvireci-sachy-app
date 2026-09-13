@@ -11,6 +11,7 @@ import { buildUserSetsDialog } from './ui/user-sets-dialog';
 import { openUserSetStore } from './user-sets';
 import { RESULT_LABEL, openGameStore, type GameRecord, type GameStore } from './games';
 import { buildGamesDialog } from './ui/games-dialog';
+import { buildPuzzlePanel } from './ui/puzzle-panel';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
@@ -50,6 +51,7 @@ app.innerHTML = `
       <button type="button" class="review-last" aria-label="Na konec">⏭</button>
     </div>
     <button type="button" class="analyse" hidden>Analyzovat partii</button>
+    <div class="puzzle-panel" hidden></div>
     <details class="moves" open>
       <summary>Tahy <span class="moves-summary"></span></summary>
       <ol class="move-list"></ol>
@@ -59,6 +61,7 @@ app.innerHTML = `
       <button type="button" class="undo">Zpět</button>
       <button type="button" class="review" hidden>Rozbor</button>
       <button type="button" class="games">Partie</button>
+      <button type="button" class="puzzles">Úlohy</button>
     </div>
     <footer class="credits">
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
@@ -140,8 +143,24 @@ controller = new GameController(
       const them = record.humanColor === 'b' ? ' (ty)' : '';
       matchupEl.textContent = `Rozbor: ${record.white}${you} × ${record.black}${them} · ${RESULT_LABEL[record.result]}`;
     },
+    onPuzzleStart: (color) => {
+      pieceSets?.startGame(color);
+      renderMatchup();
+    },
+    onPuzzleResult: (result) => puzzlePanel.onResult(result),
   },
 );
+
+// Puzzles (Phase 10): the panel loads the CC0 subset on first use.
+const puzzlePanel = buildPuzzlePanel({
+  container: requireElement<HTMLElement>(app, '.puzzle-panel'),
+  baseUrl: import.meta.env.BASE_URL,
+  storage: safeLocalStorage(),
+  start: (puzzle) => game.startPuzzle(puzzle.fen, puzzle.moves),
+  hint: () => game.puzzleHint(),
+  leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
+});
+requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', () => puzzlePanel.open());
 
 // Saved games (Phase 9): the store opens in the background; a record that arrives before
 // it is ready is written once it is.

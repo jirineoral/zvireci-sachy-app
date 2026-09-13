@@ -69,6 +69,19 @@ export interface GameControllerOptions {
   onGameRecord: (record: GameRecord) => void;
   /** A saved/pasted game was opened in the review (the view shows its players). */
   onGameLoaded: (record: GameRecord) => void;
+  /** Puzzle mode events (Phase 10): a puzzle started for the given human colour; a result. */
+  onPuzzleStart: (humanColor: Color) => void;
+  onPuzzleResult: (result: 'wrong' | 'correct' | 'solved') => void;
+}
+
+/** Puzzle mode state: Lichess semantics, `moves[0]` is the opponent's. */
+interface PuzzleState {
+  moves: string[];
+  index: number;
+  /** 0 none, 1 piece circled, 2 destination circled too. */
+  hint: 0 | 1 | 2;
+  attempts: number;
+  message: 'start' | 'correct' | 'wrong' | 'solved';
 }
 
 type EngineState = 'loading' | 'ready' | 'failed';
@@ -111,6 +124,9 @@ export class GameController {
   private record: GameRecord | null = null;
   private gameAnalysis: AnalysisHandle | null = null;
   private analysisProgress: string | null = null;
+  /** Phase 10: the puzzle being solved, or null. */
+  private puzzle: PuzzleState | null = null;
+  private puzzleTimer: number | null = null;
   /**
    * Pre-game (Phase 8): after `Nová hra` the position is set up but nothing moves until the
    * player presses `Hrát` (or, playing white, simply makes a move). Lets the child pick the
@@ -181,10 +197,125 @@ export class GameController {
     this.preMove = null;
     this.reviewPly = null;
     this.record = null;
+    this.clearPuzzle();
     this.started = false; // wait for `Hrát` (or the human's first move)
     if (this.engineState === 'ready') this.engine.newGame();
     this.options.onNewGame(this.humanColor);
     this.afterPositionChange();
+  }
+
+  /** Starts a puzzle (Phase 10): the opponent's first move plays itself after a beat. */
+  async startPuzzle(fen: string, moves: string[]): Promise<void> {
+    const t = await this.beginTransition();
+    if (t !== this.transition) return;
+    this.chess.load(fen);
+    this.plies = [];
+    this.preMove = null;
+    this.record = null;
+    this.reviewPly = null;
+    this.clearPuzzle();
+    this.puzzle = { moves, index: 0, hint: 0, attempts: 0, message: 'start' };
+    this.humanColor = this.chess.turn() === 'w' ? 'b' : 'w';
+    this.started = true;
+    this.options.onPuzzleStart(this.humanColor);
+    this.afterPositionChange();
+    this.puzzleTimer = window.setTimeout(() => this.playPuzzleOpponentMove(t), 350);
+  }
+
+  /** The opponent's move from the puzzle data (never the engine). */
+  private playPuzzleOpponentMove(t: number): void {
+    this.puzzleTimer = null;
+    if (t !== this.transition || !this.puzzle) return;
+    const uci = this.puzzle.moves[this.puzzle.index];
+    if (!uci) return;
+    try {
+      this.chess.move(uciToMove(uci));
+    } catch (err) {
+      console.error('Puzzle move rejected by chess.js', uci, err);
+      return;
+    }
+    this.puzzle.index++;
+    this.puzzle.hint = 0;
+    this.afterPositionChange();
+  }
+
+  puzzleHint(): void {
+    if (!this.puzzle || this.chess.turn() !== this.humanColor) return;
+    this.puzzle.hint = this.puzzle.hint >= 2 ? 2 : ((this.puzzle.hint + 1) as 1 | 2);
+    this.refreshView();
+  }
+
+  get inPuzzle(): boolean {
+    return this.puzzle !== null;
+  }
+
+  private clearPuzzle(): void {
+    if (this.puzzleTimer !== null) window.clearTimeout(this.puzzleTimer);
+    this.puzzleTimer = null;
+    this.puzzle = null;
+  }
+
+  /** Puzzle mode: compare the human's move with the solution; promotions come from the data. */
+  private handlePuzzleMove(from: Square, to: Square): void {
+    const puzzle = this.puzzle!;
+    const expected = puzzle.moves[puzzle.index];
+    if (!expected || puzzle.index % 2 === 0) {
+      this.afterPositionChange();
+      return;
+    }
+    if (`${from}${to}` !== expected.slice(0, 4)) {
+      puzzle.attempts++;
+      puzzle.message = 'wrong';
+      this.options.onPuzzleResult('wrong');
+      this.afterPositionChange(); // re-sync: the piece snaps back
+      return;
+    }
+    this.chess.move({ from, to, promotion: expected[4] });
+    puzzle.index++;
+    puzzle.hint = 0;
+    if (puzzle.index >= puzzle.moves.length) {
+      puzzle.message = 'solved';
+      this.options.onPuzzleResult('solved');
+      this.afterPositionChange();
+      return;
+    }
+    puzzle.message = 'correct';
+    this.options.onPuzzleResult('correct');
+    this.afterPositionChange();
+    const t = this.transition;
+    this.puzzleTimer = window.setTimeout(() => this.playPuzzleOpponentMove(t), 400);
+  }
+
+  private puzzleHints(): Square[] {
+    if (!this.puzzle || this.puzzle.hint === 0 || this.chess.turn() !== this.humanColor) return [];
+    const expected = this.puzzle.moves[this.puzzle.index];
+    if (!expected) return [];
+    const squares = [expected.slice(0, 2) as Square];
+    if (this.puzzle.hint === 2) squares.push(expected.slice(2, 4) as Square);
+    return squares;
+  }
+
+  private puzzleStatusText(): string {
+    const p = this.puzzle!;
+    if (p.message === 'solved') return 'Vyřešeno!';
+    const side = this.humanColor === 'w' ? 'bílé' : 'černé';
+    if (p.index % 2 === 0) return 'Úloha: soupeř táhne…';
+    return p.message === 'wrong' ? 'To není ono — zkus to znovu.' : `Úloha: najdi nejlepší tah za ${side}.`;
+  }
+
+  private puzzleBubble(): string {
+    const p = this.puzzle!;
+    const zvuk = this.options.voiceOf(this.humanColor)?.sound ?? 'Hm!';
+    switch (p.message) {
+      case 'solved':
+        return `${zvuk} Vyřešeno! Jsi hlava.`;
+      case 'correct':
+        return `${zvuk} Správně! Pokračuj.`;
+      case 'wrong':
+        return 'Hm… to ne. Zkus to znovu.';
+      default:
+        return 'Najdi nejlepší tah!';
+    }
   }
 
   /** Opens a saved or pasted game in the review (Phase 9). Returns false when its moves do not replay. */
@@ -398,7 +529,7 @@ export class GameController {
   }
 
   private feedbackActive(status: GameStatus): boolean {
-    return this.feedbackEnabled && this.engineState === 'ready' && !status.over;
+    return this.feedbackEnabled && this.engineState === 'ready' && !status.over && this.puzzle === null;
   }
 
   /** Analysis A: evaluate the position the human is about to move in (runs while they think). */
@@ -440,6 +571,10 @@ export class GameController {
       // Cannot happen: the board's dests came from chess.js. Re-sync to be safe.
       console.error(`Move ${from}->${to} is not in chess.js's legal moves`);
       this.afterPositionChange();
+      return;
+    }
+    if (this.puzzle) {
+      this.handlePuzzleMove(from, to);
       return;
     }
 
@@ -592,11 +727,11 @@ export class GameController {
     const status = gameStatus(this.chess);
     this.syncBoard(status);
     this.render(status);
-    if (status.over && this.reviewPly === null && this.chess.history().length > 0 && this.record === null) {
+    if (status.over && this.reviewPly === null && this.puzzle === null && this.chess.history().length > 0 && this.record === null) {
       this.record = this.buildRecord(); // the game just ended: keep it (Phase 9)
       this.options.onGameRecord(this.record);
     }
-    if (this.reviewPly !== null) return; // reviewing: nothing moves, nothing is analysed
+    if (this.reviewPly !== null || this.puzzle !== null) return; // reviewing / puzzle: the engine stays out
     if (this.chess.turn() === this.humanColor) {
       if (this.feedbackActive(status)) this.startPreMoveAnalysis();
     } else {
@@ -625,7 +760,8 @@ export class GameController {
     this.board.sync(this.chess, {
       orientation: toBoardColor(this.humanColor),
       movableColor: this.movableColor(status),
-      annotation: this.lastHumanAnnotation(),
+      annotation: this.puzzle ? null : this.lastHumanAnnotation(),
+      hints: this.puzzleHints(),
     });
   }
 
@@ -645,12 +781,13 @@ export class GameController {
       engine: this.engineIndicator(),
       preGame: !this.started && sans.length === 0 && !status.over,
       analysing: this.analysisProgress,
+      puzzle: this.puzzle ? this.puzzleStatusText() : null,
     });
     this.renderControls();
     const preGame = !this.started;
     this.els.newGameButton.textContent = preGame ? 'Hrát!' : 'Nová hra';
     this.els.newGameButton.classList.toggle('start', preGame);
-    this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null);
+    this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null && this.puzzle === null);
     renderReviewControls(this.els.reviewControls, {
       active: this.reviewPly !== null,
       ply: this.reviewPly ?? 0,
@@ -669,6 +806,8 @@ export class GameController {
     if (this.reviewPly !== null) {
       const { main, reaction } = commentaryFor(this.startFen(), sans, this.reviewPly, this.plies, this.options.voiceOf);
       for (const b of [main, reaction]) if (b) bubbles[b.speaker === 'w' ? 'white' : 'black'] = b.text;
+    } else if (this.puzzle) {
+      bubbles[this.humanColor === 'w' ? 'white' : 'black'] = this.puzzleBubble();
     }
     renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles });
   }
@@ -707,7 +846,7 @@ export class GameController {
     renderControls(this.controlsElements(), {
       difficulty: this.difficultyLevel,
       feedbackEnabled: this.feedbackEnabled,
-      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null,
+      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null,
       disabled: this.promotionOpen,
     });
   }

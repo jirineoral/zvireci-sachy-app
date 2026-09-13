@@ -23,6 +23,8 @@ export interface BoardSyncOptions {
   annotation?: { square: Square; glyph: Glyph } | null;
   /** Review: the engine's best move for the shown position, drawn as a green arrow. */
   arrow?: { from: Square; to: Square } | null;
+  /** Puzzle hints: squares to circle. */
+  hints?: Square[];
 }
 
 /** Badge colours per glyph (chess.com palette). Kept here because the badge is drawn as SVG. */
@@ -92,6 +94,7 @@ export function createBoardBridge(
         },
         drawable: {
           autoShapes: [
+            ...(opts.hints ?? []).map((square) => ({ orig: square, brush: 'yellow' })),
             ...(opts.arrow ? [{ orig: opts.arrow.from, dest: opts.arrow.to, brush: 'green' }] : []),
             ...(opts.annotation ? [{ orig: opts.annotation.square, customSvg: { html: glyphBadge(opts.annotation.glyph) } }] : []),
           ],

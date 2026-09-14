@@ -542,6 +542,10 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 Anonymous play is the baseline and stays. An account (a sync code or a sign-in) is an
 optional add-on whose only job is carrying what already lives in IndexedDB (games,
 campaign, endgames, record) between devices. Nothing in the app may require it.
+The owner's reason, worth keeping in mind for every later design: a child must be able
+to play safely in an after-school club, a café or on a shared PC without typing any
+credentials anywhere — no account means nothing to leak. A sync code, if it comes, must
+be treated the same way (never required, nothing behind it a stranger could misuse).
 
 ## R10 — Play with a friend (link over WhatsApp/SMS)
 

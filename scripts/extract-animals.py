@@ -77,8 +77,9 @@ for _id in ["had", "jezevcici", "clovek", "kocky", "kravky", "mravenci", "mysky"
     SOURCES[_id] = {"light": (f"{_id}.png", "bottom"), "dark": (f"{_id}.png", "top")}
 
 # Sheets without the Czech piece labels between the rows (the layout is the same: dark row
-# on top, light row below, P R N B Q K left to right — see docs/vlastni-sada.md).
-UNLABELLED_SHEETS = {"veverky.png"}
+# on top, light row below, P R N B Q K left to right — see docs/vlastni-sada.md). The
+# wasps were regenerated 2026-09-14 after the pilot found the old ones hard to read.
+UNLABELLED_SHEETS = {"veverky.png", "vosy.png"}
 
 # Verdict overrides: (character, side, role, pocket index) -> True = clear, False = keep.
 # Filled in from the DoD review of the printed verdicts / debug overlays.

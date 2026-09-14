@@ -87,7 +87,8 @@ app.innerHTML = `
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
       deska <a href="https://github.com/lichess-org/chessground">chessground</a> ·
       pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a> ·
-      grafika figurek je vygenerovaná umělou inteligencí
+      grafika figurek je vygenerovaná umělou inteligencí ·
+      <a href="https://github.com/jirineoral/sach-kvak-mek" rel="noopener">zdrojový kód</a> (GPL-3.0)
     </footer>
   </aside>
   <dialog class="promotion-dialog"></dialog>

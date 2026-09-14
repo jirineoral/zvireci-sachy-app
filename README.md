@@ -1,6 +1,17 @@
 # Zvířecí šachy (nejen) pro děti
 
+Live: **https://zvirecisachy.cz** · feedback form linked in the app's footer.
+
 *Working title until 2026-09-13: ŠACH KVÁK MEK!!! (the source repository still carries that name.)*
+
+## Licence
+
+The program is free software under the **GNU GPL-3.0** (`LICENSE`) — the consequence of
+bundling `@lichess-org/chessground` (GPL-3.0-or-later) and shipping Stockfish.js
+(GPL-3.0), and a deliberate choice: the app is meant to stay free for children. The
+**artwork is not under the GPL** — see `LICENSE-ARTWORK.md`. Third-party notices:
+Stockfish (`public/engine/LICENSE-GPL-3.0.txt` after `npm ci`), chessground (GPL-3.0),
+chess.js (BSD-2), cburnett pieces (CC BY-SA 3.0), Lichess puzzles (CC0).
 
 A personalized chess app for a young competitive player. Phase 1 was a local
 human-vs-human board in the browser; Phase 2 adds a Stockfish opponent with adjustable
@@ -153,9 +164,10 @@ All piece artwork (the character library) is AI-generated.
 
 ## Publishing
 
-The public site is a GitHub Pages build in a separate repository. `npm ci` (not
-`npm install`) restores the exact locked dependencies; `npm run build:pages` builds with
-the Pages base path and injects the Content Security Policy (`vite.config.ts`);
+The public site (https://zvirecisachy.cz, custom domain on GitHub Pages) is a build in a
+separate repository. `npm ci` (not `npm install`) restores the exact locked dependencies;
+`npm run build:pages` builds for the site root and injects the Content Security Policy
+(`vite.config.ts`);
 `node scripts/publish-pages.mjs <pages-working-copy>` replaces the previous build there.
 Security notes and the per-phase checklist: [`docs/security-review.md`](docs/security-review.md).
 

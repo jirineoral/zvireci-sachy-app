@@ -372,14 +372,18 @@ canvas, CSSOM for user sets, GPL text of the engine published.
 - N9 repo size (source sheets ~60 MB): accepted; LFS would complicate `npm ci` for
   contributors more than it helps.
 
-**Owner's decisions (open):**
-- D4 — domain verification TXT record at the registrar (prevents Pages takeover if the
-  site is ever removed while DNS still points at Pages).
-- D7 history — the removed details still exist in earlier commits; a `git filter-repo
-  --replace-text` + force push would erase them (no forks yet).
-- D5 form — the Google Form's intro should name the controller, the purpose and
-  deletion, and ask children to fill it in with a parent.
-- N5 — the `člověk` queen is a likeness of a real person: her consent.
+**Owner's decisions — all closed 2026-09-14:**
+- D4 — both domains verified in GitHub Settings → Pages (TXT
+  `_github-pages-challenge-jirineoral` = `70787b18…fd35a` for zvirecisachy.cz,
+  `6ebe447d…9d7a` for zvireci-sachy.cz at Forpsi; the owner clicked Verify himself —
+  GitHub refuses that POST from an automated browser, "You can't perform that action at
+  this time"). `protected_domain_state` = `verified` on both Pages sites.
+- D7 history — rewritten with `git filter-repo --replace-text` (path, age, diminutive,
+  minors' names) and force-pushed; `git log --all -p` finds none of them.
+- D5 form — the Google Form's intro now names the controller, the purpose, the optional
+  e-mail's use, how to ask for deletion, and asks under-15s to fill it in with a parent.
+- N5 — the `člověk` queen is the author's own face with feminine features, not another
+  person; no consent issue.
 
 **Corrections to earlier statements in this document:** the source repo is public since
 2026-09-14 (C2, C5 said private); `assets/source/*.png` are therefore public too (C2);

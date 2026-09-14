@@ -8,7 +8,7 @@ GATE is not touched.
 1. **One campaign = the library's characters minus the player's own**, in an order the
    player controls. The default order is a joke "by intelligence": žížaly → mouchy →
    mravenci → vosy → slepice → pštrosi → myšky → žáby → kůzlata → oslíci → kravky → lamy →
-   tučňáci → hadi → žraloci → kočky → jezevčíci → šavlozubé veverky → **člověk** (final
+   tučňáci → hadi → žraloci → kočky → jezevčíci → veverky → **člověk** (final
    boss). ▲/▼ buttons on every tile reorder; the order is persisted.
 2. **Strength = the ladder interpolated over the campaign.** Step `i` of `n` opponents
    plays at `x = 1 + 5·i/(n−1)` on the existing 1–6 ladder, linearly interpolating skill,

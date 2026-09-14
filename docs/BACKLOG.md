@@ -126,7 +126,7 @@ the frog side a green one → the piece-set manifest must carry `--board-light` 
 
 ---
 
-## B6 — GPL-3.0 — RESOLVED 2026-09-14: the app is released under GPL-3.0 (`LICENSE`), artwork excluded (`LICENSE-ARTWORK.md`), source repository public, link in the footer
+## B6 — GPL-3.0 — RESOLVED 2026-09-14: the app is released under GPL-3.0 (`LICENSE`), artwork excluded (`LICENSE-ARTWORK.md`), source repository `jirineoral/zvireci-sachy-app` public, link in the footer
 Stockfish.js is GPL-3.0 and the site has been public on GitHub Pages since 2026-09-12.
 Done (security review, C6): the GPL text ships next to the engine files
 (`engine/LICENSE-GPL-3.0.txt`), attribution with upstream links is in the README and in

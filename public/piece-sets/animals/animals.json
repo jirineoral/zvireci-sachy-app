@@ -35,8 +35,8 @@
       "levels": ["Lamátko", "Lamička", "Lama", "Alpaka", "Guanako", "Lamí král"] },
     { "id": "pstrosi", "name": "pštrosi", "za": "pštrosy", "sound": "Bum-bum!", "hurt": "Kvíí…",
       "levels": ["Vajíčko", "Pštrosátko", "Pštrosík", "Pštros", "Běžec", "Pštrosí král"] },
-    { "id": "veverky", "name": "šavlozubé veverky", "za": "šavlozubé veverky", "sound": "Cvrk!", "hurt": "Kvík…",
-      "levels": ["Veverčátko", "Veverka", "Sběrač žaludů", "Šavlozubá veverka", "Lovec žaludů", "Veverčí král"] },
+    { "id": "veverky", "name": "veverky", "za": "veverky", "sound": "Cvrk!", "hurt": "Kvík…",
+      "levels": ["Veverčátko", "Veverka", "Sběrač žaludů", "Lovec žaludů", "Veverčí obr", "Veverčí král"] },
     { "id": "zizaly", "name": "žížaly", "za": "žížaly", "sound": "Ňam!", "hurt": "Íí…",
       "levels": ["Vajíčko", "Žížalka", "Žížala", "Dlouhá žížala", "Obří žížala", "Žížalí král"] }
   ]

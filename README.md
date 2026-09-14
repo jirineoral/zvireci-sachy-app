@@ -2,7 +2,7 @@
 
 Live: **https://zvirecisachy.cz** · feedback form linked in the app's footer.
 
-*Working title until 2026-09-13: ŠACH KVÁK MEK!!! (the source repository still carries that name.)*
+*Working title until 2026-09-13: ŠACH KVÁK MEK!!!*
 
 ## Licence
 

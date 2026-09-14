@@ -75,6 +75,12 @@ SOURCES: dict[str, dict[str, tuple[str, str]]] = {
 }
 for _id in ["had", "jezevcici", "clovek", "kocky", "kravky", "mravenci", "mysky", "oslici", "slepice", "tucnaci", "zraloci", "mouchy", "vosy", "lamy", "pstrosi", "veverky", "zizaly"]:
     SOURCES[_id] = {"light": (f"{_id}.png", "bottom"), "dark": (f"{_id}.png", "top")}
+# The squirrel sheet of 2026-09-14 (a plain squirrel replacing the sabre-toothed one) has
+# the light row on top and no labels.
+SOURCES["veverky"] = {"light": ("veverky.png", "top"), "dark": ("veverky.png", "bottom")}
+
+# Sheets without the Czech piece labels between the rows (the 2026-09-14 squirrel).
+UNLABELLED_SHEETS = {"veverky.png"}
 
 # Verdict overrides: (character, side, role, pocket index) -> True = clear, False = keep.
 # Filled in from the DoD review of the printed verdicts / debug overlays.
@@ -140,10 +146,14 @@ class Sheet:
             x0, y0, x1, y1 = ep.bbox(c)
             if LABEL_SEARCH[0] <= (y0 + y1) / 2 <= LABEL_SEARCH[1] and y1 - y0 <= 32 and x1 - x0 <= 160:
                 bottoms.append(y1)
-        if len(bottoms) < 3:
+        if len(bottoms) >= 3:
+            self.label_bottom = int(np.percentile(bottoms, 90))  # letters share a baseline (accents and descenders vary a little); a high percentile ignores stray scraps
+            print(f"  {path.name}: top-row labels end at y={self.label_bottom} ({len(bottoms)} letters)")
+        elif path.name in UNLABELLED_SHEETS:
+            self.label_bottom = 0  # no labels on this sheet: nothing to trim above the bottom row
+            print(f"  {path.name}: unlabelled sheet, no label band")
+        else:
             sys.exit(f"{path.name}: only {len(bottoms)} label letters found between the rows")
-        self.label_bottom = int(np.percentile(bottoms, 90))  # letters share a baseline (accents and descenders vary a little); a high percentile ignores stray scraps
-        print(f"  {path.name}: top-row labels end at y={self.label_bottom} ({len(bottoms)} letters)")
         # Busts per row, left to right.
         comps = [c for c in components(~self.background, MIN_PIECE_AREA)]
         self.rows: dict[str, list[np.ndarray]] = {"top": [], "bottom": []}

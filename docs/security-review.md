@@ -31,10 +31,10 @@ needs a second mistake to matter, **low** = hygiene, **info** = confirmed clean 
 | Dependabot alerts and security updates are **off** on both repos | low | `GET /repos/…/vulnerability-alerts` → 404 on `sach-kvak-mek` and `sach-kvak-mek-web`; `automated-security-fixes.enabled = false`; no `.github/dependabot.yml`. **Recommendation, not applied** (account/repo setting): enable alerts on the source repo only — the Pages repo has no `package.json`, so there is nothing to scan there. Expected noise: with five pinned dependencies and no transitive sprawl, a handful of alerts per year, mostly in `vite`/`esbuild`. Commands, one per block: |
 
 ```powershell
-gh api -X PUT repos/jirineoral/sach-kvak-mek/vulnerability-alerts
+gh api -X PUT repos/jirineoral/zvireci-sachy-app/vulnerability-alerts
 ```
 ```powershell
-gh api -X PUT repos/jirineoral/sach-kvak-mek/automated-security-fixes
+gh api -X PUT repos/jirineoral/zvireci-sachy-app/automated-security-fixes
 ```
 
 Optional `.github/dependabot.yml` for version (not only security) updates, weekly, npm
@@ -319,3 +319,12 @@ after the deploy · 7 tree unchanged · 8 nothing new.
 No new storage keys (`skm.color` accepts one more value, `two`, validated on read); no
 network; text via `textContent`; CSS animations only. 1 `npm audit` 0 · 2 grep empty ·
 3–8 unchanged.
+
+### 2026-09-14 — domain, licence, publication
+Site moved to https://zvirecisachy.cz (GitHub Pages custom domain; `zvireci-sachy.cz` is a
+redirect site in `jirineoral/zvireci-sachy-redirect`); the build base is `/`. Source
+repository renamed to `zvireci-sachy-app` and released under GPL-3.0 (`LICENSE`), artwork
+excluded (`LICENSE-ARTWORK.md`). The sabre-toothed squirrel (a recognisable film
+character) was replaced by a plain squirrel before publication; the other 18 characters
+were reviewed on the contact sheets — generic cartoon animals, no known characters.
+CSP unchanged. 1 `npm audit` 0 · 2 grep empty · 3–8 unchanged.

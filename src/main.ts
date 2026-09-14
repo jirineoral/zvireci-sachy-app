@@ -47,6 +47,7 @@ app.innerHTML = `
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
+        <label>Tahy zpět <select class="undo-limit"></select></label>
         <label>Intro <select class="intro-setting"></select></label>
         <label>Nástup figurek <select class="drop-setting"></select></label>
         <button type="button" class="user-sets-open">Vlastní figurky…</button>
@@ -135,6 +136,7 @@ controller = new GameController(
     undoButton: requireElement<HTMLButtonElement>(app, '.undo'),
     difficultySelect: requireElement<HTMLSelectElement>(app, '.difficulty'),
     feedbackSelect: requireElement<HTMLSelectElement>(app, '.feedback'),
+    undoLimitSelect: requireElement<HTMLSelectElement>(app, '.undo-limit'),
     promotionDialog: requireElement<HTMLDialogElement>(app, '.promotion-dialog'),
     reviewButton: requireElement<HTMLButtonElement>(app, '.review'),
     reviewControls: {
@@ -155,6 +157,8 @@ controller = new GameController(
   {
     feedbackEnabled: readFeedbackSetting(),
     onFeedbackChange: writeFeedbackSetting,
+    undoLimit: readUndoLimitSetting(),
+    onUndoLimitChange: writeUndoLimitSetting,
     // Voices, colour preference and the drawn pair live in the piece-set manager, which
     // loads after the controller exists (hence the late lookups).
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
@@ -603,12 +607,35 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
 }
 
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
+const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 
+// Pilot feedback (P3): the helpers are OFF by default — a child should learn to see a
+// hanging piece and to think before moving; adults switch them on explicitly.
 function readFeedbackSetting(): boolean {
   try {
-    return window.localStorage.getItem(FEEDBACK_STORAGE_KEY) !== 'off'; // default on
+    return window.localStorage.getItem(FEEDBACK_STORAGE_KEY) === 'on'; // default off
   } catch {
-    return true;
+    return false;
+  }
+}
+
+/** Take-backs per game: 0, 3 (default) or null = unlimited. */
+function readUndoLimitSetting(): number | null {
+  try {
+    const v = window.localStorage.getItem(UNDO_LIMIT_STORAGE_KEY);
+    if (v === 'unlimited') return null;
+    if (v === '0' || v === '3') return Number(v);
+    return 3;
+  } catch {
+    return 3;
+  }
+}
+
+function writeUndoLimitSetting(limit: number | null): void {
+  try {
+    window.localStorage.setItem(UNDO_LIMIT_STORAGE_KEY, limit === null ? 'unlimited' : String(limit));
+  } catch (err) {
+    console.warn('Could not persist the undo-limit setting', err);
   }
 }
 

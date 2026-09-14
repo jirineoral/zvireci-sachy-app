@@ -400,3 +400,6 @@ PNG/JPEG signature sniffed, decoded to a ≤ 1800 px canvas, ≤ 40 Mpx); the cu
 `ImageData` only and every output piece is re-encoded by the canvas (`imageDataToPng`) —
 the uploaded bytes never reach CSS or storage. No new key, no network. 1 `npm audit` 0 ·
 2 grep empty · 3–8 unchanged.
+
+### 2026-09-14 — pilot P1–P3
+New key `skm.undoLimit` (`0`/`3`/`unlimited`, validated on read); legend text static; no network. 1 `npm audit` 0 · 2 grep empty · 3–8 unchanged.

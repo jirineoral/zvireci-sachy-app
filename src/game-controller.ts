@@ -44,6 +44,7 @@ export interface GameControllerElements {
   undoButton: HTMLButtonElement;
   difficultySelect: HTMLSelectElement;
   feedbackSelect: HTMLSelectElement;
+  undoLimitSelect: HTMLSelectElement;
   promotionDialog: HTMLDialogElement;
   /** "Rozbor": shown only once the game is over. */
   reviewButton: HTMLButtonElement;
@@ -58,6 +59,9 @@ export interface GameControllerOptions {
   /** Move feedback (glyphs) on/off at start; persisted by the caller via onFeedbackChange. */
   feedbackEnabled: boolean;
   onFeedbackChange: (enabled: boolean) => void;
+  /** Pilot P3: how many take-backs a game allows (null = unlimited). */
+  undoLimit: number | null;
+  onUndoLimitChange: (limit: number | null) => void;
   /** The kings' voices in the review, by colour; view-only. */
   voiceOf: (color: Color) => SpeakerVoice;
   /** Asked at every new game: which colour the human plays (the view holds the preference). */
@@ -122,6 +126,9 @@ export class GameController {
   private transition = 0;
   /** Move feedback (Phase 4). */
   private feedbackEnabled: boolean;
+  /** Pilot P3: take-backs allowed per game (null = unlimited); counts down, resets at a new game. */
+  private undoBudget: number | null;
+  private undosLeft: number | null;
   /** The one in-flight analysis (A while the human thinks, B right after the human's move). */
   private pendingAnalysis: Analysis | null = null;
   /** True while analysis B runs: board locked, status "hodnotím…". */
@@ -156,6 +163,8 @@ export class GameController {
     private readonly options: GameControllerOptions,
   ) {
     this.feedbackEnabled = options.feedbackEnabled;
+    this.undoBudget = options.undoLimit;
+    this.undosLeft = options.undoLimit;
     this.chess = new Chess();
     this.board = createBoardBridge(els.board, (from, to) => this.handleUserMove(from, to));
 
@@ -174,6 +183,10 @@ export class GameController {
         return;
       }
       void this.setDifficulty(level).catch((err) => console.error('setDifficulty failed', err));
+    });
+    els.undoLimitSelect.addEventListener('change', () => {
+      const v = els.undoLimitSelect.value;
+      this.setUndoLimit(v === 'unlimited' ? null : Number(v));
     });
     els.feedbackSelect.addEventListener('change', () => {
       void this.setFeedback(els.feedbackSelect.value === 'on').catch((err) =>
@@ -215,6 +228,7 @@ export class GameController {
     this.reviewPly = null;
     this.record = null;
     this.clearPuzzle();
+    this.undosLeft = this.undoBudget;
     this.started = false; // wait for `Hrát` (or the human's first move)
     if (this.engineState === 'ready') this.engine.newGame();
     this.options.onNewGame(this.humanColor);
@@ -456,6 +470,7 @@ export class GameController {
 
   async undo(): Promise<void> {
     if (this.chess.history().length === 0 || this.reviewPly !== null) return;
+    if (this.undosLeft !== null && this.undosLeft <= 0 && !this.twoPlayer) return;
     // Evaluated before the await: the position cannot change during it (board locked or idle).
     const wasEngineTurn = this.chess.turn() !== this.humanColor;
     const t = await this.beginTransition();
@@ -468,7 +483,16 @@ export class GameController {
     for (let i = 0; i < plies && this.chess.history().length > 0; i++) this.chess.undo();
     this.plies.length = Math.min(this.plies.length, this.chess.history().length);
     this.preMove = null;
+    if (this.undosLeft !== null && !this.twoPlayer) this.undosLeft--;
     this.afterPositionChange();
+  }
+
+  /** Pilot P3: the take-back budget for this and every next game (null = unlimited). */
+  setUndoLimit(limit: number | null): void {
+    this.undoBudget = limit;
+    this.undosLeft = limit;
+    this.options.onUndoLimitChange(limit);
+    this.renderControls();
   }
 
   async setDifficulty(level: DifficultyLevel): Promise<void> {
@@ -967,7 +991,10 @@ export class GameController {
       difficulty: this.difficultyOverride?.level ?? this.difficultyLevel,
       difficultyLocked: this.difficultyOverride !== null,
       feedbackEnabled: this.feedbackEnabled,
-      undoEnabled: this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null,
+      undoEnabled:
+        this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null && (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
+      undosLeft: this.twoPlayer ? null : this.undosLeft,
+      undoLimit: this.undoBudget,
       disabled: this.promotionOpen,
     });
   }
@@ -976,6 +1003,7 @@ export class GameController {
     return {
       difficulty: this.els.difficultySelect,
       feedback: this.els.feedbackSelect,
+      undoLimit: this.els.undoLimitSelect,
       undo: this.els.undoButton,
     };
   }

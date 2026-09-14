@@ -513,7 +513,7 @@ pre-game `started` flag is the natural hook). Queued after R2 and R8.*
 
 Recorded verbatim in substance, without names. Items marked **P** are actionable.
 
-- **P1 (legend + hint DONE 2026-09-14; regeneration open) — Piece roles are hard to tell apart on some characters** (played vosy vs. žraloci:
+- **P1 DONE 2026-09-14 (legend + hint; wasps regenerated with large markers) — Piece roles are hard to tell apart on some characters** (played vosy vs. žraloci:
   "žraloci lepší, ve vosách jsem se ztrácel"; another player mistook the mouse knight for a
   bishop and lost puzzle time). Two separate causes: (a) some sheets have weak markers —
   vosy are the first candidate for regeneration, the mouse helmet/mitre are close in
@@ -526,7 +526,7 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
   depth 6. Add a seventh level `Velmistr` (skill 20, depth 12+) for adults and strong
   juniors; keep the ladder for children unchanged. Also relevant to the campaign's final
   boss.
-- **P3 DONE 2026-09-14 on the dev site (feedback OFF by default, `Tahy zpět` 0 / 3× (default) / bez omezení, counter on the button) — "Alert, že figura někoho ohrožuje" felt like a crutch** for a core skill; the
+- **P3 DONE 2026-09-14, in production (feedback OFF by default, `Tahy zpět` 0 / 3× (default) / bez omezení, counter on the button) — "Alert, že figura někoho ohrožuje" felt like a crutch** for a core skill; the
   player would rather have a limited undo (a few per game, growing cooldown). The move
   feedback *is* switchable (`Hodnocení tahů: vypnuto`) — it was not discovered. Fix:
   say so in the intro/settings; consider a "trénink" preset (feedback off, undo limited

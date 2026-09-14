@@ -582,3 +582,26 @@ používají." Parked as a task, not a feature. Notes for when it starts:
   bare text — and a small "Sdílet" button (Web Share API on phones, copy link elsewhere).
   Both are a one-hour change; the metadata can be done before any account exists.
 - Nothing here touches the GATE or the no-account principle.
+
+## R12 — Native apps (Android, iOS) — long road, decision pending
+
+Owner (2026-09-14): counted on, but far off; pros and cons to be weighed, above all the
+legal frame. Notes to make that weighing cheaper when it comes:
+- **Two cheap steps first, no store involved:** (1) **PWA** — manifest + service worker
+  makes the site installable on both platforms (home-screen icon, full screen, offline
+  engine and pieces). Nothing changes legally, nothing is submitted anywhere. (2) If a
+  store listing is wanted, a **wrapper** (Capacitor / TWA for Android) ships the same
+  web app — one codebase, the web stays the source of truth.
+- **The legal frame is the real cost, not the code:** both stores treat an app aimed at
+  children as a special category — Google Play "Designed for Families" and Apple's
+  Kids Category require a published privacy policy, age-appropriate content rating,
+  no third-party analytics/ads SDKs (which our no-account, nothing-sent design already
+  satisfies), and a developer account with identity verification (Apple: 99 USD/year,
+  Google: one-off 25 USD; a DUNS/organisation may be needed for some listings). GDPR-K /
+  the Czech 15-year consent line apply the moment the app stores anything about a child
+  server-side — today it stores nothing.
+- **GPL and the App Store:** Apple's terms conflict with GPL-3.0 for store-distributed
+  binaries (the FSF's view; VLC was pulled over it). Either keep the chessground/Stockfish
+  boundary and get a licence exception, replace chessground (B6 variant B), or ship iOS as
+  a PWA only. Android/Play has no such conflict.
+- The web app must stay first-class regardless (the no-account, shared-PC principle).

@@ -19,6 +19,8 @@ Jediná kopie promptu, který aplikace nabízí tlačítkem „Zkopírovat promp
   úprava („jen změň barvu“) musí znovu obsahovat všechno — jinak přijdeš o mitru střelce
   nebo o věž na hlavě.
 
+Pro celý list (obě řady v jednom obrázku, rozložení knihovny) viz `docs/vlastni-sada.md`.
+
 ## Prompt
 
 ```prompt

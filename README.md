@@ -181,7 +181,8 @@ the player's character. "Klasické" is the built-in fallback (chess pieces by Co
 Burnett, CC BY-SA 3.0, via chessground). The full-figure farm pair (`public/piece-sets/farm/`,
 goats vs. frogs) is no longer listed in `sets.json` — the player found two styles of the
 same animals confusing — but the files and the extractor stay, one manifest entry away.
-New characters come from `scripts/extract-animals.py` (Pillow + numpy).
+New characters come from `scripts/extract-animals.py` (Pillow + numpy); the sheet layout,
+a template and the prompt are in [`docs/vlastni-sada.md`](docs/vlastni-sada.md) (Czech).
 
 ## Plans
 

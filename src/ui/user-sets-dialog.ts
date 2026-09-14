@@ -88,6 +88,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
         'světlou i tmavou variantu si nech vygenerovat zvlášť a rozřež je zatím sám na dvanáct PNG/JPG souborů.',
     ),
     copyBtn,
+    guideLine(),
   );
 
   const hint = el('p', 'Nahraj PNG nebo JPG, nejlépe čtvercové s průhledným pozadím; každý obrázek se zmenší na 256×256. Chybějící figurky doplní klasická sada.', 'us-note');
@@ -263,3 +264,15 @@ function labelled(text: string, control: HTMLElement): HTMLLabelElement {
   return label;
 }
 
+/** Link to the guide for a whole character sheet (two rows, dark on top) that can join the library. */
+function guideLine(): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'us-note';
+  const a = document.createElement('a');
+  a.href = 'https://github.com/jirineoral/zvireci-sachy-app/blob/main/docs/vlastni-sada.md';
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = 'Návod na celou sadu (šablona + prompt)';
+  p.append('Chceš svoje zvíře pro všechny? ', a, ' — vygeneruj jeden obrázek ve správném rozložení a pošli nám ho.');
+  return p;
+}

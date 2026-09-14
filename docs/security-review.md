@@ -389,3 +389,10 @@ Phase 9 (D2); C7's storage list is a Phase 1 snapshot — the current keys are t
 `skm.*` set listed per phase above plus IndexedDB `skm` (`userSets`, `games`), and imported
 games carry other players' real names; the 2026-09-14 "18 generic animals" line should
 read 17 animals plus `člověk`, a stylised likeness of the author (and a second person).
+
+### 2026-09-14 — Phase 18 (whole-sheet cutting in the browser)
+The sheet goes through the same gate as single pieces (`decodeImageData`: size ≤ 8 MB,
+PNG/JPEG signature sniffed, decoded to a ≤ 1800 px canvas, ≤ 40 Mpx); the cutter works on
+`ImageData` only and every output piece is re-encoded by the canvas (`imageDataToPng`) —
+the uploaded bytes never reach CSS or storage. No new key, no network. 1 `npm audit` 0 ·
+2 grep empty · 3–8 unchanged.

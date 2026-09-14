@@ -23,7 +23,7 @@ export class ImportError extends Error {
 
 export const IMPORT_MESSAGES = {
   type: 'Tenhle soubor není PNG ani JPG.',
-  size: 'Soubor je moc velký (max. 20 MB).',
+  size: 'Soubor je moc velký (max. 8 MB).',
   decode: 'Obrázek se nepodařilo načíst (poškozený soubor).',
   pixels: 'Obrázek je moc velký (max. 40 megapixelů).',
   encode: 'Obrázek se nepodařilo zpracovat.',
@@ -73,4 +73,47 @@ export async function importPieceImage(file: Blob): Promise<Blob> {
   } finally {
     bitmap.close();
   }
+}
+
+/** The sniffed, decoded image as `ImageData`, downscaled so the width is at most `maxWidth`. */
+export async function decodeImageData(file: Blob, maxWidth: number): Promise<ImageData> {
+  if (file.size > MAX_FILE_BYTES) throw new ImportError('size', IMPORT_MESSAGES.size);
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (sniffImageType(head) === null) throw new ImportError('type', IMPORT_MESSAGES.type);
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new ImportError('decode', IMPORT_MESSAGES.decode);
+  }
+  try {
+    if (bitmap.width * bitmap.height > MAX_PIXELS) throw new ImportError('pixels', IMPORT_MESSAGES.pixels);
+    if (bitmap.width === 0 || bitmap.height === 0) throw new ImportError('decode', IMPORT_MESSAGES.decode);
+    const scale = Math.min(1, maxWidth / bitmap.width);
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new ImportError('encode', IMPORT_MESSAGES.encode);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return ctx.getImageData(0, 0, w, h);
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Encodes an RGBA `ImageData` as a PNG blob through a canvas (the only bytes that reach storage/CSS). */
+export async function imageDataToPng(image: ImageData): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new ImportError('encode', IMPORT_MESSAGES.encode);
+  ctx.putImageData(image, 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new ImportError('encode', IMPORT_MESSAGES.encode);
+  return blob;
 }

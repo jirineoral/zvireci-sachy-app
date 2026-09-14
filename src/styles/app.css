@@ -1109,6 +1109,56 @@ body {
   max-height: 32vh;
 }
 
+/* Whole-sheet upload (Phase 18) in the user-sets dialog. */
+.us-sheet {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #4a5a3a;
+  border-radius: 6px;
+  background: #24301e;
+}
+
+.us-sheet h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.us-sheet .us-note {
+  margin: 0 0 8px;
+}
+
+.us-sheet-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.us-sheet-input {
+  display: block;
+  margin-top: 4px;
+  font: inherit;
+  color: #eee;
+}
+
+.us-swap-rows {
+  padding: 5px 10px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.us-thumb {
+  cursor: pointer;
+}
+
+.us-thumb-picked {
+  outline: 3px solid #ffd84a;
+  outline-offset: 2px;
+}
+
 /* Bilance (Phase 14) in the games dialog. */
 .games-stats {
   display: flex;

@@ -145,6 +145,12 @@ opponent can be skipped. Progress and order live in the browser (`skm.campaign`)
 
 ## Your own pieces
 
+`Vlastní figurky…` takes a whole character sheet (two rows of six, dark on top — the
+guide's layout) and cuts it in the browser (`src/sheet-cutter.ts`: border flood fill,
+connected components, row/column splits, base-centred placement on a 256 canvas — the
+same geometry as `scripts/extract-animals.py`); the twelve slots fill in, rows or two
+pieces can be swapped, then the set is saved. Single files still work per slot.
+
 "Vlastní figurky…" in the settings takes up to twelve PNG/JPG images (one per piece; the
 missing ones show the classic set), downsizes them to 256×256 and keeps them in the
 browser's IndexedDB — nothing leaves the device, a set lives in one browser on one device

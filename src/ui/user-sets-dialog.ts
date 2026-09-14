@@ -7,6 +7,8 @@
 import { IMPORT_MESSAGES, ImportError, importPieceImage } from '../image-import';
 import type { PieceSetManager } from '../piece-sets';
 import { copyText, piecePrompt } from '../prompts';
+import { cutSheet } from '../sheet-cutter';
+import { decodeImageData, imageDataToPng } from '../image-import';
 import { PIECE_CODES, PIECE_LABELS, newSetId, type PieceCode, type UserSet, type UserSetStore } from '../user-sets';
 
 export interface UserSetsDialogDeps {
@@ -47,6 +49,25 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
   controls.className = 'us-controls';
   controls.append(labelled('Sada', pick), labelled('Název', nameInput));
 
+  // Phase 18: one upload for the whole sheet (two rows of six, dark on top), cut in the browser.
+  const sheetSection = document.createElement('section');
+  sheetSection.className = 'us-sheet';
+  const sheetInput = document.createElement('input');
+  sheetInput.type = 'file';
+  sheetInput.accept = 'image/png,image/jpeg';
+  sheetInput.className = 'us-sheet-input';
+  const sheetLabel = document.createElement('label');
+  sheetLabel.className = 'us-sheet-label';
+  sheetLabel.append('Nahrát celý list (2 řady × 6 figurek) ', sheetInput);
+  const swapRowsBtn = button('Prohodit řady', 'us-swap-rows');
+  swapRowsBtn.hidden = true;
+  sheetSection.append(
+    el('h3', 'Nejjednodušší cesta: jeden obrázek'),
+    el('p', 'Vygeneruj list podle promptu níže (nahoře tmavá řada = černé, dole světlá = bílé; zleva pěšec, věž, jezdec, střelec, dáma, král) a nahraj ho celý — appka ho sama rozřeže. Kdyby něco nesedělo, klikni na dvě políčka a prohodí se.', 'us-note'),
+    sheetLabel,
+    swapRowsBtn,
+  );
+
   const grid = document.createElement('div');
   grid.className = 'us-grid';
   const slots = new Map<PieceCode, { thumb: HTMLElement; input: HTMLInputElement; status: HTMLElement }>();
@@ -61,6 +82,12 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
     input.type = 'file';
     input.accept = 'image/png,image/jpeg';
     input.addEventListener('change', () => void onFile(code, input));
+    // Click on a filled thumbnail = pick it for a swap (the file input stays reachable via the label text).
+    thumb.addEventListener('click', (e) => {
+      if (!draft[code]) return;
+      e.preventDefault();
+      onSwapPick(code);
+    });
     slot.append(thumb, label, status, input);
     grid.appendChild(slot);
     slots.set(code, { thumb, input, status });
@@ -93,7 +120,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
 
   const hint = el('p', 'Nahraj PNG nebo JPG, nejlépe čtvercové s průhledným pozadím; každý obrázek se zmenší na 256×256. Chybějící figurky doplní klasická sada.', 'us-note');
 
-  dialog.append(h2, note, sessionNote, controls, hint, grid, message, actions, promptSection);
+  dialog.append(h2, note, sessionNote, controls, sheetSection, hint, grid, message, actions, promptSection);
 
   // ---- draft state -----------------------------------------------------------------------
   let editingId: string | null = null;
@@ -111,10 +138,13 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
     thumbUrls = [];
   };
 
+  let swapFirst: PieceCode | null = null;
   const renderSlots = (): void => {
     releaseThumbs();
+    swapRowsBtn.hidden = PIECE_CODES.filter((c) => draft[c]).length < 2;
     for (const code of PIECE_CODES) {
       const s = slots.get(code)!;
+      s.thumb.classList.toggle('us-thumb-picked', swapFirst === code);
       const blob = draft[code];
       if (blob) {
         const url = URL.createObjectURL(blob);
@@ -134,6 +164,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
 
   const loadDraft = (set: UserSet | null): void => {
     editingId = set?.id ?? null;
+    swapFirst = null;
     draft = set ? { ...set.pieces } : {};
     nameInput.value = set?.name ?? '';
     renderSlots();
@@ -171,6 +202,73 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
       input.value = '';
       setMessage(`${PIECE_LABELS[code]}: ${text}`, true);
     } finally {
+      pending--;
+      setBusy();
+    }
+  }
+
+  function onSwapPick(code: PieceCode): void {
+    if (swapFirst === null) {
+      swapFirst = code;
+      renderSlots();
+      setMessage(`Vybráno: ${PIECE_LABELS[code]}. Klikni na figurku, se kterou ji prohodit.`);
+      return;
+    }
+    if (swapFirst !== code) {
+      const a = draft[swapFirst];
+      draft = { ...draft, [swapFirst]: draft[code], [code]: a };
+      setMessage(`Prohozeno: ${PIECE_LABELS[swapFirst]} ↔ ${PIECE_LABELS[code]}.`);
+    } else {
+      setMessage('');
+    }
+    swapFirst = null;
+    renderSlots();
+  }
+
+  swapRowsBtn.addEventListener('click', () => {
+    const next: Partial<Record<PieceCode, Blob>> = {};
+    for (const code of PIECE_CODES) {
+      const other = ((code[0] === 'w' ? 'b' : 'w') + code[1]) as PieceCode;
+      if (draft[other]) next[code] = draft[other];
+    }
+    draft = next;
+    swapFirst = null;
+    renderSlots();
+    setMessage('Řady prohozené (bílé ↔ černé).');
+  });
+
+  sheetInput.addEventListener('change', () => void onSheet());
+  async function onSheet(): Promise<void> {
+    const file = sheetInput.files?.[0];
+    if (!file) return;
+    pending++;
+    setBusy();
+    setMessage('Řežu list…');
+    try {
+      const image = await decodeImageData(file, 1800);
+      await new Promise((r) => setTimeout(r, 0)); // let the message paint
+      const { busts, rowCounts } = cutSheet(image);
+      // Row 0 (top, dark) → black pieces, row 1 (bottom, light) → white; columns P R N B Q K.
+      const roles = ['P', 'R', 'N', 'B', 'Q', 'K'] as const;
+      const next: Partial<Record<PieceCode, Blob>> = {};
+      const encoded = await Promise.all(
+        busts.filter((b) => b.col < 6).map(async (b) => [`${b.row === 0 ? 'b' : 'w'}${roles[b.col]}` as PieceCode, await imageDataToPng(b.image)] as const),
+      );
+      for (const [code, blob] of encoded) next[code] = blob;
+      const count = Object.keys(next).length;
+      if (count === 0) {
+        setMessage('V obrázku jsem žádné figurky nenašel. Je to list se dvěma řadami na světlém pozadí?', true);
+        return;
+      }
+      draft = { ...draft, ...next };
+      swapFirst = null;
+      renderSlots();
+      if (count === 12) setMessage('Našel jsem 12 figurek — zkontroluj, jestli sedí role, a ulož.');
+      else setMessage(`Našel jsem ${count} figurek (nahoře ${rowCounts[0]}, dole ${rowCounts[1]}). Zkontroluj mezery mezi figurkami, nebo chybějící nahraj po jedné.`, true);
+    } catch (err) {
+      setMessage(err instanceof ImportError ? err.message : IMPORT_MESSAGES.encode, true);
+    } finally {
+      sheetInput.value = '';
       pending--;
       setBusy();
     }

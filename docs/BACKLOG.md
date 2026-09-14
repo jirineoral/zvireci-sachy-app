@@ -237,7 +237,7 @@ piece sets, the difficulty ladder.
   human review step by someone who actually plays. Do not ship generated
   instruction unreviewed.
 
-## B14 — User-created piece sets — variant A RESOLVED in the MVP release
+## B14 — User-created piece sets — variant A RESOLVED in the MVP release; whole-sheet upload with in-browser cutting SHIPPED in Phase 18
 
 Variant A (twelve ready-made images, IndexedDB, delete, prompt button) shipped. Variant B
 (cutting twelve pieces out of one uploaded character sheet) is explicitly not planned:

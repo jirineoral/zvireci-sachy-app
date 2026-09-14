@@ -38,17 +38,19 @@ Style: cute cartoon, bold dark outlines, soft cel shading, friendly faces. No te
 ```
 
 Prompt je záměrně celý — generátor si minulé zadání nepamatuje, každá úprava („jen změň
-barvu“) musí znovu obsahovat všechno.
+barvu“) musí znovu obsahovat všechno. Co řezání zvládne: figurky, které se dotýkají,
+popisky mezi řádky, řady prohozené (opravíš tlačítkem). Co ne: pozadí, které není
+jednobarevné (fotka, přechod) — pak nahraj figurky po jedné.
 
 ## Co dál
 
 1. **Poslat nám ji** (formulář zpětné vazby v patičce appky nebo issue na GitHubu) — ideální
    cesta: sadu vyřízne skript `scripts/extract-animals.py`, postava dostane jméno, zvuk a
    názvy úrovní v `public/piece-sets/animals/animals.json` a objeví se v knihovně pro všechny.
-2. **Použít ji jen u sebe:** v appce `Vlastní figurky…` → nahrát jednotlivé soubory
-   (`wK wQ wR wB wN wP bK bQ bR bB bN bP`). Rozřezat obrázek na dvanáct souborů zatím musíš
-   sám (ořez v libovolném editoru; PNG s průhledným nebo jednobarevným pozadím). Taková
-   sada zůstává jen ve tvém prohlížeči.
+2. **Použít ji jen u sebe:** v appce `Vlastní figurky…` → `Nahrát celý list` — appka
+   obrázek sama rozřeže na dvanáct figurek, ukáže je v mřížce a ty je jen zkontroluješ
+   (kdyby něco nesedělo: `Prohodit řady`, nebo klikni na dvě figurky a prohodí se) a uložíš.
+   Jednotlivé soubory jdou nahrát taky, po jedné. Taková sada zůstává jen ve tvém prohlížeči.
 
 ## Pro vývojáře: přidání do knihovny
 

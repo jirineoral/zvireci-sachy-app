@@ -8,6 +8,10 @@ původních — a když ho pošleš, přidáme ji do knihovny.
 
 ![šablona](sada-sablona.png)
 
+Hotový příklad přesně v tomhle rozložení: [`assets/source/animals/veverky.png`](../assets/source/animals/veverky.png)
+(veverky, ChatGPT s DALL·E, prompt níže se `{ZVÍŘE}` = `a squirrel`, `{PALETA}` = `cream and light beige`).
+Z něj vzniklo `public/piece-sets/animals/veverky/` bez ruční úpravy.
+
 - **Řádek 1 (nahoře): tmavá varianta** = černé figurky. **Řádek 2 (dole): světlá
   varianta** = bílé figurky. Stejná postava, stejné pózy, jen jiná barva srsti/kůže.
 - Zleva doprava v obou řádcích: **pěšec, věž, jezdec, střelec, dáma, král**.
@@ -21,7 +25,10 @@ původních — a když ho pošleš, přidáme ji do knihovny.
 ## Prompt (anglicky, generátory to drží spolehlivěji)
 
 Nahraď `{ZVÍŘE}` (např. `a hedgehog`, `a fox`, `a robot`) a `{PALETA}` světlé varianty
-(např. `cream and warm orange`).
+(např. `cream and warm orange`). V appce je stejný prompt pod tlačítkem `Vlastní figurky… →
+Zkopírovat prompt`. Zvířata, věci, roboti — cokoli; **obličeje skutečných lidí jen s jejich
+souhlasem** (u dětí souhlas rodičů) — sada s kolegy z práce je fajn nápad, ale každý z nich
+musí říct ano.
 
 ```
 A character sheet for a children's chess set: TWO horizontal rows of six busts of {ZVÍŘE} on a plain, uniform white background, all twelve the same size, the same viewing angle, evenly spaced, nothing overlapping, nothing cut off at the edges, head-and-shoulders only.

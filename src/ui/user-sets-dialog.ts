@@ -84,8 +84,8 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
     el(
       'p',
       'Tlačítko zkopíruje hotový prompt pro generátor obrázků (ChatGPT, Copilot, cokoli s DALL·E). ' +
-        'V textu nahraď {ZVÍŘE} a {PALETA}. Výsledek je jeden obrázek se šesti figurkami v řadě — ' +
-        'světlou i tmavou variantu si nech vygenerovat zvlášť a rozřež je zatím sám na dvanáct PNG/JPG souborů.',
+        'V textu nahraď {ZVÍŘE} a {PALETA}. Výsledek je jeden obrázek: nahoře tmavá řada (černé figurky), dole světlá (bílé). ' +
+        'Pro sadu jen u sebe ho rozřež na dvanáct PNG/JPG souborů a nahraj je tady.',
     ),
     copyBtn,
     guideLine(),

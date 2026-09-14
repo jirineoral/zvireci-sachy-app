@@ -1371,3 +1371,20 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+
+/* Dev site (dev.zvirecisachy.cz): an unmistakable stripe so nobody mistakes it for the real thing. */
+html.dev-site body::before {
+  content: 'TESTOVACÍ VERZE — dev.zvirecisachy.cz';
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 3px 0;
+  background: #b8860b;
+  color: #111;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}

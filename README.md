@@ -177,6 +177,13 @@ separate repository. `npm ci` (not `npm install`) restores the exact locked depe
 `node scripts/publish-pages.mjs <pages-working-copy>` replaces the previous build there.
 Security notes and the per-phase checklist: [`docs/security-review.md`](docs/security-review.md).
 
+**Dev site.** Feature work is tested at https://dev.zvirecisachy.cz before it reaches the
+public site: `npm run publish:dev-site` builds with `--mode devsite` (a "TESTOVACÍ VERZE"
+stripe, `[DEV]` title, feedback link hidden) and pushes to the private repo
+`jirineoral/zvireci-sachy-dev` (working copy `%USERPROFILE%\zvireci-sachy-dev`). Flow:
+feature branch → `publish:dev-site` → test → merge to `main` → `build:pages` + publish.
+The public publish stays a manual, reviewed push.
+
 ## Piece sets
 
 Piece artwork is data (rules in `public/piece-sets/CONTRACT.md`). The "Hlavy" style is a

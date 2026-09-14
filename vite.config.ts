@@ -53,9 +53,12 @@ function cspMeta(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [cspMeta()],
   define: {
     __BUILD_STAMP__: JSON.stringify(buildStamp()),
+    // `--mode devsite` = the dev.zvirecisachy.cz build: banner in the footer, feedback link hidden
+    // (test builds must not mix into the pilot's feedback), otherwise identical.
+    __DEV_SITE__: JSON.stringify(mode === 'devsite'),
   },
-});
+}));

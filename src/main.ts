@@ -214,7 +214,12 @@ requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', ()
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLScsfUJLrihM81ZTS9ATcvgc_MJAj5LKcHpbEIItWcw7swCu5A/viewform';
 const FEEDBACK_VERSION_FIELD = 'entry.449486042';
 const feedbackLink = requireElement<HTMLAnchorElement>(app, 'a.feedback-link');
-requireElement<HTMLElement>(app, '.build').textContent = `verze ${__BUILD_STAMP__}`;
+requireElement<HTMLElement>(app, '.build').textContent = `verze ${__BUILD_STAMP__}${__DEV_SITE__ ? ' · TESTOVACÍ VERZE (dev)' : ''}`;
+if (__DEV_SITE__) {
+  feedbackLink.hidden = true; // the pilot's form is for the public build only
+  document.title = `[DEV] ${document.title}`;
+  document.documentElement.classList.add('dev-site');
+}
 feedbackLink.href = `${FEEDBACK_FORM}?usp=pp_url&${FEEDBACK_VERSION_FIELD}=${encodeURIComponent(`${__BUILD_STAMP__} · ${deviceStamp()}`)}`;
 function deviceStamp(): string {
   const ua = navigator.userAgent;

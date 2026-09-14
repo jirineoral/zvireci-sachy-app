@@ -508,3 +508,31 @@ piece elements. R9 therefore starts with extracting a reusable "drop" animation 
 on the real `.cg-wrap piece` elements (chessground positions them with `transform`, so the
 drop must compose with that) and the engine's opening move must wait for it (the Phase 8
 pre-game `started` flag is the natural hook). Queued after R2 and R8.*
+
+## Pilot feedback (2026-09-14, company Slack — first hours after the teaser)
+
+Recorded verbatim in substance, without names. Items marked **P** are actionable.
+
+- **P1 — Piece roles are hard to tell apart on some characters** (played vosy vs. žraloci:
+  "žraloci lepší, ve vosách jsem se ztrácel"; another player mistook the mouse knight for a
+  bishop and lost puzzle time). Two separate causes: (a) some sheets have weak markers —
+  vosy are the first candidate for regeneration, the mouse helmet/mitre are close in
+  silhouette; (b) nobody knows the markers up front. Fix (b) cheaply: a one-line legend
+  under the board or in the intro ("věž = hrad na hlavě, jezdec = helma s chocholem,
+  střelec = mitra, dáma = koruna, král = koruna s křížem + žezlo"), and a `Klasické`
+  hint in the settings ("nepoznáš figurky? přepni Figurky na Klasické"). Fix (a): a
+  40 px readability pass per character on the contact sheets; regenerate the worst.
+- **P2 — The strongest level was "rozsekaný" by an adult.** Expected: level 6 is skill 6 /
+  depth 6. Add a seventh level `Velmistr` (skill 20, depth 12+) for adults and strong
+  juniors; keep the ladder for children unchanged. Also relevant to the campaign's final
+  boss.
+- **P3 — "Alert, že figura někoho ohrožuje" felt like a crutch** for a core skill; the
+  player would rather have a limited undo (a few per game, growing cooldown). The move
+  feedback *is* switchable (`Hodnocení tahů: vypnuto`) — it was not discovered. Fix:
+  say so in the intro/settings; consider a "trénink" preset (feedback off, undo limited
+  to N per game) as one switch rather than two.
+- **P4 — Company-branded set requested (own faces).** Answer given: the whole-sheet
+  upload (Phase 18) does it per user; a shared branded set would need consent from each
+  person — not for the public library.
+- Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
+  Slack thread, not the form — remind them of the form once (done in the thread).

@@ -75,11 +75,9 @@ SOURCES: dict[str, dict[str, tuple[str, str]]] = {
 }
 for _id in ["had", "jezevcici", "clovek", "kocky", "kravky", "mravenci", "mysky", "oslici", "slepice", "tucnaci", "zraloci", "mouchy", "vosy", "lamy", "pstrosi", "veverky", "zizaly"]:
     SOURCES[_id] = {"light": (f"{_id}.png", "bottom"), "dark": (f"{_id}.png", "top")}
-# The squirrel sheet of 2026-09-14 (a plain squirrel replacing the sabre-toothed one) has
-# the light row on top and no labels.
-SOURCES["veverky"] = {"light": ("veverky.png", "top"), "dark": ("veverky.png", "bottom")}
 
-# Sheets without the Czech piece labels between the rows (the 2026-09-14 squirrel).
+# Sheets without the Czech piece labels between the rows (the layout is the same: dark row
+# on top, light row below, P R N B Q K left to right — see docs/vlastni-sada.md).
 UNLABELLED_SHEETS = {"veverky.png"}
 
 # Verdict overrides: (character, side, role, pocket index) -> True = clear, False = keep.
@@ -156,8 +154,23 @@ class Sheet:
             sys.exit(f"{path.name}: only {len(bottoms)} label letters found between the rows")
         # Busts per row, left to right.
         comps = [c for c in components(~self.background, MIN_PIECE_AREA)]
-        self.rows: dict[str, list[np.ndarray]] = {"top": [], "bottom": []}
+        # A bust of the bottom row may touch the top row (a crown's cross under a base):
+        # such a component spans both rows and is cut at the emptiest line near ROW_SPLIT.
+        split_comps: list[np.ndarray] = []
         for c in comps:
+            _, y0, _, y1 = ep.bbox(c)
+            if y0 < ROW_SPLIT - 60 and y1 > ROW_SPLIT + 60:
+                lo, hi = ROW_SPLIT - 80, ROW_SPLIT + 80
+                cut = lo + int(np.argmin(c[lo:hi].sum(axis=1)))
+                upper, lower = c.copy(), c.copy()
+                upper[cut:, :] = False
+                lower[:cut, :] = False
+                print(f"  {path.name}: component spanning both rows cut at y={cut}")
+                split_comps += [comp for comp in components(upper, MIN_PIECE_AREA)] + [comp for comp in components(lower, MIN_PIECE_AREA)]
+            else:
+                split_comps.append(c)
+        self.rows: dict[str, list[np.ndarray]] = {"top": [], "bottom": []}
+        for c in split_comps:
             cy = np.nonzero(c)[0].mean()
             self.rows["top" if cy < ROW_SPLIT else "bottom"].append(c)
         for row_name, row in self.rows.items():

@@ -582,6 +582,10 @@ používají." Parked as a task, not a feature. Notes for when it starts:
   bare text — and a small "Sdílet" button (Web Share API on phones, copy link elsewhere).
   Both are a one-hour change; the metadata can be done before any account exists.
 - Nothing here touches the GATE or the no-account principle.
+- **Why now (owner):** marketing, and to claim the name before someone else does —
+  register the handles (`zvirecisachy` / `zvireci.sachy`) on Facebook, Instagram, TikTok,
+  YouTube and X even before posting anything; a taken handle is the cheapest thing to
+  lose and the hardest to get back.
 
 ## R12 — Native apps (Android, iOS) — long road, decision pending
 
@@ -604,4 +608,8 @@ legal frame. Notes to make that weighing cheaper when it comes:
   binaries (the FSF's view; VLC was pulled over it). Either keep the chessground/Stockfish
   boundary and get a licence exception, replace chessground (B6 variant B), or ship iOS as
   a PWA only. Android/Play has no such conflict.
+- Parental controls (Family Link, Screen Time) interact with store apps — age gates,
+  purchase/consent prompts, allowed-app lists; a PWA sits outside them, a store app inside.
+  Another reason the store step is a decision, not a default.
+- **Order decided by the owner:** polish the web version first; mobile only after.
 - The web app must stay first-class regardless (the no-account, shared-PC principle).

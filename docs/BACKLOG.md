@@ -566,3 +566,19 @@ hundred bytes each way (SDP offer/answer, ICE) before they can talk.
   first one than sync: the child gets more out of it.
 
 Parked until the owner opens the GATE; variant A can be built any time.
+
+## R11 — Social media presence (owner, 2026-09-14)
+
+"Bude potřeba podchytit sociální sítě — Facebook a Instagram, nebo co to dnes ty mláďata
+používají." Parked as a task, not a feature. Notes for when it starts:
+- The audience is split: **parents and coaches** are on Facebook (Czech chess groups,
+  school-parent groups, ŠSČR club pages) — that is where a children's app gets shared;
+  the **children themselves** (10–15) are on YouTube, TikTok and Instagram Reels, where a
+  15-second clip of the piece drop / a king's tantrum works better than any text.
+- Cheap first step: an Instagram + Facebook page with the splash image, the teaser
+  text and short screen recordings (campaign, endgame, "člověk" as the final boss).
+- The app side needs only **share-friendly metadata**: `og:title`, `og:description`,
+  `og:image` (the splash), `twitter:card`, so a pasted link shows a picture instead of
+  bare text — and a small "Sdílet" button (Web Share API on phones, copy link elsewhere).
+  Both are a one-hour change; the metadata can be done before any account exists.
+- Nothing here touches the GATE or the no-account principle.

@@ -98,7 +98,7 @@ function isUserSet(value: unknown): value is UserSet {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
   if (typeof v.id !== 'string' || !/^[a-z0-9]+$/.test(v.id)) return false;
-  if (typeof v.name !== 'string' || typeof v.createdAt !== 'number') return false;
+  if (typeof v.name !== 'string' || v.name.length > 60 || typeof v.createdAt !== 'number') return false;
   if (typeof v.pieces !== 'object' || v.pieces === null) return false;
   return Object.entries(v.pieces as Record<string, unknown>).every(
     ([code, blob]) => (PIECE_CODES as readonly string[]).includes(code) && blob instanceof Blob,

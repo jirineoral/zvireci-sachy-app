@@ -79,15 +79,18 @@ app.innerHTML = `
       <button type="button" class="campaign">Kampaň</button>
     </div>
     <footer class="credits">
-      <p class="mission">Pro děti napořád zdarma. Nic se nikam neposílá, všechno zůstává v tomhle prohlížeči
-      (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich).</p>
-      <p class="feedback-line"><a class="feedback" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> <span class="build"></span></p>
+      <p class="mission">Pro děti napořád zdarma. Hra nic nikam neposílá, všechno zůstává v tomhle prohlížeči
+      (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich). Odkaz na zpětnou vazbu
+      otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
+      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> <span class="build"></span></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
       deska <a href="https://github.com/lichess-org/chessground">chessground</a> ·
       pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a> ·
-      grafika figurek je vygenerovaná umělou inteligencí ·
+      zvířecí figurky jsou vygenerované umělou inteligencí ·
+      klasické figurky © <a href="https://en.wikipedia.org/wiki/User:Cburnett" rel="noopener">Colin M.L. Burnett</a>
+      (<a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="noopener">CC BY-SA 3.0</a>) ·
       <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0)
     </footer>
   </aside>
@@ -210,14 +213,14 @@ requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', ()
 // prefilled — no address in the code, nothing sent from the app itself.
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLScsfUJLrihM81ZTS9ATcvgc_MJAj5LKcHpbEIItWcw7swCu5A/viewform';
 const FEEDBACK_VERSION_FIELD = 'entry.449486042';
-const feedbackLink = requireElement<HTMLAnchorElement>(app, '.feedback');
+const feedbackLink = requireElement<HTMLAnchorElement>(app, 'a.feedback-link');
 requireElement<HTMLElement>(app, '.build').textContent = `verze ${__BUILD_STAMP__}`;
 feedbackLink.href = `${FEEDBACK_FORM}?usp=pp_url&${FEEDBACK_VERSION_FIELD}=${encodeURIComponent(`${__BUILD_STAMP__} · ${deviceStamp()}`)}`;
 function deviceStamp(): string {
   const ua = navigator.userAgent;
   const os = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '?';
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : /Firefox\//.test(ua) ? 'Firefox' : '?';
-  return `${os} ${browser} ${window.screen.width}×${window.screen.height}`;
+  return `${os} ${browser}`;
 }
 
 // Piece drop (Phase 12): the announcement over the board names the two sides.

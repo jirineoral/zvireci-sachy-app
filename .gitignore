@@ -24,3 +24,5 @@ public/engine/
 
 # Extraction debug overlays (scripts/extract-pieces.py)
 assets/source/_debug/
+__pycache__/
+*.pyc

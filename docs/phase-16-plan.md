@@ -51,7 +51,7 @@ README.md, docs/BACKLOG.md, docs/security-review.md  MOD
 
 | # | Item | Result | Observed |
 |---|------|--------|----------|
-| 1 | Search → rounds → games → review | PASS | "Czech" → 24 tours incl. *Czech Rapid Youth Championship 2026* (U10–U20); Girls U12 → 9 rounds `dohráno`; Boys U10 round 9 → 5 games with boards and results; `Otevřít` → `Rozbor: B., T. × S., F. · 0 : 1`, moves replayed. A forfeited game (result, no moves) is listed as `0-1 · bez zápisu tahů` with `Otevřít` disabled |
+| 1 | Search → rounds → games → review | PASS | "Czech" → 24 tours incl. *Czech Rapid Youth Championship 2026* (U10–U20); Girls U12 → 9 rounds `dohráno`; Boys U10 round 9 → 5 games with boards and results; `Otevřít` → `Rozbor: B., T. × S., F. · 0 : 1` (names of the two U10 players shortened here), moves replayed. A forfeited game (result, no moves) is listed as `0-1 · bez zápisu tahů` with `Otevřít` disabled |
 | 2 | Not-started / running round | PASS / by code path | Olympiad Samarkand, round 1 (starts in 3 days): `začíná 16. 9. 12:00`; its PGN holds one placeholder "Chapter 1" with no players → `Bílý × Černý · ještě nezačalo`, disabled, and the 30 s refresh is scheduled (unfinished round with `*` results). No round was live at test time (Sunday afternoon), so the refresh loop itself ran only its first iteration |
 | 3 | Errors / CSP | PASS | Empty query → Czech prompt; JSON shape checked in every fetch; built CSP `connect-src 'self' https://api.chess.com https://lichess.org`: the Lichess search answers 200 in `vite preview`, `https://example.com` is refused |
 | 4 | Mobile / build / security | PASS | 375 px: dialog 345 px, no horizontal scroll; `tsc` strict clean; grep empty; checklist run recorded |

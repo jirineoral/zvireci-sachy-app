@@ -9,7 +9,7 @@
  */
 
 export const PIECE_CANVAS = 256;
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const MAX_FILE_BYTES = 8 * 1024 * 1024; // decoded before the pixel check: keep the worst case small
 export const MAX_PIXELS = 40_000_000;
 
 export class ImportError extends Error {

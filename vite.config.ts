@@ -1,16 +1,15 @@
 import { execSync } from 'node:child_process';
 import { defineConfig, type Plugin } from 'vite';
 
-/** Build stamp for the footer / feedback form: short commit + date, e.g. "1d80155 · 13. 9. 2026". */
+/** Build stamp for the footer / feedback form: short commit + its date, e.g. "1d80155 · 13. 9. 2026" (deterministic per commit). */
 function buildStamp(): string {
-  let commit = 'dev';
   try {
-    commit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+    const commit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+    const [y, m, d] = execSync('git log -1 --format=%cs', { encoding: 'utf-8' }).trim().split('-').map(Number);
+    return `${commit} · ${d}. ${m}. ${y}`;
   } catch {
-    /* no git: keep "dev" */
+    return 'dev';
   }
-  const d = new Date();
-  return `${commit} · ${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
 }
 
 /**
@@ -38,7 +37,7 @@ const CSP = [
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
-  "connect-src 'self' https://api.chess.com https://lichess.org",
+  "connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/",
   "worker-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",

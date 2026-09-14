@@ -7,7 +7,7 @@ the browser. Later phases add a manifest-driven custom piece set (frogs vs. goat
 its own board palette), an engine opponent and PWA packaging — so piece styling, board
 colours and the chess.js↔chessground bridge must be isolated now.
 
-Project dir `(project directory)` is empty.
+The project directory is empty.
 Toolchain present: Node 24.13, npm 11.6. Versions verified on the registry 2026-09-12:
 `chess.js@1.4.0`, `@lichess-org/chessground@10.1.1` (the unscoped `chessground` is deprecated on npm since 2025-10-05; API and `canMove` verified identical in the installed d.ts/dist), `vite@8.3.0`, `typescript@7.0.2`.
 

@@ -328,3 +328,64 @@ excluded (`LICENSE-ARTWORK.md`). The sabre-toothed squirrel (a recognisable film
 character) was replaced by a plain squirrel before publication; the other 18 characters
 were reviewed on the contact sheets — generic cartoon animals, no known characters.
 CSP unchanged. 1 `npm audit` 0 · 2 grep empty · 3–8 unchanged.
+
+### 2026-09-14 — independent review (second Claude Code session, no prior knowledge of this file)
+
+Requested by the owner after publication; findings reviewed and acted on here. The
+reviewer verified independently: 0 vulnerabilities, no secrets in the full history, no
+stale bundles/sourcemaps on Pages, CSP as in `vite.config.ts` with 0 violations during a
+game on the live site, storage validation, PGN only via chess.js, upload via sniff +
+canvas, CSSOM for user sets, GPL text of the engine published.
+
+**Fixed:**
+- D1 — the footer feedback link was dead since deployment (`.feedback` also matched the
+  feedback `<select>`); now `a.feedback-link`. Regression: the DoD of that change only
+  checked the built JS, not the rendered `href`.
+- D2 — `plies[].glyph` from IndexedDB reached chessground's `innerHTML` (SVG badge)
+  without validation; `isPlyData` now whitelists the glyph and bounds the SAN strings,
+  and `glyphBadge` refuses anything outside `GLYPH_CLASS`. Only the user's own database
+  could carry it and CSP blocks scripts, but it broke the "textContent only" invariant.
+- D3 — GitHub: Dependabot alerts + security updates, secret scanning + push protection
+  enabled on the source repo; Actions disabled on all three repos (no workflows exist).
+- D5 — footer now says that the feedback link opens a Google Form and what is
+  prefilled (build stamp, OS + browser; the screen resolution was dropped); "vyplň ho s
+  rodičem".
+- D6 — cburnett (CC BY-SA 3.0) attribution in the app's footer, not only in the README.
+- D7 — `docs/`: the local path, the child's age and a diminutive removed; the two U10
+  players' names in the Phase 16 results shortened to initials (HEAD only — see below).
+- D8 — `scripts/__pycache__` untracked and ignored.
+- D9 — `copy-engine.mjs` verifies sha256 of both engine files against pinned digests.
+- N2 — `connect-src` narrowed to `https://api.chess.com/pub/` and
+  `https://lichess.org/api/broadcast/`; `<meta name="referrer" content="no-referrer">`.
+- N6 — build stamp uses the commit date → the build is deterministic per commit.
+- N7 — README "open item" sentence removed.
+- N8 — `isGameRecord`/`isUserSet` bound name lengths and ply counts; image upload limit
+  8 MB (the decode happens before the pixel check).
+
+**Not done, deliberately:**
+- N1 clickjacking / `frame-ancestors`: needs response headers, i.e. a CDN in front of
+  Pages. No accounts, nothing to click-jack; revisit with the first server component.
+- N3 branch ruleset: a single maintainer who force-pushes on purpose (history rewrites);
+  "block deletion" alone is not worth a rule. Actions are disabled instead.
+- N4 third-party names (chess.com usernames, Lichess tour names) shown unfiltered: known,
+  bounded in length, Lichess broadcasts are moderated; accepted for a pilot.
+- N9 repo size (source sheets ~60 MB): accepted; LFS would complicate `npm ci` for
+  contributors more than it helps.
+
+**Owner's decisions (open):**
+- D4 — domain verification TXT record at the registrar (prevents Pages takeover if the
+  site is ever removed while DNS still points at Pages).
+- D7 history — the removed details still exist in earlier commits; a `git filter-repo
+  --replace-text` + force push would erase them (no forks yet).
+- D5 form — the Google Form's intro should name the controller, the purpose and
+  deletion, and ask children to fill it in with a parent.
+- N5 — the `člověk` queen is a likeness of a real person: her consent.
+
+**Corrections to earlier statements in this document:** the source repo is public since
+2026-09-14 (C2, C5 said private); `assets/source/*.png` are therefore public too (C2);
+the absolute path in `docs/phase-1-plan.md` existed from the first commit (C2 claimed
+none); C3's "no external value can reach the badge" was untrue for saved records since
+Phase 9 (D2); C7's storage list is a Phase 1 snapshot — the current keys are the
+`skm.*` set listed per phase above plus IndexedDB `skm` (`userSets`, `games`), and imported
+games carry other players' real names; the 2026-09-14 "18 generic animals" line should
+read 17 animals plus `člověk`, a stylised likeness of the author (and a second person).

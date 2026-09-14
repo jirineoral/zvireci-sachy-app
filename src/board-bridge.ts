@@ -39,6 +39,7 @@ const GLYPH_COLOR: Record<Glyph, string> = {
 
 /** A round badge in the top-right corner of the square (chessground draws customSvg in a 100×100 box). */
 function glyphBadge(glyph: Glyph): string {
+  if (!(glyph in GLYPH_CLASS)) return ''; // the only string that reaches innerHTML: never anything but our six glyphs
   const size = glyph.length === 2 ? 30 : 34;
   return (
     `<g class="move-glyph move-glyph-${GLYPH_CLASS[glyph]}">` +

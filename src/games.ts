@@ -4,6 +4,7 @@
  * (`skm` / `games`), browser-local; memory fallback when storage is unavailable.
  */
 import { Chess, DEFAULT_POSITION } from 'chess.js';
+import { GLYPH_CLASS } from './feedback';
 import { STORE_GAMES as STORE, openDatabase, requestToPromise } from './db';
 import type { Glyph } from './feedback';
 
@@ -146,6 +147,23 @@ class MemoryGames implements GameStore {
 
 const RESULTS: readonly GameResult[] = ['1-0', '0-1', '1/2-1/2', '*'];
 
+const MAX_PLIES = 1200;
+const MAX_NAME = 120;
+const SAN_MAX = 12;
+
+/** Per-ply data read back from the database: the glyph must be one of ours (it ends up in the board's SVG badge). */
+function isPlyData(value: unknown): value is PlyData | null {
+  if (value === null) return true;
+  if (typeof value !== 'object') return false;
+  const p = value as Record<string, unknown>;
+  return (
+    (p.glyph === null || (typeof p.glyph === 'string' && p.glyph in GLYPH_CLASS)) &&
+    (p.betterSan === null || (typeof p.betterSan === 'string' && p.betterSan.length <= SAN_MAX)) &&
+    (p.evalCp === undefined || (typeof p.evalCp === 'number' && Number.isFinite(p.evalCp))) &&
+    (p.bestSan === undefined || p.bestSan === null || (typeof p.bestSan === 'string' && p.bestSan.length <= SAN_MAX))
+  );
+}
+
 /** Shape check for records read back (the user can edit the database); the moves are re-validated by chess.js on load. */
 function isGameRecord(value: unknown): value is GameRecord {
   if (typeof value !== 'object' || value === null) return false;
@@ -158,9 +176,14 @@ function isGameRecord(value: unknown): value is GameRecord {
     v.sans.every((s) => typeof s === 'string' && s.length <= 12) &&
     (RESULTS as readonly unknown[]).includes(v.result) &&
     (v.humanColor === 'w' || v.humanColor === 'b' || v.humanColor === null) &&
+    v.sans.length <= MAX_PLIES &&
     typeof v.white === 'string' &&
+    v.white.length <= MAX_NAME &&
     typeof v.black === 'string' &&
+    v.black.length <= MAX_NAME &&
     Array.isArray(v.plies) &&
+    v.plies.length <= MAX_PLIES &&
+    v.plies.every(isPlyData) &&
     (v.source === 'app' || v.source === 'pgn') &&
     (v.level === undefined || (typeof v.level === 'number' && Number.isInteger(v.level) && v.level >= 1 && v.level <= 6)) &&
     (v.mode === undefined || v.mode === 'play' || v.mode === 'campaign' || v.mode === 'training' || v.mode === 'two')

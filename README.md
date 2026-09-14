@@ -44,7 +44,7 @@ WebAssembly packaging of [nmrugg/stockfish.js](https://github.com/nmrugg/stockfi
 published site ships `engine/LICENSE-GPL-3.0.txt` next to the binaries and credits the
 engine in its footer. The board is [chessground](https://github.com/lichess-org/chessground)
 (GPL-3.0-or-later) and the rules are [chess.js](https://github.com/jhlywa/chess.js)
-(BSD-2-Clause). Whether the GPL reaches the app's own code is an open item (backlog B6).
+(BSD-2-Clause). The app itself is GPL-3.0 (see Licence above).
 
 ## Game review
 

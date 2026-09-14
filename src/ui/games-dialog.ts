@@ -113,7 +113,7 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
       }
       return t;
     };
-    const levelRows: [string, Tally, boolean?][] = [1, 2, 3, 4, 5, 6].map((l) => [deps.levelLabel(l), st.byLevel[l]]);
+    const levelRows: [string, Tally, boolean?][] = [1, 2, 3, 4, 5, 6, 7].map((l) => [deps.levelLabel(l), st.byLevel[l]]);
     levelRows.push(['Kampaň', st.campaign]);
     if (st.unknown.wins + st.unknown.draws + st.unknown.losses > 0) levelRows.push(['starší partie (bez úrovně)', st.unknown]);
     levelRows.push(['celkem', st.total, true]);

@@ -513,7 +513,7 @@ pre-game `started` flag is the natural hook). Queued after R2 and R8.*
 
 Recorded verbatim in substance, without names. Items marked **P** are actionable.
 
-- **P1 — Piece roles are hard to tell apart on some characters** (played vosy vs. žraloci:
+- **P1 (legend + hint DONE 2026-09-14; regeneration open) — Piece roles are hard to tell apart on some characters** (played vosy vs. žraloci:
   "žraloci lepší, ve vosách jsem se ztrácel"; another player mistook the mouse knight for a
   bishop and lost puzzle time). Two separate causes: (a) some sheets have weak markers —
   vosy are the first candidate for regeneration, the mouse helmet/mitre are close in
@@ -522,7 +522,7 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
   střelec = mitra, dáma = koruna, král = koruna s křížem + žezlo"), and a `Klasické`
   hint in the settings ("nepoznáš figurky? přepni Figurky na Klasické"). Fix (a): a
   40 px readability pass per character on the contact sheets; regenerate the worst.
-- **P2 — The strongest level was "rozsekaný" by an adult.** Expected: level 6 is skill 6 /
+- **P2 DONE 2026-09-14 (`7 · Velmistr`: skill 20, depth 14, 1.5 s) — The strongest level was "rozsekaný" by an adult.** Expected: level 6 is skill 6 /
   depth 6. Add a seventh level `Velmistr` (skill 20, depth 12+) for adults and strong
   juniors; keep the ladder for children unchanged. Also relevant to the campaign's final
   boss.
@@ -536,3 +536,29 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
   person — not for the public library.
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
+
+## Principle — play without an account, always (2026-09-14)
+
+Anonymous play is the baseline and stays. An account (a sync code or a sign-in) is an
+optional add-on whose only job is carrying what already lives in IndexedDB (games,
+campaign, endgames, record) between devices. Nothing in the app may require it.
+
+## R10 — Play with a friend (link over WhatsApp/SMS)
+
+Wanted: send a link, the friend opens it, the two boards are paired (TeamViewer-style).
+Technically this is a **WebRTC DataChannel** — moves go browser-to-browser, no server
+sees the game. The catch is the introduction: the two browsers must exchange a few
+hundred bytes each way (SDP offer/answer, ICE) before they can talk.
+
+- **Variant A — no server at all:** the link carries the offer (~1–2 kB, still fits a
+  message); the friend's app produces an *answer code* that has to be sent back as a
+  second message; then they connect. Works, but a two-step exchange a parent can do and
+  a ten-year-old cannot; and ~15–20 % of home/mobile networks (symmetric NAT) cannot
+  connect directly without a TURN relay. Fine for two children on one Wi-Fi.
+- **Variant B — a one-click link (GATE):** a minimal signalling service holds the offer
+  for a minute and hands the answer back — one Azure Function + a table with TTL, no
+  accounts, no personal data (the payload is a connection description), the game itself
+  stays P2P. This is the smallest possible first server component and arguably a better
+  first one than sync: the child gets more out of it.
+
+Parked until the owner opens the GATE; variant A can be built any time.

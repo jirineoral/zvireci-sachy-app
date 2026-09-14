@@ -11,7 +11,7 @@
  */
 import type { EngineOptions, SearchLimits } from './engine';
 
-export type DifficultyLevel = 1 | 2 | 3 | 4 | 5 | 6;
+export type DifficultyLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export interface Difficulty {
   level: DifficultyLevel;
@@ -31,7 +31,14 @@ export const DIFFICULTIES: readonly Difficulty[] = [
   { level: 4, label: '4 · Skokan', options: { skillLevel: 1 }, limits: { depth: 3, movetimeMs: 500 }, topMoves: 1, topWindowCp: 0 },
   { level: 5, label: '5 · Ropucha', options: { skillLevel: 3 }, limits: { depth: 4, movetimeMs: 700 }, topMoves: 1, topWindowCp: 0 },
   { level: 6, label: '6 · Žabí král', options: { skillLevel: 6 }, limits: { depth: 6, movetimeMs: 1000 }, topMoves: 1, topWindowCp: 0 },
+  // Pilot feedback (P2): adults beat level 6 at once. Level 7 is the engine at full strength
+  // for adults and strong juniors; the children's ladder 1–6 and the campaign (interpolated
+  // over 1–6) are unchanged. The label is the same for every character.
+  { level: 7, label: '7 · Velmistr', options: { skillLevel: 20 }, limits: { depth: 14, movetimeMs: 1500 }, topMoves: 1, topWindowCp: 0 },
 ];
+
+/** The campaign interpolates over the children's ladder only. */
+export const CAMPAIGN_MAX_LEVEL = 6;
 
 export const DEFAULT_DIFFICULTY: DifficultyLevel = 3;
 
@@ -51,7 +58,7 @@ export function isDifficultyLevel(value: number): value is DifficultyLevel {
  * plays between "Žabka" and "Skokan"; whole numbers reproduce the table exactly.
  */
 export function interpolateDifficulty(x: number): Difficulty {
-  const clamped = Math.min(6, Math.max(1, Number.isFinite(x) ? x : DEFAULT_DIFFICULTY));
+  const clamped = Math.min(CAMPAIGN_MAX_LEVEL, Math.max(1, Number.isFinite(x) ? x : DEFAULT_DIFFICULTY));
   const lo = difficulty(Math.floor(clamped) as DifficultyLevel);
   const hi = difficulty(Math.ceil(clamped) as DifficultyLevel);
   const t = clamped - Math.floor(clamped);

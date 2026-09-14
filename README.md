@@ -160,9 +160,11 @@ signatures only, never SVG) and re-encoded through a canvas before they reach th
 
 ## Difficulty
 
-Six levels (`src/difficulty.ts`): Stockfish with a Skill Level and a depth cap; the two
+Seven levels (`src/difficulty.ts`): Stockfish with a Skill Level and a depth cap; the two
 weakest levels draw their move at random among the engine's best few candidates so they
-play weakly but coherently. The levels were tuned by a tournament-playing child and an
+play weakly but coherently. Levels 1–6 are the children's ladder (named after the player's
+character; the campaign interpolates over them); level 7 `Velmistr` is the engine at full
+strength for adults, added after the pilot's first hour. The levels were tuned by a tournament-playing child and an
 adult club-level player — feedback on whether the lower levels suit a real beginner is
 especially welcome.
 

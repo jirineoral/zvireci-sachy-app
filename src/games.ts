@@ -36,7 +36,7 @@ export interface GameRecord {
   startEvalCp?: number;
   startBestSan?: string | null;
   source: 'app' | 'pgn';
-  /** Phase 14: the difficulty level in force (1–6; a campaign step rounds to the nearest). Absent in old records. */
+  /** Phase 14: the difficulty level in force (1–7; a campaign step rounds to the nearest). Absent in old records. */
   level?: number;
   /** Phase 14: how the game came about. Absent in old records (= play). */
   mode?: GameMode;
@@ -51,7 +51,7 @@ export interface Tally {
 }
 
 export interface GameStats {
-  /** Index 0 unused; 1–6 by level (games with a known level, mode play). */
+  /** Index 0 unused; 1–7 by level (games with a known level, mode play). */
   byLevel: Tally[];
   campaign: Tally;
   /** Games without a level (records from before Phase 14). */
@@ -74,12 +74,12 @@ function addTo(t: Tally, record: GameRecord): void {
  * imported PGNs left out. Old records without a level count in the total only.
  */
 export function statsFrom(records: readonly GameRecord[]): GameStats {
-  const stats: GameStats = { byLevel: Array.from({ length: 7 }, emptyTally), campaign: emptyTally(), unknown: emptyTally(), total: emptyTally(), byOpponent: [] };
+  const stats: GameStats = { byLevel: Array.from({ length: 8 }, emptyTally), campaign: emptyTally(), unknown: emptyTally(), total: emptyTally(), byOpponent: [] };
   for (const r of records) {
     if (r.source !== 'app' || r.humanColor === null || r.result === '*' || r.mode === 'training' || r.mode === 'two') continue;
     addTo(stats.total, r);
     if (r.mode === 'campaign') addTo(stats.campaign, r);
-    else if (r.level !== undefined && r.level >= 1 && r.level <= 6) addTo(stats.byLevel[r.level], r);
+    else if (r.level !== undefined && r.level >= 1 && r.level <= 7) addTo(stats.byLevel[r.level], r);
     else addTo(stats.unknown, r);
     const opponent = r.humanColor === 'w' ? r.black : r.white;
     let row = stats.byOpponent.find((o) => o.name === opponent);
@@ -185,7 +185,7 @@ function isGameRecord(value: unknown): value is GameRecord {
     v.plies.length <= MAX_PLIES &&
     v.plies.every(isPlyData) &&
     (v.source === 'app' || v.source === 'pgn') &&
-    (v.level === undefined || (typeof v.level === 'number' && Number.isInteger(v.level) && v.level >= 1 && v.level <= 6)) &&
+    (v.level === undefined || (typeof v.level === 'number' && Number.isInteger(v.level) && v.level >= 1 && v.level <= 7)) &&
     (v.mode === undefined || v.mode === 'play' || v.mode === 'campaign' || v.mode === 'training' || v.mode === 'two')
   );
 }

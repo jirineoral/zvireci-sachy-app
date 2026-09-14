@@ -53,6 +53,12 @@ app.innerHTML = `
       </div>
     </details>
     <div class="matchup"></div>
+    <details class="legend">
+      <summary>Jak poznat figurky?</summary>
+      <p>Pěšec je bez pokrývky hlavy · <b>věž</b> má na hlavě hrad · <b>jezdec</b> helmu s chocholem ·
+      <b>střelec</b> mitru s křížem · <b>dáma</b> korunu · <b>král</b> vyšší korunu s křížem a žezlo.
+      Když se v nich ztrácíš, přepni <i>Figurky</i> na <i>Klasické</i>.</p>
+    </details>
     <div class="campaign-bar" hidden><span class="campaign-text"></span><button type="button" class="campaign-next" hidden></button><button type="button" class="campaign-open">Kampaň…</button></div>
     <div class="status"></div>
     <div class="review-controls" hidden>

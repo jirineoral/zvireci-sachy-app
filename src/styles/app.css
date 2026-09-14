@@ -471,6 +471,26 @@ body {
   color: #b8bec8;
 }
 
+/* "Jak poznat figurky?" (pilot feedback P1) */
+.legend {
+  font-size: 0.8rem;
+  color: #b8bec8;
+}
+
+.legend summary {
+  cursor: pointer;
+  color: #7fd17a;
+}
+
+.legend p {
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
+.legend b {
+  color: #eee;
+}
+
 .status {
   font-size: 1.125rem;
   font-weight: 600;

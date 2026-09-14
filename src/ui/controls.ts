@@ -23,13 +23,14 @@ export function populateControls(els: ControlsElements): void {
 }
 
 /**
- * Relabels the six levels after the player's character (`labels[i]` = level i + 1);
+ * Relabels the levels after the player's character (`labels[i]` = level i + 1; a level
+ * beyond the character's list — the 7th, Velmistr — keeps the ladder's own name);
  * null restores the ladder's own names. The values (levels) never change.
  */
 export function setDifficultyLabels(select: HTMLSelectElement, labels: readonly string[] | null): void {
   const current = select.value;
   select.replaceChildren(
-    ...DIFFICULTIES.map((d) => new Option(labels ? `${d.level} · ${labels[d.level - 1]}` : d.label, String(d.level))),
+    ...DIFFICULTIES.map((d) => new Option(labels?.[d.level - 1] ? `${d.level} · ${labels[d.level - 1]}` : d.label, String(d.level))),
   );
   if (current) select.value = current;
 }

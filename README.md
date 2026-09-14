@@ -46,6 +46,13 @@ engine in its footer. The board is [chessground](https://github.com/lichess-org/
 (GPL-3.0-or-later) and the rules are [chess.js](https://github.com/jhlywa/chess.js)
 (BSD-2-Clause). The app itself is GPL-3.0 (see Licence above).
 
+## Helpers are off by default
+
+After the pilot's first feedback, the move feedback (`Hodnocení tahů`) starts **off** and
+take-backs are limited to **3 per game** (`Tahy zpět`: žádné / 3× / bez omezení) — a
+child should learn to see a hanging piece and to think before moving; adults switch the
+helpers on. Both settings persist (`skm.moveFeedback`, `skm.undoLimit`).
+
 ## Game review
 
 Two kings watch the game beside the board (the active piece set's own kings). Once a game

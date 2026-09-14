@@ -526,7 +526,7 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
   depth 6. Add a seventh level `Velmistr` (skill 20, depth 12+) for adults and strong
   juniors; keep the ladder for children unchanged. Also relevant to the campaign's final
   boss.
-- **P3 — "Alert, že figura někoho ohrožuje" felt like a crutch** for a core skill; the
+- **P3 DONE 2026-09-14 on the dev site (feedback OFF by default, `Tahy zpět` 0 / 3× (default) / bez omezení, counter on the button) — "Alert, že figura někoho ohrožuje" felt like a crutch** for a core skill; the
   player would rather have a limited undo (a few per game, growing cooldown). The move
   feedback *is* switchable (`Hodnocení tahů: vypnuto`) — it was not discovered. Fix:
   say so in the intro/settings; consider a "trénink" preset (feedback off, undo limited

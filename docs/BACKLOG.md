@@ -621,6 +621,12 @@ používají." Parked as a task, not a feature. Notes for when it starts:
   YouTube and X even before posting anything; a taken handle is the cheapest thing to
   lose and the hardest to get back.
 
+### R11 quick step — link previews and one sentence about links (from the phishing question, 2026-09-17)
+`og:title`, `og:description`, `og:image` (a board with animals) in `index.html` so a
+shared `#hra=` link previews as Zvířecí šachy in WhatsApp/SMS/Messenger, and the line
+"odkaz posílej jen tomu, s kým chceš hrát — kdo ho má, může si sednout ke stolu" in the
+friend bar's waiting state. Analysis: `docs/security-review.md`, 2026-09-17.
+
 ## R12 — Native apps (Android, iOS) — long road, decision pending
 
 Owner (2026-09-14): counted on, but far off; pros and cons to be weighed, above all the

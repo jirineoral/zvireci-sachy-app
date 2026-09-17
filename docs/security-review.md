@@ -547,3 +547,19 @@ Open owner items carried in the round-1 entry; the Cloudflare Rate Limiting rule
 `hra.zvirecisachy.cz` is the one to do first (the only mitigation for the Free-plan daily
 request ceiling).
 
+### 2026-09-17 — owner's question: can the friend links be abused (phishing)?
+The link is `https://zvirecisachy.cz/#hra=<12 base32 chars>`; the app reads exactly those
+characters (regex) and nothing else from the URL — no redirects, no rendering of URL
+content, no downloads; CSP as above. Cases considered: (1) a look-alike domain — generic
+phishing; there is nothing on this site to steal or to type (no login, no payment, no
+in-app form), so a copy could only show a child other content — the same risk as any
+link, not specific to the game; the redirect domain `zvireci-sachy.cz` is ours;
+(2) a genuine link forwarded to a stranger — they can take the free seat or a seat left
+for 10 min; the impact is "a stranger plays chess with the child": no chat, no names, only
+SAN-shaped strings pass (≤ 10 chars, regex + chess.js); the displaced player is told,
+`Odejít` ends it; (3) guessing a link — 60 bits, ids never listed; (4) malware via the
+link — no. Conclusion: justified as a general concern, low in this design. Cheap
+improvements filed under R11: `og:title`/`og:image` so the WhatsApp/SMS preview shows
+the real site's branding, and one sentence ("odkaz posílej jen tomu, s kým chceš hrát")
+in the bar or on the privacy page.
+

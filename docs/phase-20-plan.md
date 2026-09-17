@@ -108,7 +108,7 @@ relay** (`hra.zvirecisachy.cz`, Workers custom domain) with real clicks on both 
 | 4 | Checkmate, saved, rematch | PASS | `Qxf7#` → both sides `Šach mat`, kings react per side, both records `mode: 'friend'`; host `Odveta` → guest `Kamarád chce odvetu!` → click → new game, colours swapped, game 2 |
 | 5 | Third browser refused | PASS | `V téhle hře už dva hráči jsou.`, board stays in the ordinary pre-game |
 | 6 | Mode isolation | PASS | engine/feedback/undo off in the mode (`Zpět` disabled); `Nová hra` → bar gone, fragment and session cleared, normal game vs. the computer |
-| 7 | Phone width / share sheet | PARTIAL | bar and buttons fit at 375 px; `Sdílet…` is hidden where `navigator.share` is absent (desktop) — the share sheet itself is the owner's check on a real phone |
+| 7 | Phone width / share sheet | PASS (owner, real phone, 2026-09-17) | on the public site: the owner opened a link from a push notification on the phone, joined as white and played against the desktop tab (moves both ways, captured-piece trays right); then created a room on the phone and shared it through `Sdílet…` (share sheet → the link arrived in chat), the desktop joined it and a Scandinavian was played to `2…Qxd5`; closing the app on the phone showed `Kamarád je odpojený…` on the desktop at once |
 | 8 | Worker deployed, logs off | PASS | `wrangler deploy` → `hra.zvirecisachy.cz` (custom domain, certificate issued in minutes); `observability.enabled = false`; the dashboard shows the Free-plan usage |
 | 9 | Build / hygiene | PASS | `tsc` strict clean in both packages; hooks removed; grep empty; security-review entry written |
 

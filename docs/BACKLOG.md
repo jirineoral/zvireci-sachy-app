@@ -550,7 +550,7 @@ terminates TLS); the public build carries the Web Analytics beacon (`--mode page
 Daily page views / visits, no cookies, no visitor id; the redirect domain
 `zvireci-sachy.cz` stays on Forpsi (it only 301s). See `docs/security-review.md`.
 
-## O1 — Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz` (OPEN, do at the start of the next iteration)
+## O1 — Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz` — DONE 2026-09-17 (via the zone rulesets API: block 10 s after 30 requests / 10 s per IP; a game's handful of upgrades passes, a 40-request burst is cut)
 
 The relay's only mitigation for the Workers Free ceiling (100 000 requests/day for the
 whole account): one zone rule (Free plan allows one) — *Security → WAF → Rate limiting

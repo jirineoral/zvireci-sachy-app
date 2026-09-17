@@ -513,8 +513,8 @@ Findings and what was done (commit refs in git):
 - **Docs** — threat model rewritten to the current state (above), C4/C7 annotated,
   checklist 4/5/7 updated, BACKLOG R10 marked "built, on the dev site", README stale
   paragraphs fixed, Phase 20 DoD table present.
-- **Open** (owner): the Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz`.
-  *Closed 2026-09-17:* the share sheet on a real phone (owner's test, Phase 20 DoD 7); the `člověk` set shows the author
+- *All closed 2026-09-17:* the Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz`
+  (30 requests / 10 s per IP → block 10 s, zone ruleset `http_ratelimit`); the share sheet on a real phone (owner's test, Phase 20 DoD 7); the `člověk` set shows the author
   only (no second person); the privacy page's contact stays the feedback form (owner's
   decision — no e-mail address in the public code).
 

@@ -90,3 +90,30 @@ README.md, docs/BACKLOG.md, docs/security-review.md   MOD
 
 ## Explicitly NOT in this phase
 Chat, clocks, spectators, more than two players, saving rooms, accounts, P2P.
+
+## DoD results (executed 2026-09-17)
+
+Locally against `wrangler dev` (two tabs of the in-app browser — a Chrome tab in the
+background is frozen by the test harness and does not deliver socket events, so Chrome
+was not usable as the second player), then on **dev.zvirecisachy.cz against the real
+relay** (`hra.zvirecisachy.cz`, Workers custom domain) with real clicks on both boards.
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Two browsers, moves both ways, forged/out-of-turn refused | PASS | host e4 → guest sees it; guest's out-of-turn `d4` refused by the controller (board would not offer it either); node client sending a move for the wrong seat / wrong ply / `<script>` SAN → `error: move refused`, oversize message → socket closed 1008 |
+| 2 | Reload resumes | PASS | guest reload (same `sessionStorage` token) → `state` with the moves, seat kept; host `state` after a relay restart re-synced too |
+| 3 | Disconnect / return | PASS | guest tab closed → host reads `Kamarád je odpojený…` at once (socket close, not a timeout); reopening the link continues the game |
+| 4 | Checkmate, saved, rematch | PASS | `Qxf7#` → both sides `Šach mat`, kings react per side, both records `mode: 'friend'`; host `Odveta` → guest `Kamarád chce odvetu!` → click → new game, colours swapped, game 2 |
+| 5 | Third browser refused | PASS | `V téhle hře už dva hráči jsou.`, board stays in the ordinary pre-game |
+| 6 | Mode isolation | PASS | engine/feedback/undo off in the mode (`Zpět` disabled); `Nová hra` → bar gone, fragment and session cleared, normal game vs. the computer |
+| 7 | Phone width / share sheet | PARTIAL | bar and buttons fit at 375 px; `Sdílet…` is hidden where `navigator.share` is absent (desktop) — the share sheet itself is the owner's check on a real phone |
+| 8 | Worker deployed, logs off | PASS | `wrangler deploy` → `hra.zvirecisachy.cz` (custom domain, certificate issued in minutes); `observability.enabled = false`; the dashboard shows the Free-plan usage |
+| 9 | Build / hygiene | PASS | `tsc` strict clean in both packages; hooks removed; grep empty; security-review entry written |
+
+Deviations: `wrangler dev` on Windows leaves zombie `workerd` processes when killed from
+Bash (port stays bound, sockets never open) — kill them by command line and use a fresh
+port; the relay's `peer` flag after a rematch was wrong until all seats were swapped
+before any `state` was sent (fixed); `.env.local` would have leaked the local relay
+origin into the dev-site build (`loadEnv` reads it for every mode) → renamed to
+`.env.development.local`. The colleague review (security / legal / documentation) runs
+before the merge to `main`.

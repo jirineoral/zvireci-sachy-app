@@ -82,7 +82,8 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     rematchBtn.textContent = rematchOffered ? 'Odveta — jdeme na to!' : 'Odveta';
   };
 
-  const stop = (): void => {
+  /** Drops the socket; `forget` also clears the stored seat token and the link's fragment (a real leave). */
+  const stop = (forget = true): void => {
     client?.close();
     client = null;
     seat = null;
@@ -93,8 +94,10 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     rematchAsked = false;
     rematchOffered = false;
     connection = 'closed';
-    writeSession(deps.storage, null);
-    if (location.hash.startsWith('#hra=')) history.replaceState(null, '', location.pathname + location.search);
+    if (forget) {
+      writeSession(deps.storage, null);
+      if (location.hash.startsWith('#hra=')) history.replaceState(null, '', location.pathname + location.search);
+    }
     render();
   };
 
@@ -128,8 +131,9 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
 
   const connect = (room: string, pref?: Color | 'random'): void => {
     if (!isRoomId(room)) return;
-    stop();
+    stop(false);
     note = '';
+    history.replaceState(null, '', `${location.pathname}${location.search}#hra=${room}`); // a reload rejoins
     const session = sessionFor(deps.storage, room, pref);
     client = connectFriend(session, {
       onMessage,
@@ -146,7 +150,6 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
 
   deps.button.addEventListener('click', () => {
     const room = randomId(12);
-    history.replaceState(null, '', `#hra=${room}`);
     connect(room, deps.pref());
     void copyText(roomLink(room)).then((ok) => {
       note = '';

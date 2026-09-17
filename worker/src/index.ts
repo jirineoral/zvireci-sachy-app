@@ -168,13 +168,16 @@ export class Room extends DurableObject<Env> {
     const game = ((await this.ctx.storage.get<number>('game')) ?? 1) + 1;
     await this.ctx.storage.put({ seats: swapped, sans: [], game });
     await this.ctx.storage.delete('rematch');
+    const swappedSeats: [WebSocket, Seat][] = [];
     for (const sock of this.ctx.getWebSockets()) {
       const a = this.attachment(sock);
       if (!a) continue;
       const seat: Seat = a.seat === 'w' ? 'b' : 'w';
       sock.serializeAttachment({ token: a.token, seat } satisfies Attachment);
-      this.send(sock, { t: 'state', seat, sans: [], game, peer: this.peerOnline(sock, seat) });
+      swappedSeats.push([sock, seat]);
     }
+    // All seats swapped first, then told — `peer` looks at the other socket's new seat.
+    for (const [sock, seat] of swappedSeats) this.send(sock, { t: 'state', seat, sans: [], game, peer: this.peerOnline(sock, seat) });
   }
 
   private attachment(ws: WebSocket): Attachment | null {

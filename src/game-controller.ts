@@ -742,6 +742,7 @@ export class GameController {
   }
 
   private async handleUserMove(from: Square, to: Square): Promise<void> {
+    if (this.remote && this.chess.turn() !== this.humanColor) return; // the friend's turn (the board already refuses; belt and braces)
     const candidates = this.chess
       .moves({ square: from, verbose: true })
       .filter((m) => m.to === to);

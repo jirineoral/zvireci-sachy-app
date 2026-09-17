@@ -105,7 +105,9 @@ seat token per browser (`localStorage` `skm.friend`, forgotten after 24 h or on 
 so the link opened again in a fresh tab returns to the same seat) and SAN moves; it
 accepts sockets only from the app's own origins. The relay's origin is the only WebSocket
 the CSP allows (`vite.config.ts`). Deploy: `cd worker`, `npm ci`, `npx wrangler deploy`
-(custom domain `hra.zvirecisachy.cz` in `wrangler.toml`; logs off). The dev server can
+(custom domain `hra.zvirecisachy.cz` in `wrangler.toml`; logs off). When a message shape
+changes, deploy the Worker first and the site after it (the client drops messages it does
+not recognise). The dev server can
 point at a local `wrangler dev` through `.env.development.local`
 (`VITE_FRIEND_WS=ws://127.0.0.1:8790`, gitignored).
 

@@ -213,7 +213,7 @@ export class Room extends DurableObject<Env> {
       return;
     }
     const seats = (await this.ctx.storage.get<Seats>('seats')) ?? {};
-    const swapped: Seats = { w: seats.b, b: seats.w, wClosed: seats.bClosed, bClosed: seats.wClosed };
+    const swapped: Seats = { w: seats.b, b: seats.w, wClosed: seats.bClosed, bClosed: seats.wClosed, displaced: seats.displaced };
     const game = ((await this.ctx.storage.get<number>('game')) ?? 1) + 1;
     await this.ctx.storage.put({ seats: swapped, sans: [], game });
     await this.ctx.storage.delete('rematch');

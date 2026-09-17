@@ -141,6 +141,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
       client?.resync();
     } else if (msg.t === 'peer') {
       peer = msg.online;
+      if (client) touchSession(deps.storage, client.session);
     } else if (msg.t === 'rematch') {
       rematchOffered = true;
     } else if (msg.t === 'full') {
@@ -213,6 +214,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     onMove: (san, ply) => {
       sans.push(san);
       client?.send({ t: 'move', san, ply });
+      if (client) touchSession(deps.storage, client.session);
     },
     onGameOver: () => {
       over = true;

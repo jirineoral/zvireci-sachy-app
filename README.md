@@ -188,8 +188,9 @@ All piece artwork (the character library) is AI-generated.
 
 The public site (https://zvirecisachy.cz, custom domain on GitHub Pages) is a build in a
 separate repository. `npm ci` (not `npm install`) restores the exact locked dependencies;
-`npm run build:pages` builds for the site root and injects the Content Security Policy
-(`vite.config.ts`);
+`npm run build:pages` builds for the site root (`--mode pages`) and injects the Content
+Security Policy and the Cloudflare Web Analytics beacon (`vite.config.ts` — public site
+only; page views and visits per day, no cookies, no visitor id);
 `node scripts/publish-pages.mjs <pages-working-copy>` replaces the previous build there.
 Security notes and the per-phase checklist: [`docs/security-review.md`](docs/security-review.md).
 

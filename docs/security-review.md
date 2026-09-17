@@ -403,3 +403,20 @@ the uploaded bytes never reach CSS or storage. No new key, no network. 1 `npm au
 
 ### 2026-09-14 — pilot P1–P3
 New key `skm.undoLimit` (`0`/`3`/`unlimited`, validated on read); legend text static; no network. 1 `npm audit` 0 · 2 grep empty · 3–8 unchanged.
+
+### 2026-09-17 — Phase 19 (captured pieces) + Cloudflare (DNS, Web Analytics)
+Phase 19 is pure rendering from the position (no storage, no network). **DNS** for
+`zvirecisachy.cz` moved from Forpsi to Cloudflare (Free plan), records identical, **DNS
+only — no proxy**: GitHub Pages keeps issuing and enforcing the certificate exactly as
+before; Cloudflare sees DNS queries, never the HTTP traffic. **Web Analytics** — the first
+and only third-party script: `static.cloudflareinsights.com/beacon.min.js`, injected into
+the public build only (`--mode pages`; not the dev site, not local builds), with the two
+hosts added to `script-src` / `connect-src`. Cloudflare's beacon sets no cookie and keeps
+no visitor identifier; the dashboard shows page views and "visits" per day (a visit =
+a page view without a same-site referrer), which is what the owner asked for: daily
+distinct-ish reach, nothing per person. The site token in `vite.config.ts` is public by
+design (it is in every page's HTML). Threat-model line "no analytics, no third-party
+scripts" above is superseded by this entry. 1 `npm audit` 0 · 2 grep empty · 3 CSP
+verified on the Pages URL (beacon loads, POST to cloudflareinsights.com allowed, engine
+plays, zero violations) · 4–8 unchanged.
+

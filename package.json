@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "postinstall": "node scripts/copy-engine.mjs",
-    "build:pages": "tsc --noEmit && vite build --base /",
+    "build:pages": "tsc --noEmit && vite build --base / --mode pages",
     "build:dev-site": "tsc --noEmit && vite build --base / --mode devsite",
     "publish:dev-site": "npm run build:dev-site && node scripts/publish-pages.mjs %USERPROFILE%/zvireci-sachy-dev && node scripts/push-pages.mjs %USERPROFILE%/zvireci-sachy-dev \"dev site\""
   },

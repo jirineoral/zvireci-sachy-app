@@ -540,6 +540,13 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
 
+## Analytics — Cloudflare Web Analytics (DONE 2026-09-17)
+
+DNS for `zvirecisachy.cz` is on Cloudflare (Free, DNS only — GitHub Pages still
+terminates TLS); the public build carries the Web Analytics beacon (`--mode pages`).
+Daily page views / visits, no cookies, no visitor id; the redirect domain
+`zvireci-sachy.cz` stays on Forpsi (it only 301s). See `docs/security-review.md`.
+
 ## Feedback triage (2026-09-17)
 
 The form's responses are linked to a Google Sheet (owner's Drive, not in the repo). Two

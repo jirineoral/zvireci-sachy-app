@@ -422,7 +422,9 @@ none); C3's "no external value can reach the badge" was untrue for saved records
 Phase 9 (D2); C7's storage list is a Phase 1 snapshot — the current keys are the
 `skm.*` set listed per phase above plus IndexedDB `skm` (`userSets`, `games`), and imported
 games carry other players' real names; the 2026-09-14 "18 generic animals" line should
-read 17 animals plus `člověk`, a stylised likeness of the author (and a second person).
+read 17 animals plus `člověk`, a stylised likeness of the author only — every piece,
+the queen included, is the author's own face (confirmed by the owner on 2026-09-17; the
+earlier "and a second person" here was wrong).
 
 ### 2026-09-14 — Phase 18 (whole-sheet cutting in the browser)
 The sheet goes through the same gate as single pieces (`decodeImageData`: size ≤ 8 MB,
@@ -512,8 +514,9 @@ Findings and what was done (commit refs in git):
   checklist 4/5/7 updated, BACKLOG R10 marked "built, on the dev site", README stale
   paragraphs fixed, Phase 20 DoD table present.
 - **Open** (owner): the Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz`; the
-  `člověk` set — confirm no second real person is depicted (docs disagree); the share
-  sheet on a real phone.
+  share sheet on a real phone. *Closed 2026-09-17:* the `člověk` set shows the author
+  only (no second person); the privacy page's contact stays the feedback form (owner's
+  decision — no e-mail address in the public code).
 
 ### 2026-09-17 — colleague review round 2 (at `7bafbef`)
 Round-1 items confirmed closed by the reviewer; branch judged safe to merge. New findings

@@ -7,6 +7,9 @@ recorded so that the design does not accidentally foreclose them.
 
 ## GATE — stop before anything that needs a server
 
+*2026-09-17: opened once, deliberately, for R10 (a move relay for "play with a friend";
+`worker/`, Phase 20). Everything below still applies to every other item.*
+
 This project deliberately has no backend. It is a static site on GitHub Pages:
 no database, no accounts, no user data leaving the browser, no hosting cost,
 no GDPR surface, no content moderation duty. That is not a limitation to be
@@ -585,7 +588,8 @@ hundred bytes each way (SDP offer/answer, ICE) before they can talk.
 
 **GATE opened by the owner on 2026-09-17 for variant B** — as a WebSocket relay (a
 Cloudflare Worker + one Durable Object per game; free at our scale, works on every
-network) rather than P2P + signalling. Plan: `docs/phase-20-plan.md`.
+network) rather than P2P + signalling. **SHIPPED in Phase 20** (`Kamarád`, `#hra=` links,
+`hra.zvirecisachy.cz`); plan and DoD: `docs/phase-20-plan.md`.
 
 ## R11 — Social media presence (owner, 2026-09-14)
 

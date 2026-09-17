@@ -86,6 +86,23 @@ selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess s
 the opponent's move plays itself, then you find the solution; the two kings comment.
 Progress lives in the browser (`skm.puzzles`).
 
+## Play with a friend over a link
+
+`Kamarád` makes a game and copies its link (`https://zvirecisachy.cz/#hra=<12 random
+characters>`); `Sdílet…` opens the phone's share sheet (WhatsApp, SMS…). The friend opens
+the link and the two boards are paired: each player moves their own colour, sees their own
+piece set, and the status line says when the other side left or came back. No engine, no
+move feedback, no take-backs in this mode — `Odveta` after the game swaps colours. Games
+are saved with `mode: 'friend'` and kept out of `Bilance`.
+
+This is the one thing in the app that touches a server: a small Cloudflare Worker
+(`worker/`, one Durable Object per game) forwards the moves and keeps the move list so a
+reload or a dropped connection resumes; the room is deleted 24 hours after the last
+message. It never sees a name, an account or a cookie — only a random room id, a random
+seat token per browser and SAN moves. The relay's origin is the only WebSocket the CSP
+allows (`vite.config.ts`). Deploy: `cd worker`, `npm ci`, `npx wrangler deploy` (custom
+domain `hra.zvirecisachy.cz` in `wrangler.toml`; logs off).
+
 ## Two players
 
 `Barva` → „dva hráči (bez počítače)“ turns the board into a plain two-player board (white

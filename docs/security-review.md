@@ -420,3 +420,31 @@ scripts" above is superseded by this entry. 1 `npm audit` 0 · 2 grep empty · 3
 verified on the Pages URL (beacon loads, POST to cloudflareinsights.com allowed, engine
 plays, zero violations) · 4–8 unchanged.
 
+### 2026-09-17 — Phase 20 (play with a friend): the first server component
+The GATE was opened by the owner for exactly this. What runs where:
+- **Relay** `worker/` — a Cloudflare Worker + one Durable Object per game at
+  `hra.zvirecisachy.cz`. It accepts a WebSocket at `/r/<12 base32 chars>`, validates
+  message shape and turn order (not chess rules — both browsers run chess.js), stores the
+  SAN list and two seat tokens, forwards moves, and deletes everything 24 h after the last
+  message (DO alarm). Limits: 200-byte messages, 10 messages/s per socket, 1000 plies,
+  two seats (a third connection gets `full` and is closed). Observability/logs **off** in
+  `wrangler.toml`; no KV, no D1, nothing outside the room.
+- **What the relay sees**: the room id (random, made in the host's browser, in the link's
+  *fragment* so it never reaches the Pages host, referrers or Web Analytics), a random
+  seat token per browser (`sessionStorage` `skm.friend`, gone with the tab), SAN moves,
+  and — at the edge, for the socket's lifetime — the two IP addresses. No names, no
+  accounts, no cookies. That is the whole personal-data surface; the footer says so
+  ("při hře s kamarádem projdou tahy přes náš server a do 24 hodin po partii se smažou").
+- **Client**: `connect-src` gains `wss://hra.zvirecisachy.cz` only; everything from the
+  socket is parsed as JSON, type-checked and applied through chess.js (`applyRemoteMove`
+  refuses out-of-turn / illegal SANs, the controller refuses the human's own out-of-turn
+  moves even if the board did not). All text through `textContent`.
+- **Abuse**: rooms are unguessable (60 bits) and two-seat; there is no text channel, so
+  nothing can be said; a flood closes the socket. Cost at our scale is zero (Workers
+  Free); a Paid plan would only be needed at thousands of games a day.
+- Local DoD (two tabs, in-app browser): moves both ways, wrong turn refused by board,
+  controller and room, reload/reconnect resumes, third player refused, checkmate saved on
+  both sides as `friend`, rematch swaps colours, disconnect shown, `Nová hra` leaves.
+1 `npm audit` 0 (app) / 0 (worker) · 2 grep empty · 3 CSP on the dev site with the real
+relay · 4–8 unchanged.
+

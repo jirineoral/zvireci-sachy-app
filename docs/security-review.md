@@ -1,23 +1,40 @@
 # Security and vulnerability review
 
 First run: 2026-09-13, at source commit `df7f45c` (Phase 4 shipped, Phase 5 planned).
-Recurring: the checklist at the end is re-run at the end of every phase and the date line
-above is updated; findings that change get a new dated entry, everything else stays.
+Last full run: **2026-09-17** (Phase 20, colleague review round 1). Recurring: the
+checklist at the end is re-run at the end of every phase and this date line is updated;
+findings that change get a new dated entry, everything else stays. The sections C1–C8
+below describe the state at their own date; the **threat model** is kept current.
 
-## Threat model, as it actually is
+## Threat model, as it actually is (2026-09-17)
 
-A static site on GitHub Pages: no backend, no accounts, no payments, no analytics, no
-third-party scripts, no data of the player beyond three `localStorage` keys
-(`skm.pieceFamily`, `skm.animal`, `skm.moveFeedback` — since Phase 5A; `skm.pieceSetId`
-before) that contain a piece-set family id, an animal id and `on`/`off`. Everything the page loads
-comes from its own origin; the only "input" the code processes that it did not write itself
-is the engine's UCI text, a hand-written `sets.json`, and whatever a curious user types into
-`localStorage`. What can realistically go wrong: (1) a compromised or malicious npm package
-ends up in the shipped bundle or runs on the build machine; (2) something that should stay
-private gets pushed to the public Pages repository; (3) a future change quietly adds an
-external request or an unsafe DOM sink. The review below is sized to that. Severity
-scale used: **high** = exploitable now with real impact, **medium** = real weakness that
-needs a second mistake to matter, **low** = hygiene, **info** = confirmed clean or a note.
+A static site on GitHub Pages (`zvirecisachy.cz`, DNS on Cloudflare, DNS-only) with:
+- **no accounts, no payments, no cookies, no profile of anyone**; the player's data lives
+  in the browser — `localStorage` `skm.*` keys (piece family/animal/opponent/colour,
+  difficulty, move feedback, undo limit, intro, piece drop, campaign, endgames, puzzles,
+  chess.com username, the friend-game seat token), `sessionStorage` `skm.introShown`,
+  IndexedDB `skm` (own piece sets, saved games);
+- **one third-party script**: Cloudflare Web Analytics on the public build (page views
+  and visits per day; no cookie, no visitor id; the beacon strips `#` and `?` before it
+  posts — verified against the beacon's source on 2026-09-17, re-check on version bumps);
+- **one server component**: the friend-game relay `hra.zvirecisachy.cz` (`worker/`,
+  Cloudflare Worker + one Durable Object per game) — random room id, random seat token,
+  SAN moves, deleted 24 h after the last message; IPs are visible to Cloudflare at the
+  edge for the socket's lifetime, we keep no logs;
+- **two user-triggered external reads**: chess.com's public API (a username) and
+  Lichess's broadcast API (a tournament id);
+- **one external form**: Google Forms for feedback, opened in a new tab.
+
+Inputs the code processes that it did not write itself: the engine's UCI text, the
+manifests under `public/`, PGN/JSON from chess.com and Lichess, the other seat's SAN
+moves through the relay, uploaded images, and whatever a curious user types into
+storage. What can realistically go wrong: (1) a compromised npm package in the bundle or
+on the build/deploy machine (which also holds the Cloudflare OAuth token in
+`~/.wrangler`); (2) something private pushed to a public repo; (3) a change that quietly
+adds an external request or an unsafe DOM sink; (4) abuse of the relay (floods, seat
+takeover, a peer sending garbage). Severity scale: **high** = exploitable now with real
+impact, **medium** = real weakness that needs a second mistake to matter, **low** =
+hygiene, **info** = confirmed clean or a note.
 
 ## C1 — Dependencies
 
@@ -75,6 +92,11 @@ img-src 'self' data: blob:; connect-src 'self' https://api.chess.com https://lic
 worker-src 'self'; base-uri 'none'; form-action 'none'
 ```
 
+*Current policy (2026-09-17, `csp()` in `vite.config.ts`):* `connect-src 'self'
+https://api.chess.com/pub/ https://lichess.org/api/broadcast/ wss://hra.zvirecisachy.cz`,
+plus on the public build (`--mode pages`) `script-src … https://static.cloudflareinsights.com`
+and `connect-src … https://cloudflareinsights.com`.
+
 *(Phase 15: `https://api.chess.com` — the public, unauthenticated chess.com Published-Data
 API used by the import in `Partie`. Phase 16: `https://lichess.org` — the public Broadcast
 API behind `Turnaje`. Both are read-only GETs; `blob:` in `img-src` came with the user
@@ -127,6 +149,11 @@ beyond the family; releasing the app under GPL-3.0 costs nothing here.
 
 ## C7 — Privacy
 
+*2026-09-17:* this section records the 2026-09-13 state. What changed since: the public
+build posts to `cloudflareinsights.com` (analytics), a friend game opens a WebSocket to
+`hra.zvirecisachy.cz`, storage has grown to the keys listed in the threat model plus
+IndexedDB and `sessionStorage`. The player-facing summary is `public/soukromi.html`.
+
 Outbound requests observed on `vite preview` during a game with set switching, read from
 the browser's request log and `performance.getEntriesByType('resource')`:
 `/`, `/assets/index-*.js`, `/assets/index-*.css`, `/engine/stockfish-18-lite-single.js`,
@@ -165,17 +192,20 @@ Select-String -Path dist\assets\*.js -Pattern "SKM_DEBUG|debugLoadFen|uci >" -Qu
 git grep -n -e innerHTML -e insertAdjacentHTML -e "setAttribute(" -- src
 ```
 4. **Storage** — every `getItem` is validated against an allowed set with a default
-   (`git grep -n getItem -- src`), and after a test game `Object.keys(localStorage)` shows
-   only `skm.*` keys.
+   (`git grep -n getItem -- src`), and after a test game `Object.keys(localStorage)` and
+   `sessionStorage` show only `skm.*` keys; IndexedDB `skm` holds only `userSets` and `games`.
 5. **Outbound requests** — DevTools Network during one game on `vite preview` (or the
-   Pages URL): every request same-origin; the CSP console shows no violation.
+   Pages URL): every request same-origin except the documented ones (analytics beacon on
+   the public site; the relay during a friend game; chess.com/Lichess on the player's
+   action); the CSP console shows no violation.
 6. **CSP with the engine** — on `vite preview` *and* on the Pages URL after deploying:
    status line without "engine nedostupný", the engine answers a move, a badge renders.
    Any new asset type (font, external image, inline style) must be reflected in
    `vite.config.ts` deliberately, never by adding `'unsafe-inline'`.
 7. **Published tree** — `git ls-files` in the Pages repo shows one JS and one CSS bundle,
-   `engine/` (3 files), `piece-sets/`, `index.html`, `.nojekyll`, `README.md`,
-   `LICENSE-GPL-3.0.txt` — nothing else. Deploy only through `scripts/publish-pages.mjs`.
+   `engine/` (3 files), `piece-sets/`, `puzzles/`, `splash/`, `index.html`, `soukromi.html`,
+   `THIRD-PARTY-NOTICES.txt`, `CNAME`, `.nojekyll`, `README.md`, `LICENSE-GPL-3.0.txt` —
+   nothing else. Deploy only through `scripts/publish-pages.mjs`.
 8. **Licences** — a new dependency's licence is named in README; GPL text still ships
    (`dist/engine/LICENSE-GPL-3.0.txt` exists).
 
@@ -447,4 +477,41 @@ The GATE was opened by the owner for exactly this. What runs where:
   both sides as `friend`, rematch swaps colours, disconnect shown, `Nová hra` leaves.
 1 `npm audit` 0 (app) / 0 (worker) · 2 grep empty · 3 CSP on the dev site with the real
 relay · 4–8 unchanged.
+
+### 2026-09-17 — colleague review of Phase 20 (independent agent, no prior context), round 1
+Findings and what was done (commit refs in git):
+- **High — seat lost when the link is opened in a fresh tab** (token in `sessionStorage`,
+  seats never freed). Fixed: the seat token lives in `localStorage` `skm.friend` with a
+  24 h expiry (one room; cleared on `Odejít`); the room frees a seat on `{t:'leave'}`
+  and lets a new token take a seat whose player has had no socket for 60 s; the room id
+  leaves the address bar as soon as it is read (a reload rejoins from storage).
+- **Medium — `peer:false` after a replaced socket.** Fixed: the room reports a seat
+  offline only when no other socket holds it.
+- **Medium — no resync; a bad SAN from the other seat could brick the host.** Fixed:
+  every message from the room is shape-checked (`isServerMessage`); a refused remote
+  move or an `error` triggers a reconnect and the room's `state` re-syncs the board; the
+  replay in `startRemoteGame` runs on a scratch `Chess` first and a refused list ends the
+  game with `Hra je poškozená — začni novou.`
+- **Medium — relay abuse floor.** Fixed in the Worker: `Origin` allowlist (the app's own
+  origins only), the 24 h alarm is set only after a valid `hello`/message, `ply` must be
+  an integer, a seated socket cannot `hello` with another token. Per-IP limiting stays
+  with Cloudflare (a Rate Limiting rule on `hra.zvirecisachy.cz` — owner's dashboard
+  action, see the open items). Residual risk documented: Workers Free = 100 000
+  requests/day for everyone.
+- **Low** — friend games no longer count toward a campaign; a finished friend game is
+  not recorded twice on reload; message length is documented as characters; `friendWs()`
+  accepts `ws://` only for the dev server.
+- **Legal** — root `package.json` gains `"license": "GPL-3.0-or-later"` (worker aligned),
+  copyright lines in README and `LICENSE-ARTWORK.md`; `THIRD-PARTY-NOTICES.txt` ships
+  with the site (chess.js BSD text, chessground, cburnett, Lichess, Stockfish) and is
+  linked from the footer; `LICENSE-ARTWORK.md` now lists `docs/*.png` and says `worker/`
+  is program; the consent line for real faces is in the `Vlastní figurky` dialog; a
+  player-facing privacy notice `public/soukromi.html` (controller, what goes where,
+  rights) is linked from the footer; the footer says "do 24 hodin od posledního tahu".
+- **Docs** — threat model rewritten to the current state (above), C4/C7 annotated,
+  checklist 4/5/7 updated, BACKLOG R10 marked "built, on the dev site", README stale
+  paragraphs fixed, Phase 20 DoD table present.
+- **Open** (owner): the Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz`; the
+  `člověk` set — confirm no second real person is depicted (docs disagree); the share
+  sheet on a real phone.
 

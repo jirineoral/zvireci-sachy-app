@@ -6,7 +6,7 @@
  * `applyRemoteMove`. All text goes through `textContent`.
  */
 import type { Color } from 'chess.js';
-import { connectFriend, isRoomId, randomId, roomLink, sessionFor, writeSession, type Connection, type FriendClient, type ServerMessage } from '../friend';
+import { connectFriend, isRoomId, randomId, readSession, roomLink, sessionFor, writeSession, type Connection, type FriendClient, type ServerMessage } from '../friend';
 import { copyText } from '../prompts';
 
 export interface FriendPanelDeps {
@@ -16,8 +16,8 @@ export interface FriendPanelDeps {
   storage: Storage | null;
   /** The host's colour preference for the first game (the `Barva` select). */
   pref: () => Color | 'random';
-  /** Puts the room's game on the board for this seat. */
-  start: (color: Color, sans: readonly string[]) => Promise<void>;
+  /** Puts the room's game on the board for this seat: playing, already over, or broken (a SAN chess.js refused). */
+  start: (color: Color, sans: readonly string[]) => Promise<'playing' | 'over' | 'broken'>;
   /** The friend moved; false = not accepted (out of sync). */
   applyMove: (san: string, ply: number) => boolean;
   /** `Odejít`: a fresh pre-game against the computer (the controller then calls `onLeft`). */
@@ -27,6 +27,8 @@ export interface FriendPanelDeps {
 export interface FriendPanel {
   /** Joins the room from a `#hra=` link (no-op for a bad id). */
   join: (room: string) => void;
+  /** Rejoins the room of the stored session, if any; true when it did. */
+  rejoin: () => boolean;
   /** The controller left the game over a link (`Nová hra`, a puzzle…): drop the socket. */
   onLeft: () => void;
   /** The human moved: send it. */
@@ -94,10 +96,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     rematchAsked = false;
     rematchOffered = false;
     connection = 'closed';
-    if (forget) {
-      writeSession(deps.storage, null);
-      if (location.hash.startsWith('#hra=')) history.replaceState(null, '', location.pathname + location.search);
-    }
+    if (forget) writeSession(deps.storage, null);
     render();
   };
 
@@ -112,19 +111,37 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
         over = false;
         rematchAsked = false;
         rematchOffered = false;
-        void deps.start(msg.seat, msg.sans).catch((err) => console.error('startRemoteGame failed', err));
+        void deps
+          .start(msg.seat, msg.sans)
+          .then((result) => {
+            if (result === 'broken') {
+              stop();
+              note = 'Hra je poškozená — začni novou.';
+              connection = 'closed';
+              bar.hidden = false;
+              text.textContent = note;
+              return;
+            }
+            over = result === 'over';
+            render();
+          })
+          .catch((err) => console.error('startRemoteGame failed', err));
       }
     } else if (msg.t === 'move') {
       if (deps.applyMove(msg.san, msg.ply)) sans.push(msg.san);
-      else console.warn('Remote move not applied (out of sync)', msg.ply, sans.length);
+      else {
+        console.warn('Remote move not applied — re-syncing from the room', msg.ply, sans.length);
+        client?.resync();
+      }
+    } else if (msg.t === 'error') {
+      console.warn('Relay refused a message — re-syncing from the room', msg.msg);
+      client?.resync();
     } else if (msg.t === 'peer') {
       peer = msg.online;
     } else if (msg.t === 'rematch') {
       rematchOffered = true;
     } else if (msg.t === 'full') {
       note = 'V téhle hře už dva hráči jsou.';
-    } else if (msg.t === 'error') {
-      console.warn('Relay refused a message', msg.msg);
     }
     render();
   };
@@ -133,13 +150,14 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     if (!isRoomId(room)) return;
     stop(false);
     note = '';
-    history.replaceState(null, '', `${location.pathname}${location.search}#hra=${room}`); // a reload rejoins
+    // The room id leaves the address bar (and the history) at once; the stored session brings a reload back.
+    if (location.hash.startsWith('#hra=')) history.replaceState(null, '', location.pathname + location.search);
     const session = sessionFor(deps.storage, room, pref);
     client = connectFriend(session, {
       onMessage,
       onConnection: (state, reason) => {
         connection = state;
-        if (state === 'closed' && reason === 'expired') note = 'Hra vypršela (24 h bez tahu).';
+        if (state === 'closed' && reason === 'expired') note = 'Hra vypršela (24 hodin bez tahu).';
         if (state === 'closed' && reason === 'unavailable') note = 'Server pro hru s kamarádem není dostupný.';
         if (state === 'closed' && reason === 'replaced') note = 'Hra pokračuje v jiné záložce.';
         render();
@@ -179,6 +197,12 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
 
   return {
     join: (room) => connect(room),
+    /** A stored session (this browser, this room, under 24 h) rejoins without the link. */
+    rejoin: () => {
+      const stored = readSession(deps.storage);
+      if (stored) connect(stored.room);
+      return stored !== null;
+    },
     onLeft: stop,
     onMove: (san, ply) => {
       sans.push(san);

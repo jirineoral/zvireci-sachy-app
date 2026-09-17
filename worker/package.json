@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Relay for 'Hrát s kamarádem': one Durable Object per game, moves only (docs/phase-20-plan.md).",
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

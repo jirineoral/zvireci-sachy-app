@@ -272,22 +272,32 @@ export class GameController {
    * Phase 20: a game over a link. `sans` is what the room already has (a reconnect or a
    * reload replays it); the game is on at once, no `Hrát!`, no engine, no take-backs.
    */
-  async startRemoteGame(humanColor: Color, sans: readonly string[]): Promise<void> {
+  async startRemoteGame(humanColor: Color, sans: readonly string[]): Promise<'playing' | 'over' | 'broken'> {
     const t = await this.beginTransition();
-    if (t !== this.transition) return;
+    if (t !== this.transition) return 'broken';
+    // The room holds what the other seat sent; only chess.js decides whether it is a game.
+    const replay = new Chess();
+    try {
+      for (const san of sans) replay.move(san);
+    } catch (err) {
+      console.error('The room holds a move chess.js refuses', err);
+      return 'broken';
+    }
     this.chess.reset();
-    for (const san of sans) this.chess.move(san); // the room only holds what a chess.js on the other side accepted
+    for (const san of sans) this.chess.move(san);
     this.plies = sans.map(() => null);
     this.preMove = null;
-    this.record = null;
     this.reviewPly = null;
     this.clearPuzzle();
     this.twoPlayer = false;
     this.remote = true;
     this.humanColor = humanColor;
     this.started = true;
+    // A game that was already over when we (re)joined was recorded when it ended: keep it out of the store.
+    this.record = this.chess.isGameOver() && sans.length > 0 ? this.buildRecord() : null;
     this.options.onRemoteStart(humanColor);
     this.afterPositionChange();
+    return this.chess.isGameOver() ? 'over' : 'playing';
   }
 
   /** Phase 20: the other side's move from the room. False = not ours to take (wrong turn, illegal, no remote game). */

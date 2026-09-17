@@ -2,17 +2,22 @@
  * "Hrát s kamarádem" (Phase 20, R10): the browser side of the relay in `worker/`.
  *
  * A game is a room: 12 random base32 characters made up by the host's browser and put in
- * the link's fragment (`#hra=<id>`, never sent to the Pages host or the analytics). Each
- * player is known to the room only by a random token their browser keeps in
- * `sessionStorage` (`skm.friend`) so a reload reconnects to the same seat. The room
- * forwards SAN moves and keeps the move list for 24 h; chess.js on both ends decides what
- * is legal. Nothing here is a name, an account or a cookie.
+ * the link's fragment (`#hra=<id>`, never sent to the Pages host or the analytics; dropped
+ * from the address bar once read). Each player is known to the room only by a random
+ * token their browser keeps in `localStorage` (`skm.friend`, one room, forgotten after
+ * 24 h or on `Odejít`) so a reload — or the link opened again in a fresh tab — returns to
+ * the same seat. The room forwards SAN moves and keeps the move list for 24 h; chess.js
+ * on both ends decides what is legal. Nothing here is a name, an account or a cookie.
  */
 import type { Color } from 'chess.js';
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
 const SESSION_KEY = 'skm.friend';
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // the room's own lifetime
 const ROOM_ID = /^[a-z2-7]{12}$/;
+const TOKEN = /^[a-z2-7]{16,32}$/;
+const SAN = /^[A-Za-z0-9=+#-]{2,10}$/;
+const MAX_SANS = 1000;
 const RECONNECT_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 /** Where the relay lives; the CSP `connect-src` in vite.config.ts allows exactly this origin. */
@@ -33,6 +38,33 @@ export interface FriendSession {
   token: string;
   /** The host's colour preference for the first game (the guest has none). */
   pref?: Color | 'random';
+  /** When the session was made; older than 24 h = gone with the room. */
+  at: number;
+}
+
+const isColor = (v: unknown): v is Color => v === 'w' || v === 'b';
+const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+
+/** Shape check of what the room sends; anything else is dropped (the room is ours, but the other seat is not). */
+export function isServerMessage(v: unknown): v is ServerMessage {
+  if (!v || typeof v !== 'object') return false;
+  const m = v as Record<string, unknown>;
+  switch (m.t) {
+    case 'state':
+      return isColor(m.seat) && isInt(m.game) && typeof m.peer === 'boolean' && Array.isArray(m.sans) && m.sans.length <= MAX_SANS && m.sans.every((s) => typeof s === 'string' && SAN.test(s));
+    case 'move':
+      return typeof m.san === 'string' && SAN.test(m.san) && isInt(m.ply);
+    case 'peer':
+      return typeof m.online === 'boolean';
+    case 'rematch':
+      return isColor(m.from);
+    case 'full':
+      return true;
+    case 'error':
+      return typeof m.msg === 'string' && m.msg.length <= 100;
+    default:
+      return false;
+  }
 }
 
 export interface FriendEvents {
@@ -43,7 +75,9 @@ export interface FriendEvents {
 export interface FriendClient {
   readonly session: FriendSession;
   send(msg: { t: 'move'; san: string; ply: number } | { t: 'rematch' }): void;
-  /** Deliberate leave: no reconnect, the session is forgotten. */
+  /** Drops the socket and opens a new one at once: the room answers with `state`, which re-syncs the board. */
+  resync(): void;
+  /** Deliberate leave: tells the room (the seat is freed), no reconnect. */
   close(): void;
 }
 
@@ -74,8 +108,9 @@ export function readSession(storage: Storage | null): FriendSession | null {
     const raw = storage?.getItem(SESSION_KEY);
     if (!raw) return null;
     const v = JSON.parse(raw) as Partial<FriendSession>;
-    if (typeof v.room !== 'string' || !ROOM_ID.test(v.room) || typeof v.token !== 'string' || !/^[a-z2-7]{16,32}$/.test(v.token)) return null;
-    return { room: v.room, token: v.token, pref: v.pref === 'w' || v.pref === 'b' || v.pref === 'random' ? v.pref : undefined };
+    if (typeof v.room !== 'string' || !ROOM_ID.test(v.room) || typeof v.token !== 'string' || !TOKEN.test(v.token)) return null;
+    if (!isInt(v.at) || Date.now() - v.at > SESSION_TTL_MS) return null;
+    return { room: v.room, token: v.token, pref: v.pref === 'w' || v.pref === 'b' || v.pref === 'random' ? v.pref : undefined, at: v.at };
   } catch {
     return null;
   }
@@ -94,7 +129,7 @@ export function writeSession(storage: Storage | null, session: FriendSession | n
 export function sessionFor(storage: Storage | null, room: string, pref?: Color | 'random'): FriendSession {
   const stored = readSession(storage);
   if (stored && stored.room === room) return stored;
-  const session: FriendSession = { room, token: randomId(20), pref };
+  const session: FriendSession = { room, token: randomId(20), pref, at: Date.now() };
   writeSession(storage, session);
   return session;
 }
@@ -128,13 +163,17 @@ export function connectFriend(session: FriendSession, events: FriendEvents): Fri
     });
     sock.addEventListener('message', (e) => {
       if (typeof e.data !== 'string' || e.data.length > 20_000) return;
-      let msg: ServerMessage;
+      let parsed: unknown;
       try {
-        msg = JSON.parse(e.data) as ServerMessage;
+        parsed = JSON.parse(e.data);
       } catch {
         return;
       }
-      if (!msg || typeof msg.t !== 'string') return;
+      if (!isServerMessage(parsed)) {
+        console.warn('Relay message dropped (unexpected shape)');
+        return;
+      }
+      const msg = parsed;
       if (msg.t === 'full') closed = true; // the room refused us: no point retrying
       events.onMessage(msg);
     });
@@ -162,11 +201,27 @@ export function connectFriend(session: FriendSession, events: FriendEvents): Fri
     send(msg) {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
     },
+    resync() {
+      if (closed) return;
+      const sock = ws;
+      ws = null; // the close handler ignores a socket that is no longer ours
+      sock?.close(1000, 'resync');
+      if (timer !== null) window.clearTimeout(timer);
+      attempt = 0;
+      open();
+    },
     close() {
       closed = true;
       if (timer !== null) window.clearTimeout(timer);
       const sock = ws;
       ws = null;
+      if (sock && sock.readyState === WebSocket.OPEN) {
+        try {
+          sock.send(JSON.stringify({ t: 'leave' })); // the room frees the seat and closes
+        } catch {
+          // closing anyway
+        }
+      }
       sock?.close(1000, 'leave');
       events.onConnection('closed', 'leave');
     },

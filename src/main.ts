@@ -92,9 +92,9 @@ app.innerHTML = `
     <footer class="credits">
       <p class="mission">Pro děti napořád zdarma. Bez registrace; nic o tobě neukládáme, všechno zůstává v tomhle
       prohlížeči (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich). Při hře
-      s kamarádem projdou tahy přes náš server a do 24 hodin po partii se smažou. Odkaz na zpětnou vazbu
+      s kamarádem projdou tahy přes náš server a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu
       otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
-      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> <span class="build"></span></p>
+      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
@@ -103,7 +103,8 @@ app.innerHTML = `
       zvířecí figurky jsou vygenerované umělou inteligencí ·
       klasické figurky © <a href="https://en.wikipedia.org/wiki/User:Cburnett" rel="noopener">Colin M.L. Burnett</a>
       (<a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="noopener">CC BY-SA 3.0</a>) ·
-      <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0)
+      <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0) ·
+      <a href="THIRD-PARTY-NOTICES.txt">licence třetích stran</a>
     </footer>
   </aside>
   <dialog class="promotion-dialog"></dialog>
@@ -244,7 +245,7 @@ requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', ()
 const friendPanel = buildFriendPanel({
   bar: requireElement<HTMLElement>(app, '.friend-bar'),
   button: requireElement<HTMLButtonElement>(app, '.friend'),
-  storage: safeSessionStorage(),
+  storage: safeLocalStorage(),
   pref: () => {
     const p = pieceSets?.colorPreference;
     return p === 'w' || p === 'b' ? p : 'random';
@@ -256,6 +257,7 @@ const friendPanel = buildFriendPanel({
 {
   const room = roomFromLocation(location.hash);
   if (room) friendPanel.join(room);
+  else friendPanel.rejoin(); // a reload or a re-opened tab within 24 h of the last friend game
 }
 
 // Feedback (pilot): a Google Form, opened in a new tab with the build stamp and the device
@@ -617,6 +619,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   campaignHooks = {
     currentDifficulty: () => (campaignOpponent ? strengthOf(campaignOpponent) : null),
     afterGame: (record) => {
+      if (record.mode === 'friend') return; // a friend over a link is not a campaign opponent
       if (campaignOpponent === null || record.source !== 'app' || record.humanColor === null || record.sans.length === 0) return;
       if (record.startFen !== DEFAULT_POSITION) return; // endgame training, not a campaign game
       if (manager.animalOf(other())?.id !== campaignOpponent) return;

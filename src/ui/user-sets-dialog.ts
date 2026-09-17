@@ -63,7 +63,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
   swapRowsBtn.hidden = true;
   sheetSection.append(
     el('h3', 'Nejjednodušší cesta: jeden obrázek'),
-    el('p', 'Vygeneruj list podle promptu níže (nahoře tmavá řada = černé, dole světlá = bílé; zleva pěšec, věž, jezdec, střelec, dáma, král) a nahraj ho celý — appka ho sama rozřeže. Kdyby něco nesedělo, klikni na dvě políčka a prohodí se.', 'us-note'),
+    el('p', 'Vygeneruj list podle promptu níže (nahoře tmavá řada = černé, dole světlá = bílé; zleva pěšec, věž, jezdec, střelec, dáma, král) a nahraj ho celý — appka ho sama rozřeže. Kdyby něco nesedělo, klikni na dvě políčka a prohodí se. Obličeje skutečných lidí jen s jejich souhlasem (u dětí se souhlasem rodičů).', 'us-note'),
     sheetLabel,
     swapRowsBtn,
   );

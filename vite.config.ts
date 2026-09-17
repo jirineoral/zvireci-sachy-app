@@ -74,7 +74,8 @@ function cspMeta(analytics: boolean, friendWs: string): Plugin {
 /** The relay's origin: `VITE_FRIEND_WS` from `.env.development.local` (the dev server against a local `wrangler dev`) or the public one. */
 function friendWs(mode: string): string {
   const override = loadEnv(mode, process.cwd(), 'VITE_').VITE_FRIEND_WS;
-  if (override && /^wss?:\/\/[a-z0-9.:-]+$/i.test(override)) return override;
+  const allowed = mode === 'development' ? /^wss?:\/\/[a-z0-9.:-]+$/i : /^wss:\/\/[a-z0-9.:-]+$/i; // plaintext only for the dev server
+  if (override && allowed.test(override)) return override;
   return 'wss://hra.zvirecisachy.cz';
 }
 

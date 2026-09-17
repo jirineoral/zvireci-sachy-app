@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
+    <title>Soukromí — Zvířecí šachy</title>
+    <style>
+      body { margin: 0; padding: 24px 16px 48px; background: #2b2b2b; color: #eee; font: 16px/1.5 system-ui, sans-serif; }
+      main { max-width: 720px; margin: 0 auto; }
+      h1 { font-size: 1.6rem; } h2 { font-size: 1.15rem; margin-top: 1.6em; }
+      a { color: #9ad36a; } dt { font-weight: 600; margin-top: 0.8em; } dd { margin: 0.2em 0 0; }
+      .box { padding: 10px 14px; border: 1px solid #4a5a3a; border-radius: 6px; background: #24301e; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Soukromí</h1>
+      <p class="box">Zkráceně: <b>bez registrace, bez účtu, bez cookies</b>. Partie, nastavení a vlastní figurky
+      zůstávají v tvém prohlížeči. Server se použije jen na počítání návštěv a při hře s kamarádem
+      na předávání tahů — a i tam bez jména.</p>
+
+      <h2>Kdo za appku odpovídá</h2>
+      <p>Správcem je <b>Jiří Neoral</b>, autor aplikace (fyzická osoba, nekomerční projekt „pro děti napořád
+      zdarma“). Napsat mu můžeš přes formulář zpětné vazby (odkaz „Napiš mi, co si o tom myslíš“ v patičce
+      <a href="./">appky</a>) — když chceš odpověď, vyplň v něm svůj e‑mail.</p>
+
+      <h2>Co zůstává jen v tvém prohlížeči</h2>
+      <p>Odehrané partie, nastavení (obtížnost, figurky, pomocníci), postup kampaně a koncovek, vlastní sady
+      figurek. Nic z toho appka nikam neposílá; smažeš to vymazáním dat webu v prohlížeči.</p>
+
+      <h2>Co projde přes server a proč</h2>
+      <dl>
+        <dt>Počítání návštěv (Cloudflare Web Analytics)</dt>
+        <dd>Při načtení stránky pošle prohlížeč do Cloudflare informaci o zobrazení: adresu stránky (bez
+        části za <code>#</code>), typ prohlížeče a IP adresu, ze které se spojení navazuje. Cloudflare z toho
+        počítá souhrnné počty návštěv za den; nevytváří profil, nepoužívá cookies ani otisk prohlížeče.
+        Právní důvod: oprávněný zájem provozovatele vědět, kolik lidí appku používá.</dd>
+        <dt>Hra s kamarádem přes odkaz</dt>
+        <dd>Tahy obou hráčů procházejí přes náš server u Cloudflare (<code>hra.zvirecisachy.cz</code>). Server
+        uchovává jen náhodné číslo hry, náhodný klíč místa u stolu a seznam tahů, a to <b>do 24 hodin od
+        posledního tahu</b>, pak vše smaže. Jména, účty ani zprávy neexistují. Po dobu spojení vidí Cloudflare
+        IP adresy obou hráčů (jako každý server); my je nezaznamenáváme.</dd>
+        <dt>Partie z chess.com a turnaje z Lichess</dt>
+        <dd>Jen když sám zadáš jméno hráče nebo vybereš turnaj, prohlížeč se zeptá veřejného rozhraní chess.com
+        nebo Lichess. Posílá se jen to jméno, resp. id turnaje.</dd>
+        <dt>Zpětná vazba</dt>
+        <dd>Formulář provozuje Google (Google Forms). Vyplněné odpovědi vidí správce; e‑mail je nepovinný.
+        Děti do 15 let ať formulář vyplní s rodičem.</dd>
+        <dt>Hosting</dt>
+        <dd>Stránky servíruje GitHub Pages; DNS zajišťuje Cloudflare. Oba jako každý hosting vidí IP adresu
+        při načítání stránky.</dd>
+      </dl>
+
+      <h2>Tvoje práva</h2>
+      <p>Protože appka nevede žádné účty, nemáme k tobě přiřazená žádná data, která bychom mohli vydat nebo
+      smazat — kromě odpovědí ve formuláři zpětné vazby, které na požádání smažeme. Pokud máš pocit, že něco
+      není v pořádku, napiš přes formulář; stížnost lze podat i u Úřadu pro ochranu osobních údajů
+      (<a href="https://uoou.gov.cz" rel="noopener">uoou.gov.cz</a>).</p>
+
+      <p><a href="./">← zpět do appky</a></p>
+    </main>
+  </body>
+</html>

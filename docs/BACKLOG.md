@@ -534,6 +534,9 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 - **P4 — Company-branded set requested (own faces).** Answer given: the whole-sheet
   upload (Phase 18) does it per user; a shared branded set would need consent from each
   person — not for the public library.
+- **P5 — Captured pieces / material balance** (form, 2026-09-14: "nemám přehled, kolik
+  a jaké figurky mi soupeř vyhodil a vice versa; na chess.com vidím, že vedu +3").
+  → Phase 19: trays beside the spectator kings + `+N` for the leading side.
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
 

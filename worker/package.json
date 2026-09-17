@@ -1,0 +1,17 @@
+{
+  "name": "zvireci-sachy-relay",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Relay for 'Hrát s kamarádem': one Durable Object per game, moves only (docs/phase-20-plan.md).",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260916.1",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.133.0"
+  }
+}

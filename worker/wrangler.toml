@@ -1,0 +1,16 @@
+# Relay for "Hrát s kamarádem" (Phase 20). One Durable Object per game, moves only.
+name = "zvireci-sachy-relay"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# No logs, no traces: the relay must not keep anything about the players (docs/security-review.md).
+[observability]
+enabled = false
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]

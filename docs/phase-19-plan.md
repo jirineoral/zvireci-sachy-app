@@ -33,17 +33,38 @@ README.md, docs/BACKLOG.md MOD
 ```
 
 ## Definition of Done
-1. `1.e4 d5 2.exd5 Qxd5 3.Nc3 Qxd2+ 4.Qxd2` → white's tray: pawn + queen, black's: pawn +
-   pawn; nobody leads (+0 hidden)… then check the queen exchange shows `+0` → nothing;
-   after `4…Nf6 5.Qd8+`?? not needed — instead: `1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 4.Ng5 d5
-   5.exd5 Nxd5 6.Nxf7 Kxf7` → white tray: pawn, black tray: pawn + knight, black `+3`.
+1. `1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 4.Ng5 d5 5.exd5 Nxd5 6.Nxf7 Kxf7` → white's tray: pawn,
+   black's tray: pawn + knight, black `+2`; equal material shows nothing.
 2. Undo removes the last capture from the tray; new game clears both.
 3. Review: stepping through a saved game changes the trays with the ply.
 4. Endgame training from a FEN starts with empty trays; balance shows the real material
    (e.g. K+Q vs K → `+9` on the trainee's side).
-5. Promotion: a pawn promoting shows as a lost pawn on the other side; balance +8 for
-   the promoting side (queen 9 − pawn 1).
+5. Promotion: the promoted pawn shows as a lost pawn in the other side's tray; the
+   balance counts the queen.
 6. Win/loss: the opponent's tray disappears with the king; `Rozbor` brings both back.
 7. Piece set switch mid-game restyles the tray pieces (same `.cg-wrap` mechanism).
 8. Mobile width (375 px): trays fit, no horizontal overflow.
 9. `npm run build`; no debug code; `git grep -e SKM_DEBUG -e debugLoadFen HEAD -- src` empty.
+
+## DoD results (executed 2026-09-17)
+
+Dev server, in-app pane, two-player mode for the move sequences; moves through a
+temporary `debugHumanMove` hook (removed before commit).
+
+| # | Item | Result | Observed |
+|---|------|--------|----------|
+| 1 | Capture sequence | PASS | after 6…Kxf7: black's tray `pawn, knight` + `+2`, white's `pawn, pawn`, no lead; after 5…Nxd5 both trays one pawn, nothing shown as lead |
+| 2 | Undo / new game | PASS | undo of Kxf7 → black's tray `pawn`, white `+1`; new game → both trays hidden |
+| 3 | Review | PASS | loaded 20-ply game: ply 0 empty, ply 10 pawn/pawn, ply 20 `pawn, knight, bishop, queen +7` vs `pawn ×3, knight, bishop`; back to ply 0 → empty |
+| 4 | Training from FEN | PASS | K+Q vs K: both trays empty, `+9` on the trainee's side |
+| 5 | Promotion | PASS | `k7/4P3/…` e8=Q → black's tray `pawn` (white), white `+9` |
+| 6 | Win / loss | PASS | Rh8# → top spectator `spectator-gone`, its tray `visibility: hidden`; `Rozbor` → both visible |
+| 7 | Set switch | PASS | `hlavy` → `klasicke`: the tray pieces' `background-image` changed from the kůzlata PNG to the bundled SVG |
+| 8 | Mobile | PASS | 375 px: 20 px pieces, `scrollWidth === clientWidth` on the row, bubble shrinks beside a five-piece tray |
+| 9 | Build / hygiene | PASS | `tsc` strict clean; hooks removed; grep empty at HEAD |
+
+Deviation / found on the way: **the P3 settings did not persist** — `FEEDBACK_STORAGE_KEY`
+and `UNDO_LIMIT_STORAGE_KEY` were `const`s declared *after* the controller construction
+that reads them, so the read threw (temporal dead zone), the `catch` returned the default
+and a stored `zapnuto` / `bez omezení` was ignored on every reload (before P3 the same
+bug kept the feedback always on). Fixed by moving the two keys above the construction.

@@ -28,13 +28,13 @@ const app = requireElement<HTMLDivElement>(document, '#app');
 
 app.innerHTML = `
   <div class="stage">
-    <div class="spectator spectator-top cg-wrap"><piece class="king black"></piece><div class="bubble" hidden></div></div>
+    <div class="spectator spectator-top cg-wrap"><piece class="king black"></piece><div class="captured" hidden></div><div class="bubble" hidden></div></div>
     <div class="board-row">
       <div class="eval-bar" hidden><div class="eval-fill"></div><span class="eval-text"></span></div>
       <div class="board"></div>
       <div class="announce" hidden></div>
     </div>
-    <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="bubble" hidden></div></div>
+    <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="captured" hidden></div><div class="bubble" hidden></div></div>
   </div>
   <aside class="panel">
     <h1>Zvířecí šachy <small class="subtitle">(nejen) pro děti</small></h1>
@@ -112,6 +112,11 @@ const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-s
 // Byte size of stockfish-18-lite-single.wasm as shipped by stockfish@18.0.8. Used by the
 // engine's reachability pre-check (±5 %). UPDATE THIS when the engine version changes.
 const ENGINE_WASM_BYTES = 7_295_411;
+// Read while the controller is constructed below — the keys must be initialised before
+// that (a `const` further down would still be in its temporal dead zone: the read throws,
+// the catch returns the default, and the stored setting is silently ignored).
+const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
+const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 
 // The controller owns engine-failure handling (before and after the handshake). It is
 // constructed after the engine, hence the late binding.
@@ -606,8 +611,6 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   };
 }
 
-const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
-const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 
 // Pilot feedback (P3): the helpers are OFF by default — a child should learn to see a
 // hanging piece and to think before moving; adults switch them on explicitly.

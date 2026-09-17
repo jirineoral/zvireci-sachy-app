@@ -34,6 +34,7 @@ import {
   type ReviewControlElements,
 } from './ui/review-controls';
 import { renderSpectators, type Outcome, type SpectatorElements } from './ui/spectators';
+import { capturedMaterial } from './material';
 import { renderStatus, type EngineIndicator } from './ui/status';
 
 export interface GameControllerElements {
@@ -944,7 +945,10 @@ export class GameController {
       const zvuk = this.options.voiceOf(this.humanColor)?.sound ?? DEFAULT_VOICE.sound;
       bubbles[this.humanColor === 'w' ? 'white' : 'black'] = pick(ENDINGS[outcome], sans.join(' ')).replace('{zvuk}', zvuk);
     }
-    renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles, outcome });
+    // Phase 19: trays follow the position on the screen (the reviewed ply while reviewing).
+    const shown = this.reviewPly !== null ? positionAt(this.startFen(), sans, this.reviewPly) : this.chess;
+    const material = capturedMaterial(new Chess(this.startFen()), shown);
+    renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles, outcome, material });
   }
 
   /** Phase 17: how a game the child just played ended for them (null outside that case). */

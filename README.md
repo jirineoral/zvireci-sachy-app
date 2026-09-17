@@ -92,6 +92,13 @@ Progress lives in the browser (`skm.puzzles`).
 below): no engine, no move feedback, undo takes back one ply. Such games are saved but
 kept out of `Bilance`.
 
+## Captured pieces
+
+Next to each king sits what that side has captured (drawn by the active piece set) and
+`+N` when it leads on material (P 1, N 3, B 3, R 5, Q 9). It follows the position on the
+screen — undo, review and loaded games included — and is computed from the game's start
+position, so an endgame training starts with empty trays and the real balance.
+
 ## Game end
 
 When a game the child played ends, their king reacts: a win makes it jump and shout its

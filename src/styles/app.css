@@ -368,8 +368,33 @@ body {
   pointer-events: none;
 }
 
+/* Captured pieces beside each king (Phase 19): the opponent's pieces this side took,
+   overlapping so fifteen fit, and `+N` when it leads. The row is a `.cg-wrap`, so the
+   active piece set draws them. */
+.spectator .captured {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding-left: 8px;
+  --tray-size: 24px;
+}
+
+.spectator .captured piece {
+  width: var(--tray-size);
+  height: var(--tray-size);
+  margin-left: calc(var(--tray-size) * -0.35);
+}
+
+.spectator .captured .lead {
+  margin-left: 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #f0e6c8;
+}
+
 .bubble {
   position: relative;
+  min-width: 0;
   max-width: 440px;
   padding: 8px 12px;
   border-radius: 14px;
@@ -987,6 +1012,11 @@ body {
     height: 48px;
     --spectator-size: 48px;
     gap: 8px;
+  }
+
+  .spectator .captured {
+    --tray-size: 20px;
+    padding-left: 4px;
   }
 
   .bubble {

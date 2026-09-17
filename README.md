@@ -6,20 +6,22 @@ Live: **https://zvirecisachy.cz** · feedback form linked in the app's footer.
 
 ## Licence
 
-The program is free software under the **GNU GPL-3.0** (`LICENSE`) — the consequence of
+Copyright (C) 2026 Jiří Neoral. The program is free software under the **GNU GPL-3.0 or
+later** (`LICENSE`; `"license"` in both `package.json`s) — the consequence of
 bundling `@lichess-org/chessground` (GPL-3.0-or-later) and shipping Stockfish.js
 (GPL-3.0), and a deliberate choice: the app is meant to stay free for children. The
 **artwork is not under the GPL** — see `LICENSE-ARTWORK.md`. Third-party notices:
 Stockfish (`public/engine/LICENSE-GPL-3.0.txt` after `npm ci`), chessground (GPL-3.0),
-chess.js (BSD-2), cburnett pieces (CC BY-SA 3.0), Lichess puzzles (CC0).
+chess.js (BSD-2), cburnett pieces (CC BY-SA 3.0), Lichess puzzles (CC0) — the notices
+ship with the site as `THIRD-PARTY-NOTICES.txt` (linked in the footer). Privacy notice for
+players: `public/soukromi.html` (`Soukromí` in the footer).
 
-A personalized chess app for a young competitive player. Phase 1 was a local
-human-vs-human board in the browser; Phase 2 adds a Stockfish opponent with adjustable
-strength, side selection, undo and a promotion dialog. Only
-legal moves are accepted, and the game ends correctly (checkmate, stalemate,
-insufficient material, threefold repetition, fifty-move rule). All rules come from
-`chess.js`; `@lichess-org/chessground` only renders the board. Later phases add a
-custom piece set (frogs vs. goats) and PWA packaging.
+A chess app for children (and anyone else): a Stockfish opponent with a seven-step
+ladder, animal piece sets, a campaign, puzzles, endgame training, saved games with
+analysis, tournament broadcasts, and a game with a friend over a link. Only legal moves
+are accepted, and the game ends correctly (checkmate, stalemate, insufficient material,
+threefold repetition, fifty-move rule). All rules come from `chess.js`;
+`@lichess-org/chessground` only renders the board.
 
 ## Commands
 
@@ -86,6 +88,29 @@ selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess s
 the opponent's move plays itself, then you find the solution; the two kings comment.
 Progress lives in the browser (`skm.puzzles`).
 
+## Play with a friend over a link
+
+`Kamarád` makes a game and copies its link (`https://zvirecisachy.cz/#hra=<12 random
+characters>`); `Sdílet…` opens the phone's share sheet (WhatsApp, SMS…). The friend opens
+the link and the two boards are paired: each player moves their own colour, sees their own
+piece set, and the bar under the status line says when the other side left or came back. No engine, no
+move feedback, no take-backs in this mode — `Odveta` after the game swaps colours. Games
+are saved with `mode: 'friend'` and kept out of `Bilance`.
+
+This is the one thing in the app that touches a server: a small Cloudflare Worker
+(`worker/`, one Durable Object per game) forwards the moves and keeps the move list so a
+reload or a dropped connection resumes; the room is deleted 24 hours after the last
+message. It never sees a name, an account or a cookie — only a random room id, a random
+seat token per browser (`localStorage` `skm.friend`, forgotten after 24 h or on `Odejít`,
+so the link opened again in a fresh tab returns to the same seat) and SAN moves; it
+accepts sockets only from the app's own origins. The relay's origin is the only WebSocket
+the CSP allows (`vite.config.ts`). Deploy: `cd worker`, `npm ci`, `npx wrangler deploy`
+(custom domain `hra.zvirecisachy.cz` in `wrangler.toml`; logs off). When a message shape
+changes, deploy the Worker first and the site after it (the client drops messages it does
+not recognise). The dev server can
+point at a local `wrangler dev` through `.env.development.local`
+(`VITE_FRIEND_WS=ws://127.0.0.1:8790`, gitignored).
+
 ## Two players
 
 `Barva` → „dva hráči (bez počítače)“ turns the board into a plain two-player board (white
@@ -121,7 +146,7 @@ In `Partie`, the `Chess.com` section loads a player's games straight from the pu
 chess.com API (`api.chess.com/pub`, no password, no server in between): pick a month,
 open a game in the review or save it among the games. When the username is one of the two
 players, the review knows which side is yours. The username is remembered
-(`skm.chesscom`); this is the one external host the CSP allows.
+(`skm.chesscom`); this is one of the few external hosts the CSP allows (with Lichess, the friend relay and, on the public site, Cloudflare's analytics).
 
 ## Tournament broadcasts
 

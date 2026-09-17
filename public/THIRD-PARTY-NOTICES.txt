@@ -1,0 +1,53 @@
+Zvířecí šachy (nejen) pro děti — third-party notices
+======================================================
+
+The program is Copyright (C) 2026 Jiří Neoral and is free software under the GNU
+General Public License, version 3 or (at your option) any later version. Source:
+https://github.com/jirineoral/zvireci-sachy-app — LICENSE there; the GPL text also
+ships here as engine/LICENSE-GPL-3.0.txt. The animal artwork is not under the GPL
+(LICENSE-ARTWORK.md in the source repository).
+
+This site bundles or ships the following third-party works:
+
+1. Stockfish 18 (chess engine), GPL-3.0 — https://github.com/official-stockfish/Stockfish
+   as compiled to WebAssembly by stockfish.js (Nathan Rugg), GPL-3.0 —
+   https://github.com/nmrugg/stockfish.js. Shipped unmodified as engine/*.js and
+   engine/*.wasm; licence text: engine/LICENSE-GPL-3.0.txt.
+
+2. chessground (board rendering), Copyright (C) Lichess Team, GPL-3.0-or-later —
+   https://github.com/lichess-org/chessground. Bundled into the application script.
+
+3. cburnett chess piece set, © Colin M.L. Burnett, CC BY-SA 3.0 —
+   https://en.wikipedia.org/wiki/User:Cburnett,
+   https://creativecommons.org/licenses/by-sa/3.0/. Bundled unmodified (as data URIs in
+   the chessground stylesheet); used as the "Klasické" pieces.
+
+4. chess.js (chess rules), BSD-2-Clause — https://github.com/jhlywa/chess.js.
+   Bundled into the application script. Licence:
+
+Copyright (c) 2025, Jeff Hlywa (jhlywa@gmail.com)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+5. Puzzle positions in puzzles/puzzles.json come from the Lichess puzzle database,
+   released under CC0 — https://database.lichess.org/#puzzles.

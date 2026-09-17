@@ -1253,7 +1253,9 @@ body {
 }
 
 /* Campaign (Phase 11). */
-.campaign-bar {
+/* The campaign bar (Phase 11) and the friend bar (Phase 20) share one look. */
+.campaign-bar,
+.friend-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1266,11 +1268,13 @@ body {
   color: #d8e6c8;
 }
 
-.campaign-bar[hidden] {
+.campaign-bar[hidden],
+.friend-bar[hidden] {
   display: none;
 }
 
-.campaign-bar button {
+.campaign-bar button,
+.friend-bar button {
   padding: 4px 10px;
   font: inherit;
   border: 1px solid #666;
@@ -1280,6 +1284,11 @@ body {
   cursor: pointer;
 }
 
+.friend-bar .friend-text {
+  flex: 1 1 100%;
+}
+
+.friend-bar .friend-rematch,
 .campaign-bar .campaign-next {
   background: #4caf50;
   border-color: #4caf50;

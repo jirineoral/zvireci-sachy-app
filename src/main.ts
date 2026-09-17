@@ -23,6 +23,8 @@ import { interpolateDifficulty, type Difficulty } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
+import { buildFriendPanel } from './ui/friend-panel';
+import { roomFromLocation } from './friend';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 
@@ -62,6 +64,7 @@ app.innerHTML = `
     </details>
     <div class="campaign-bar" hidden><span class="campaign-text"></span><button type="button" class="campaign-next" hidden></button><button type="button" class="campaign-open">Kampaň…</button></div>
     <div class="status"></div>
+    <div class="friend-bar" hidden></div>
     <div class="review-controls" hidden>
       <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
       <button type="button" class="review-prev" aria-label="Předchozí tah">◀</button>
@@ -84,12 +87,14 @@ app.innerHTML = `
       <button type="button" class="endgames">Koncovky</button>
       <button type="button" class="broadcasts">Turnaje</button>
       <button type="button" class="campaign">Kampaň</button>
+      <button type="button" class="friend">Kamarád</button>
     </div>
     <footer class="credits">
-      <p class="mission">Pro děti napořád zdarma. Hra nic nikam neposílá, všechno zůstává v tomhle prohlížeči
-      (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich). Odkaz na zpětnou vazbu
+      <p class="mission">Pro děti napořád zdarma. Bez registrace; nic o tobě neukládáme, všechno zůstává v tomhle
+      prohlížeči (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich). Při hře
+      s kamarádem projdou tahy přes náš server a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu
       otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
-      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> <span class="build"></span></p>
+      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
@@ -98,7 +103,8 @@ app.innerHTML = `
       zvířecí figurky jsou vygenerované umělou inteligencí ·
       klasické figurky © <a href="https://en.wikipedia.org/wiki/User:Cburnett" rel="noopener">Colin M.L. Burnett</a>
       (<a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="noopener">CC BY-SA 3.0</a>) ·
-      <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0)
+      <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0) ·
+      <a href="THIRD-PARTY-NOTICES.txt">licence třetích stran</a>
     </footer>
   </aside>
   <dialog class="promotion-dialog"></dialog>
@@ -169,6 +175,16 @@ controller = new GameController(
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
     nextColor: () => pieceSets?.drawColor() ?? 'w',
     twoPlayer: () => pieceSets?.colorPreference === 'two',
+    onRemoteStart: (color) => {
+      endgamePanel.close();
+      pieceSets?.startGame(color);
+      renderMatchup();
+    },
+    onRemoteMove: (san, ply) => friendPanel.onMove(san, ply),
+    onRemoteEnd: () => {
+      friendPanel.onLeft();
+      renderMatchup();
+    },
     onNewGame: (color) => {
       endgamePanel.close();
       campaignHooks?.beforeNewGame();
@@ -180,7 +196,8 @@ controller = new GameController(
       black: pieceSets?.animalOf('b')?.name ?? 'černý',
     }),
     onGameRecord: (record) => {
-      record.mode = endgamePanel.current ? 'training' : campaignOpponent ? 'campaign' : pieceSets?.colorPreference === 'two' ? 'two' : 'play';
+      record.mode = game.isRemote ? 'friend' : endgamePanel.current ? 'training' : campaignOpponent ? 'campaign' : pieceSets?.colorPreference === 'two' ? 'two' : 'play';
+      if (game.isRemote) friendPanel.onGameOver();
       void saveGame(record);
       campaignHooks?.afterGame(record);
       endgamePanel.onGameRecord(record);
@@ -223,6 +240,25 @@ requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', ()
   requireElement<HTMLElement>(app, '.puzzle-panel').hidden = true;
   endgamePanel.open();
 });
+
+// Play with a friend over a link (Phase 20): the bar under the status line, the `Kamarád` button, `#hra=` on load.
+const friendPanel = buildFriendPanel({
+  bar: requireElement<HTMLElement>(app, '.friend-bar'),
+  button: requireElement<HTMLButtonElement>(app, '.friend'),
+  storage: safeLocalStorage(),
+  pref: () => {
+    const p = pieceSets?.colorPreference;
+    return p === 'w' || p === 'b' ? p : 'random';
+  },
+  start: (color, sans) => game.startRemoteGame(color, sans),
+  applyMove: (san, ply) => game.applyRemoteMove(san, ply),
+  leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
+});
+{
+  const room = roomFromLocation(location.hash);
+  if (room) friendPanel.join(room);
+  else friendPanel.rejoin(); // a reload or a re-opened tab within 24 h of the last friend game
+}
 
 // Feedback (pilot): a Google Form, opened in a new tab with the build stamp and the device
 // prefilled — no address in the code, nothing sent from the app itself.
@@ -370,8 +406,14 @@ void openUserSetStore()
       void intro.start(pool);
     }
     // The controller opened its first game before the preferences were known: draw again
-    // (no move has been played yet; a new game is what a colour change means anyway).
-    void game.newGame().catch((err) => console.error('newGame failed', err));
+    // (no move has been played yet; a new game is what a colour change means anyway) —
+    // unless a game over a link (`#hra=`) is already on: then only align the characters.
+    if (game.isRemote) {
+      manager.startGame(game.humanSide);
+      renderMatchup();
+    } else {
+      void game.newGame().catch((err) => console.error('newGame failed', err));
+    }
   })
   .catch((err) => console.error('Piece sets failed to initialise', err));
 
@@ -387,6 +429,10 @@ function renderMatchup(): void {
   const me = manager.animalOf(manager.humanColor);
   const them = manager.animalOf(manager.humanColor === 'w' ? 'b' : 'w');
   const other = manager.humanColor === 'w' ? 'b' : 'w';
+  if (game.isRemote) {
+    matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Kamarád (${COLOR_NAME[other]})`;
+    return;
+  }
   if (manager.colorPreference === 'two') {
     matchupEl.textContent = `Dva hráči · ${COLOR_NAME[manager.humanColor]}: ${me?.name ?? '?'} · ${COLOR_NAME[other]}: ${them?.name ?? '?'}`;
     return;
@@ -447,7 +493,7 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
   // Colour is a preference; changing it means a new game (the controller draws via nextColor).
   sideSelect.addEventListener('change', () => {
     manager.setColorPreference(sideSelect.value as ColorPreference);
-    void game.newGame().catch((err) => console.error('newGame failed', err));
+    if (!game.isRemote) void game.newGame().catch((err) => console.error('newGame failed', err)); // a friend game keeps its colours
     render();
   });
   render();
@@ -573,6 +619,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   campaignHooks = {
     currentDifficulty: () => (campaignOpponent ? strengthOf(campaignOpponent) : null),
     afterGame: (record) => {
+      if (record.mode === 'friend') return; // a friend over a link is not a campaign opponent
       if (campaignOpponent === null || record.source !== 'app' || record.humanColor === null || record.sans.length === 0) return;
       if (record.startFen !== DEFAULT_POSITION) return; // endgame training, not a campaign game
       if (manager.animalOf(other())?.id !== campaignOpponent) return;

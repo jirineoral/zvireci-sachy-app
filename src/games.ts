@@ -42,7 +42,7 @@ export interface GameRecord {
   mode?: GameMode;
 }
 
-export type GameMode = 'play' | 'campaign' | 'training' | 'two';
+export type GameMode = 'play' | 'campaign' | 'training' | 'two' | 'friend';
 
 export interface Tally {
   wins: number;
@@ -76,7 +76,7 @@ function addTo(t: Tally, record: GameRecord): void {
 export function statsFrom(records: readonly GameRecord[]): GameStats {
   const stats: GameStats = { byLevel: Array.from({ length: 8 }, emptyTally), campaign: emptyTally(), unknown: emptyTally(), total: emptyTally(), byOpponent: [] };
   for (const r of records) {
-    if (r.source !== 'app' || r.humanColor === null || r.result === '*' || r.mode === 'training' || r.mode === 'two') continue;
+    if (r.source !== 'app' || r.humanColor === null || r.result === '*' || r.mode === 'training' || r.mode === 'two' || r.mode === 'friend') continue;
     addTo(stats.total, r);
     if (r.mode === 'campaign') addTo(stats.campaign, r);
     else if (r.level !== undefined && r.level >= 1 && r.level <= 7) addTo(stats.byLevel[r.level], r);
@@ -186,7 +186,7 @@ function isGameRecord(value: unknown): value is GameRecord {
     v.plies.every(isPlyData) &&
     (v.source === 'app' || v.source === 'pgn') &&
     (v.level === undefined || (typeof v.level === 'number' && Number.isInteger(v.level) && v.level >= 1 && v.level <= 7)) &&
-    (v.mode === undefined || v.mode === 'play' || v.mode === 'campaign' || v.mode === 'training' || v.mode === 'two')
+    (v.mode === undefined || v.mode === 'play' || v.mode === 'campaign' || v.mode === 'training' || v.mode === 'two' || v.mode === 'friend')
   );
 }
 

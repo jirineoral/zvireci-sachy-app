@@ -2,6 +2,9 @@
 name = "zvireci-sachy-relay"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
+# hra.zvirecisachy.cz → this Worker (Cloudflare creates the proxied record and the certificate).
+routes = [{ pattern = "hra.zvirecisachy.cz", custom_domain = true }]
+
 
 # No logs, no traces: the relay must not keep anything about the players (docs/security-review.md).
 [observability]

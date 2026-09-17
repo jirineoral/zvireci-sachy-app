@@ -583,7 +583,9 @@ hundred bytes each way (SDP offer/answer, ICE) before they can talk.
   stays P2P. This is the smallest possible first server component and arguably a better
   first one than sync: the child gets more out of it.
 
-Parked until the owner opens the GATE; variant A can be built any time.
+**GATE opened by the owner on 2026-09-17 for variant B** — as a WebSocket relay (a
+Cloudflare Worker + one Durable Object per game; free at our scale, works on every
+network) rather than P2P + signalling. Plan: `docs/phase-20-plan.md`.
 
 ## R11 — Social media presence (owner, 2026-09-14)
 

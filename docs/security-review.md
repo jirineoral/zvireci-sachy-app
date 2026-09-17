@@ -535,3 +535,12 @@ from the round-1 changes, fixed before publishing:
   poslední aktivity"); the Origin allowlist comment says it is an embedding filter, not
   authentication; plan decision 7 corrected; DoD rows 2/3 re-run with the new flow.
 
+### 2026-09-17 — colleague review round 3 (at `cd5829b`): final verdict
+All round-1/2 findings confirmed closed; **"safe to merge and to publish to the public
+site"**. Two Low notes fixed in `7d81fba` (the stored session is touched on the player's
+own moves and on `peer` events so a host who waits long is still rejoined; `displaced`
+survives a rematch; README says "Worker first, then the site" for message-shape changes).
+Open owner items carried in the round-1 entry; the Cloudflare Rate Limiting rule on
+`hra.zvirecisachy.cz` is the one to do first (the only mitigation for the Free-plan daily
+request ceiling).
+

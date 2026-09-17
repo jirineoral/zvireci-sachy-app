@@ -588,9 +588,9 @@ hundred bytes each way (SDP offer/answer, ICE) before they can talk.
 
 **GATE opened by the owner on 2026-09-17 for variant B** — as a WebSocket relay (a
 Cloudflare Worker + one Durable Object per game; free at our scale, works on every
-network) rather than P2P + signalling. **Built in Phase 20** (`Kamarád`, `#hra=` links,
-relay at `hra.zvirecisachy.cz`), on the dev site; ships to the public site with the merge
-of `feat/p20-friend` after the colleague review. Plan and DoD: `docs/phase-20-plan.md`.
+network) rather than P2P + signalling. **SHIPPED in Phase 20** (2026-09-17: `Kamarád`,
+`#hra=` links, relay at `hra.zvirecisachy.cz`; three-round colleague review, see
+`docs/security-review.md`). Plan and DoD: `docs/phase-20-plan.md`.
 
 ## R11 — Social media presence (owner, 2026-09-14)
 

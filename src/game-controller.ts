@@ -69,6 +69,12 @@ export interface GameControllerOptions {
   nextColor: () => Color;
   /** B7: the next game is two people at one board — no engine, white below. */
   twoPlayer: () => boolean;
+  /** Phase 20: a game over a link started; the view shows who is who. */
+  onRemoteStart: (humanColor: Color) => void;
+  /** Phase 20: the human's move in a game over a link (SAN + its ply index), to send. */
+  onRemoteMove: (san: string, ply: number) => void;
+  /** Phase 20: `Nová hra` (or a puzzle/training) left the game over a link. */
+  onRemoteEnd: () => void;
   /** Told after every new game which colour was drawn. */
   onNewGame: (color: Color) => void;
   /** Display names of the two sides for saved games ("kůzlata", "hadi", …). */
@@ -155,6 +161,8 @@ export class GameController {
   private started = false;
   /** B7: two players at one board (no engine, both colours movable). Set per game. */
   private twoPlayer = false;
+  /** Phase 20: a game over a link — this browser moves `humanColor`, the other side's moves arrive by `applyRemoteMove`. */
+  private remote = false;
   /** Phase 12: the piece drop in progress (board locked, engine waiting), or null. */
   private starting: { done: Promise<void>; cancel: () => void } | null = null;
 
@@ -221,6 +229,7 @@ export class GameController {
   async newGame(): Promise<void> {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
+    this.leaveRemote();
     this.twoPlayer = this.options.twoPlayer();
     this.humanColor = this.twoPlayer ? 'w' : this.options.nextColor();
     this.chess.reset();
@@ -250,12 +259,65 @@ export class GameController {
     this.record = null;
     this.reviewPly = null;
     this.clearPuzzle();
+    this.leaveRemote();
     this.twoPlayer = false;
     this.humanColor = humanColor;
     this.started = true;
     if (this.engineState === 'ready') this.engine.newGame();
     this.options.onTrainingStart(humanColor);
     this.afterPositionChange();
+  }
+
+  /**
+   * Phase 20: a game over a link. `sans` is what the room already has (a reconnect or a
+   * reload replays it); the game is on at once, no `Hrát!`, no engine, no take-backs.
+   */
+  async startRemoteGame(humanColor: Color, sans: readonly string[]): Promise<void> {
+    const t = await this.beginTransition();
+    if (t !== this.transition) return;
+    this.chess.reset();
+    for (const san of sans) this.chess.move(san); // the room only holds what a chess.js on the other side accepted
+    this.plies = sans.map(() => null);
+    this.preMove = null;
+    this.record = null;
+    this.reviewPly = null;
+    this.clearPuzzle();
+    this.twoPlayer = false;
+    this.remote = true;
+    this.humanColor = humanColor;
+    this.started = true;
+    this.options.onRemoteStart(humanColor);
+    this.afterPositionChange();
+  }
+
+  /** Phase 20: the other side's move from the room. False = not ours to take (wrong turn, illegal, no remote game). */
+  applyRemoteMove(san: string, ply: number): boolean {
+    if (!this.remote || this.reviewPly !== null || this.promotionOpen) return false;
+    if (ply !== this.chess.history().length || this.chess.turn() === this.humanColor) return false;
+    try {
+      this.chess.move(san);
+    } catch (err) {
+      console.error('Remote move rejected by chess.js', san, this.chess.fen(), err);
+      return false;
+    }
+    this.plies.push(null);
+    this.afterPositionChange();
+    return true;
+  }
+
+  get isRemote(): boolean {
+    return this.remote;
+  }
+
+  /** The colour this browser moves. */
+  get humanSide(): Color {
+    return this.humanColor;
+  }
+
+  private leaveRemote(): void {
+    if (!this.remote) return;
+    this.remote = false;
+    this.options.onRemoteEnd();
   }
 
   /** Starts a puzzle (Phase 10): the opponent's first move plays itself after a beat. */
@@ -269,6 +331,7 @@ export class GameController {
     this.reviewPly = null;
     this.clearPuzzle();
     this.puzzle = { moves, index: 0, hint: 0, attempts: 0, message: 'start' };
+    this.leaveRemote();
     this.twoPlayer = false;
     this.humanColor = this.chess.turn() === 'w' ? 'b' : 'w';
     this.started = true;
@@ -378,6 +441,7 @@ export class GameController {
     if (replayRecord(record) === null) return false;
     const t = await this.beginTransition();
     if (t !== this.transition) return false;
+    this.leaveRemote();
     this.chess.load(record.startFen);
     for (const san of record.sans) this.chess.move(san);
     this.plies = record.plies.map((p) => (p ? { ...p } : null));
@@ -471,6 +535,7 @@ export class GameController {
 
   async undo(): Promise<void> {
     if (this.chess.history().length === 0 || this.reviewPly !== null) return;
+    if (this.remote) return; // no take-backs against a friend over a link (a rematch instead)
     if (this.undosLeft !== null && this.undosLeft <= 0 && !this.twoPlayer) return;
     // Evaluated before the await: the position cannot change during it (board locked or idle).
     const wasEngineTurn = this.chess.turn() !== this.humanColor;
@@ -636,7 +701,7 @@ export class GameController {
   }
 
   private feedbackActive(status: GameStatus): boolean {
-    return this.feedbackEnabled && this.engineState === 'ready' && !status.over && this.puzzle === null && !this.twoPlayer;
+    return this.feedbackEnabled && this.engineState === 'ready' && !status.over && this.puzzle === null && !this.twoPlayer && !this.remote;
   }
 
   /** Analysis A: evaluate the position the human is about to move in (runs while they think). */
@@ -721,6 +786,10 @@ export class GameController {
       this.started = true; // playing white, the first move is the start
     } catch (err) {
       console.error(`Move ${from}->${to} rejected by chess.js`, err);
+    }
+    if (moved && this.remote) {
+      const history = this.chess.history();
+      this.options.onRemoteMove(history[history.length - 1], history.length - 1);
     }
     if (moved) await this.evaluateHumanMove(fenBefore, `${from}${to}${promotion ?? ''}`);
     this.afterPositionChange();
@@ -809,7 +878,7 @@ export class GameController {
   }
 
   private maybeStartEngine(status: GameStatus): void {
-    if (status.over || !this.started || this.twoPlayer) return;
+    if (status.over || !this.started || this.twoPlayer || this.remote) return;
     if (this.engineState !== 'ready') return;
     if (this.chess.turn() === this.humanColor) return;
     if (this.pendingSearch !== null || this.pendingAnalysis !== null || this.evaluating) return;
@@ -898,6 +967,7 @@ export class GameController {
 
   private movableColor(status: GameStatus): BoardColor | null {
     if (status.over || this.promotionOpen || this.pendingSearch !== null || this.evaluating || this.starting !== null) return null;
+    if (this.remote) return this.chess.turn() === this.humanColor ? toBoardColor(this.humanColor) : null; // the friend's turn
     if (this.engineState === 'failed' || this.twoPlayer) return toBoardColor(this.chess.turn()); // two people at one board
     if (this.chess.turn() !== this.humanColor) return null; // engine's turn (or still loading)
     return toBoardColor(this.humanColor);
@@ -996,7 +1066,7 @@ export class GameController {
       difficultyLocked: this.difficultyOverride !== null,
       feedbackEnabled: this.feedbackEnabled,
       undoEnabled:
-        this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null && (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
+        this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null && !this.remote && (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
       undosLeft: this.twoPlayer ? null : this.undosLeft,
       undoLimit: this.undoBudget,
       disabled: this.promotionOpen,

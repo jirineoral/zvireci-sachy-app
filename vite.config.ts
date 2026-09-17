@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 
 /** Build stamp for the footer / feedback form: short commit + its date, e.g. "1d80155 · 13. 9. 2026" (deterministic per commit). */
 function buildStamp(): string {
@@ -31,18 +31,19 @@ function buildStamp(): string {
  *    chess.com API (Phase 15 import) and the Lichess broadcast API (Phase 16), both
  *    unauthenticated with CORS `*`.
  *  - frame-ancestors cannot be expressed in a <meta> policy; a header would be needed.
+ *  - connect-src <relay>: the "Hrát s kamarádem" WebSocket (Phase 20) — only this origin.
  *  - Cloudflare Web Analytics (public site only, `--mode pages`): the beacon script from
  *    static.cloudflareinsights.com and its POST to cloudflareinsights.com. It counts page
  *    views and visits per day without cookies, fingerprinting or a visitor id (Cloudflare's
  *    "privacy-first" analytics) — the one third-party script the site loads, and only there.
  */
-function csp(analytics: boolean): string {
+function csp(analytics: boolean, friendWs: string): string {
   return [
     "default-src 'none'",
     `script-src 'self' 'wasm-unsafe-eval'${analytics ? ' https://static.cloudflareinsights.com' : ''}`,
     "style-src 'self'",
     "img-src 'self' data: blob:",
-    `connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/${analytics ? ' https://cloudflareinsights.com' : ''}`,
+    `connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/ ${friendWs}${analytics ? ' https://cloudflareinsights.com' : ''}`,
     "worker-src 'self'",
     "base-uri 'none'",
     "form-action 'none'",
@@ -52,12 +53,12 @@ function csp(analytics: boolean): string {
 /** Cloudflare Web Analytics site token for zvirecisachy.cz (public: it only identifies the site to count for). */
 const CF_BEACON_TOKEN = '827f2cbd704d40b0bd3917ac4c481f2e';
 
-function cspMeta(analytics: boolean): Plugin {
+function cspMeta(analytics: boolean, friendWs: string): Plugin {
   return {
     name: 'skm-csp-meta',
     apply: 'build',
     transformIndexHtml() {
-      const tags = [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp(analytics) }, injectTo: 'head-prepend' as const }];
+      const tags = [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp(analytics, friendWs) }, injectTo: 'head-prepend' as const }];
       if (analytics) {
         tags.push({
           tag: 'script',
@@ -70,10 +71,18 @@ function cspMeta(analytics: boolean): Plugin {
   };
 }
 
+/** The relay's origin: `VITE_FRIEND_WS` from `.env.local` / the environment (dev server, dev site) or the public one. */
+function friendWs(mode: string): string {
+  const override = loadEnv(mode, process.cwd(), 'VITE_').VITE_FRIEND_WS;
+  if (override && /^wss?:\/\/[a-z0-9.:-]+$/i.test(override)) return override;
+  return 'wss://hra.zvirecisachy.cz';
+}
+
 export default defineConfig(({ mode }) => ({
   // `--mode pages` = the public site build: Cloudflare Web Analytics beacon + its CSP entries.
-  plugins: [cspMeta(mode === 'pages')],
+  plugins: [cspMeta(mode === 'pages', friendWs(mode))],
   define: {
+    __FRIEND_WS__: JSON.stringify(friendWs(mode)),
     __BUILD_STAMP__: JSON.stringify(buildStamp()),
     // `--mode devsite` = the dev.zvirecisachy.cz build: banner in the footer, feedback link hidden
     // (test builds must not mix into the pilot's feedback), otherwise identical.

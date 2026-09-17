@@ -550,6 +550,15 @@ terminates TLS); the public build carries the Web Analytics beacon (`--mode page
 Daily page views / visits, no cookies, no visitor id; the redirect domain
 `zvireci-sachy.cz` stays on Forpsi (it only 301s). See `docs/security-review.md`.
 
+## O1 — Cloudflare Rate Limiting rule for `hra.zvirecisachy.cz` (OPEN, do at the start of the next iteration)
+
+The relay's only mitigation for the Workers Free ceiling (100 000 requests/day for the
+whole account): one zone rule (Free plan allows one) — *Security → WAF → Rate limiting
+rules → Create*: hostname equals `hra.zvirecisachy.cz`, 30 requests / 10 s per IP → Block
+for 10 s. Left open on 2026-09-17 because the Cloudflare dashboard tab kept freezing in
+the automation; a two-minute click for the owner. Reviewer's note: "the one I would do
+the same day".
+
 ## Feedback triage (2026-09-17)
 
 The form's responses are linked to a Google Sheet (owner's Drive, not in the repo). Two

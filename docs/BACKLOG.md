@@ -540,6 +540,14 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
 
+## Feedback triage (2026-09-17)
+
+The form's responses are linked to a Google Sheet (owner's Drive, not in the repo). Two
+columns were added after the form's own: `Stav` (empty = new, `backlog`, `hotovo`,
+`odpovězeno`) and `Odkaz` (the P/R item and what was done). Triage = read only the rows
+with an empty `Stav`, record the item here, fill both columns. The form's `Individual`
+tab shows one respondent at a time when the row is not enough.
+
 ## Principle — play without an account, always (2026-09-14)
 
 Anonymous play is the baseline and stays. An account (a sync code or a sign-in) is an

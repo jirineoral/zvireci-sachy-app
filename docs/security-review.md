@@ -515,3 +515,23 @@ Findings and what was done (commit refs in git):
   `člověk` set — confirm no second real person is depicted (docs disagree); the share
   sheet on a real phone.
 
+### 2026-09-17 — colleague review round 2 (at `7bafbef`)
+Round-1 items confirmed closed by the reviewer; branch judged safe to merge. New findings
+from the round-1 changes, fixed before publishing:
+- **Medium — a `full` answer left the stored session in place**, so `rejoin()` replayed
+  the refused room on every load for 24 h. Fixed: `full` (and a `policy` close) clears
+  the session.
+- **Medium — 60 s reclaim + a phone in the background = seat takeover by a second
+  link-holder, silently.** Fixed: the window is 10 minutes (the same device rejoins at
+  once through its stored token; the window only serves another device), the room
+  remembers displaced tokens and answers them `full` with `taken: true` → "Tvoje místo u
+  stolu mezitím zabral někdo jiný, kdo měl odkaz."
+- **Low–Medium — shared PC**: a rejoin without a link happens only when the session was
+  live within the last 2 hours (`seen`, refreshed on every `state`/move); `Odejít`
+  clears it. The 24 h token still serves a link opened again.
+- **Low** — `startRemoteGame` nulls the previous record and names the sides
+  (`onRemoteStart`) before pre-building the record of an already finished game.
+- Notes taken: `soukromi.html` no longer says "jen" (lists the technical fields; "od
+  poslední aktivity"); the Origin allowlist comment says it is an embedding filter, not
+  authentication; plan decision 7 corrected; DoD rows 2/3 re-run with the new flow.
+

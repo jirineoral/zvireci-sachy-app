@@ -32,7 +32,8 @@ type ServerMessage =
   | { t: 'move'; san: string; ply: number }
   | { t: 'peer'; online: boolean }
   | { t: 'rematch'; from: Seat }
-  | { t: 'full' }
+  /** No seat for this token; `taken` = it had one and another link-holder took it meanwhile. */
+  | { t: 'full'; taken: boolean }
   | { t: 'error'; msg: string };
 
 interface Attachment {
@@ -46,9 +47,14 @@ const MAX_MESSAGE_CHARS = 200; // UTF-16 units; the accepted grammar is ASCII an
 const MAX_MESSAGES_PER_SECOND = 10;
 const MAX_PLIES = 1000;
 const IDLE_MS = 24 * 60 * 60 * 1000;
-/** A seat whose player has had no socket open for this long may be taken by a new token (the link opened in a fresh tab). */
-const SEAT_RECLAIM_MS = 60 * 1000;
-/** Only the app's own origins may open a socket (no embedding of the relay by other sites). */
+/**
+ * A seat whose player has had no socket open for this long may be taken by a new token:
+ * the link opened on *another* device (the same browser rejoins with its stored token at
+ * once). Long enough for a phone that closed the socket while the child answered a
+ * message; only a second link-holder can take the seat, and the displaced player is told.
+ */
+const SEAT_RECLAIM_MS = 10 * 60 * 1000;
+/** Only the app's own origins may open a socket: an embedding filter, not authentication (Origin is spoofable by non-browsers; the localhost entries serve the dev server). */
 const ORIGINS = new Set(['https://zvirecisachy.cz', 'https://www.zvirecisachy.cz', 'https://dev.zvirecisachy.cz', 'http://localhost:5173', 'http://127.0.0.1:5173']);
 
 /** Seat tokens and when each seat's last socket closed (absent = a socket is open or it never connected). */
@@ -57,6 +63,8 @@ interface Seats {
   b?: string;
   wClosed?: number;
   bClosed?: number;
+  /** Tokens whose seat was reclaimed by another token (so they can be told, not just refused). */
+  displaced?: string[];
 }
 
 export default {
@@ -153,8 +161,9 @@ export class Room extends DurableObject<Env> {
         return closed !== undefined && now - closed > SEAT_RECLAIM_MS && !this.seatOnline(s, ws);
       });
       if (free.length === 0) {
-        this.send(ws, { t: 'full' });
-        ws.close(1000, 'full');
+        const taken = (seats.displaced ?? []).includes(msg.token);
+        this.send(ws, { t: 'full', taken });
+        ws.close(1000, taken ? 'taken' : 'full');
         return;
       }
       if (!seats.w && !seats.b) {
@@ -163,6 +172,8 @@ export class Room extends DurableObject<Env> {
       } else {
         seat = free[0];
       }
+      const previous = seats[seat];
+      if (previous) seats.displaced = [...(seats.displaced ?? []).filter((t) => t !== previous).slice(-3), previous];
       seats[seat] = msg.token;
     }
     delete seats[`${seat}Closed`];

@@ -53,8 +53,10 @@ three times larger. A WebSocket relay works on every network, reconnects trivial
    board stays; closing the tab ends the game for the other side after the same delay.
 7. **Nothing personal**: the Worker sees the two IPs (Cloudflare edge, not logged by us —
    `wrangler` observability off), the room id and SANs. No cookies, no ids in storage
-   beyond the current room in `sessionStorage` (`skm.friendRoom`, for a reload). This is
-   the whole GDPR surface and it is recorded in `docs/security-review.md`.
+   beyond the current room's seat token in `localStorage` (`skm.friend`, 24 h, cleared on
+   `Odejít`; *rev. 2, after the colleague review — the plan said `sessionStorage`, which
+   lost the seat when the link was opened in a fresh tab*). This is the whole GDPR surface
+   and it is recorded in `docs/security-review.md`.
 8. **Abuse**: rooms are unguessable and two-seat; a message over 200 bytes or over 10
    messages/s closes the socket; no text channel exists, so nothing can be said.
 
@@ -101,8 +103,8 @@ relay** (`hra.zvirecisachy.cz`, Workers custom domain) with real clicks on both 
 | # | Item | Result | Observed |
 |---|------|--------|----------|
 | 1 | Two browsers, moves both ways, forged/out-of-turn refused | PASS | host e4 → guest sees it; guest's out-of-turn `d4` refused by the controller (board would not offer it either); node client sending a move for the wrong seat / wrong ply / `<script>` SAN → `error: move refused`, oversize message → socket closed 1008 |
-| 2 | Reload resumes | PASS | guest reload (same `sessionStorage` token) → `state` with the moves, seat kept; host `state` after a relay restart re-synced too |
-| 3 | Disconnect / return | PASS | guest tab closed → host reads `Kamarád je odpojený…` at once (socket close, not a timeout); reopening the link continues the game |
+| 2 | Reload resumes | PASS (re-run after review round 1) | seat token in `localStorage`: reload *without* the fragment rejoined the same seat (`rejoin()`, within 2 h of the last activity); the link opened in a second tab of the same browser → the older tab is `replaced`, the game continues in the new one; the other side saw no false "odpojený" (node client log: `peer:true` only) |
+| 3 | Disconnect / return | PASS (re-run) | guest tab closed → host reads `Kamarád je odpojený…` at once; `Odejít` → the room freed the seat and a *new* token took it and received the moves (node); a token that never had a seat → `full` (`taken: false`); a token whose seat was reclaimed after 10 min away → `full` with `taken: true` → "Tvoje místo u stolu mezitím zabral někdo jiný…" (logic verified by reading; the 10-minute window was not waited out) |
 | 4 | Checkmate, saved, rematch | PASS | `Qxf7#` → both sides `Šach mat`, kings react per side, both records `mode: 'friend'`; host `Odveta` → guest `Kamarád chce odvetu!` → click → new game, colours swapped, game 2 |
 | 5 | Third browser refused | PASS | `V téhle hře už dva hráči jsou.`, board stays in the ordinary pre-game |
 | 6 | Mode isolation | PASS | engine/feedback/undo off in the mode (`Zpět` disabled); `Nová hra` → bar gone, fragment and session cleared, normal game vs. the computer |

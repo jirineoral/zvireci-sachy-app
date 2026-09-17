@@ -6,7 +6,7 @@
  * `applyRemoteMove`. All text goes through `textContent`.
  */
 import type { Color } from 'chess.js';
-import { connectFriend, isRoomId, randomId, readSession, roomLink, sessionFor, writeSession, type Connection, type FriendClient, type ServerMessage } from '../friend';
+import { connectFriend, isRoomId, randomId, readSession, REJOIN_MS, roomLink, sessionFor, touchSession, writeSession, type Connection, type FriendClient, type ServerMessage } from '../friend';
 import { copyText } from '../prompts';
 
 export interface FriendPanelDeps {
@@ -27,7 +27,7 @@ export interface FriendPanelDeps {
 export interface FriendPanel {
   /** Joins the room from a `#hra=` link (no-op for a bad id). */
   join: (room: string) => void;
-  /** Rejoins the room of the stored session, if any; true when it did. */
+  /** Rejoins the room of the stored session when it was live within REJOIN_MS; true when it did. */
   rejoin: () => boolean;
   /** The controller left the game over a link (`Nová hra`, a puzzle…): drop the socket. */
   onLeft: () => void;
@@ -102,6 +102,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
 
   const onMessage = (msg: ServerMessage): void => {
     if (msg.t === 'state') {
+      if (client) touchSession(deps.storage, client.session);
       peer = msg.peer;
       const sameGame = msg.game === game && msg.seat === seat && msg.sans.length === sans.length && msg.sans.every((s, i) => s === sans[i]);
       game = msg.game;
@@ -128,8 +129,10 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
           .catch((err) => console.error('startRemoteGame failed', err));
       }
     } else if (msg.t === 'move') {
-      if (deps.applyMove(msg.san, msg.ply)) sans.push(msg.san);
-      else {
+      if (deps.applyMove(msg.san, msg.ply)) {
+        sans.push(msg.san);
+        if (client) touchSession(deps.storage, client.session);
+      } else {
         console.warn('Remote move not applied — re-syncing from the room', msg.ply, sans.length);
         client?.resync();
       }
@@ -141,7 +144,8 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     } else if (msg.t === 'rematch') {
       rematchOffered = true;
     } else if (msg.t === 'full') {
-      note = 'V téhle hře už dva hráči jsou.';
+      note = msg.taken ? 'Tvoje místo u stolu mezitím zabral někdo jiný, kdo měl odkaz.' : 'V téhle hře už dva hráči jsou.';
+      writeSession(deps.storage, null); // nothing to come back to: no rejoin on the next load
     }
     render();
   };
@@ -160,6 +164,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
         if (state === 'closed' && reason === 'expired') note = 'Hra vypršela (24 hodin bez tahu).';
         if (state === 'closed' && reason === 'unavailable') note = 'Server pro hru s kamarádem není dostupný.';
         if (state === 'closed' && reason === 'replaced') note = 'Hra pokračuje v jiné záložce.';
+        if (state === 'closed' && reason === 'policy') writeSession(deps.storage, null);
         render();
       },
     });
@@ -197,11 +202,12 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
 
   return {
     join: (room) => connect(room),
-    /** A stored session (this browser, this room, under 24 h) rejoins without the link. */
+    /** A stored session rejoins without the link — only when it was live recently (a reload, a re-opened tab), not the next day on a shared PC. */
     rejoin: () => {
       const stored = readSession(deps.storage);
-      if (stored) connect(stored.room);
-      return stored !== null;
+      if (!stored || Date.now() - stored.seen > REJOIN_MS) return false;
+      connect(stored.room);
+      return true;
     },
     onLeft: stop,
     onMove: (san, ply) => {

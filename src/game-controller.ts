@@ -293,9 +293,10 @@ export class GameController {
     this.remote = true;
     this.humanColor = humanColor;
     this.started = true;
+    this.record = null;
+    this.options.onRemoteStart(humanColor); // the view sets the sides' names before any record is built
     // A game that was already over when we (re)joined was recorded when it ended: keep it out of the store.
-    this.record = this.chess.isGameOver() && sans.length > 0 ? this.buildRecord() : null;
-    this.options.onRemoteStart(humanColor);
+    if (this.chess.isGameOver() && sans.length > 0) this.record = this.buildRecord();
     this.afterPositionChange();
     return this.chess.isGameOver() ? 'over' : 'playing';
   }

@@ -28,7 +28,8 @@ export type ServerMessage =
   | { t: 'move'; san: string; ply: number }
   | { t: 'peer'; online: boolean }
   | { t: 'rematch'; from: Color }
-  | { t: 'full' }
+  /** No seat for our token; `taken` = we had one and another link-holder took it while we were away. */
+  | { t: 'full'; taken: boolean }
   | { t: 'error'; msg: string };
 
 export type Connection = 'connecting' | 'open' | 'reconnecting' | 'closed';
@@ -38,9 +39,13 @@ export interface FriendSession {
   token: string;
   /** The host's colour preference for the first game (the guest has none). */
   pref?: Color | 'random';
-  /** When the session was made; older than 24 h = gone with the room. */
+  /** When the session was made; older than 24 h = gone with the room (the room itself lives 24 h from its last message, so a stored session never outlives its room). */
   at: number;
+  /** Last `state`/move seen. A reload rejoins only within REJOIN_MS of this — on a shared PC the next child should not land in the previous one's game. */
+  seen: number;
 }
+
+export const REJOIN_MS = 2 * 60 * 60 * 1000;
 
 const isColor = (v: unknown): v is Color => v === 'w' || v === 'b';
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
@@ -59,7 +64,7 @@ export function isServerMessage(v: unknown): v is ServerMessage {
     case 'rematch':
       return isColor(m.from);
     case 'full':
-      return true;
+      return typeof m.taken === 'boolean';
     case 'error':
       return typeof m.msg === 'string' && m.msg.length <= 100;
     default:
@@ -110,7 +115,8 @@ export function readSession(storage: Storage | null): FriendSession | null {
     const v = JSON.parse(raw) as Partial<FriendSession>;
     if (typeof v.room !== 'string' || !ROOM_ID.test(v.room) || typeof v.token !== 'string' || !TOKEN.test(v.token)) return null;
     if (!isInt(v.at) || Date.now() - v.at > SESSION_TTL_MS) return null;
-    return { room: v.room, token: v.token, pref: v.pref === 'w' || v.pref === 'b' || v.pref === 'random' ? v.pref : undefined, at: v.at };
+    const seen = isInt(v.seen) ? v.seen : v.at;
+    return { room: v.room, token: v.token, pref: v.pref === 'w' || v.pref === 'b' || v.pref === 'random' ? v.pref : undefined, at: v.at, seen };
   } catch {
     return null;
   }
@@ -125,11 +131,18 @@ export function writeSession(storage: Storage | null, session: FriendSession | n
   }
 }
 
+/** Marks the session as live now (a `state` or a move arrived). */
+export function touchSession(storage: Storage | null, session: FriendSession): void {
+  session.seen = Date.now();
+  writeSession(storage, session);
+}
+
 /** A session for a room: the stored one when it is for this room, otherwise a fresh token. */
 export function sessionFor(storage: Storage | null, room: string, pref?: Color | 'random'): FriendSession {
   const stored = readSession(storage);
   if (stored && stored.room === room) return stored;
-  const session: FriendSession = { room, token: randomId(20), pref, at: Date.now() };
+  const now = Date.now();
+  const session: FriendSession = { room, token: randomId(20), pref, at: now, seen: now };
   writeSession(storage, session);
   return session;
 }
@@ -180,7 +193,7 @@ export function connectFriend(session: FriendSession, events: FriendEvents): Fri
     sock.addEventListener('close', (e) => {
       if (ws !== sock) return;
       ws = null;
-      if (closed || e.reason === 'full' || e.reason === 'replaced' || e.reason === 'expired' || e.reason === 'policy') {
+      if (closed || e.reason === 'full' || e.reason === 'taken' || e.reason === 'replaced' || e.reason === 'expired' || e.reason === 'policy') {
         closed = true;
         events.onConnection('closed', e.reason);
         return;

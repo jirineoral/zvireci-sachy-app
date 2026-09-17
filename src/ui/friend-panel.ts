@@ -74,7 +74,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     if (connection === 'connecting') parts.push('Připojuji…');
     else if (connection === 'reconnecting') parts.push('Spojení vypadlo, zkouším znovu…');
     else if (connection === 'closed') parts.push(note || 'Odpojeno.');
-    else if (!peer) parts.push(sans.length === 0 && game <= 1 ? 'Čekám na kamaráda — pošli mu odkaz.' : 'Kamarád je odpojený…');
+    else if (!peer) parts.push(sans.length === 0 && game <= 1 ? 'Čekám na kamaráda — pošli mu odkaz. Posílej ho jen tomu, s kým chceš hrát: kdo ho má, může si sednout ke stolu.' : 'Kamarád je odpojený…');
     else if (over) parts.push(rematchOffered ? 'Kamarád chce odvetu!' : rematchAsked ? 'Čekám, jestli kamarád chce odvetu…' : 'Konec partie.');
     text.textContent = parts.join(' ');
     copyBtn.hidden = peer && !over;

@@ -11,7 +11,7 @@ It does **not** cover the artwork, which is not a derivative of any GPL work:
 
 - `public/piece-sets/animals/*/light/*.png`, `public/piece-sets/animals/*/dark/*.png`
 - `public/piece-sets/farm/*.png`
-- `public/splash/*.jpg`
+- `public/splash/*.jpg`, `public/og.jpg` (the link-preview image, cut from the splash)
 - `assets/source/**` (the generated sheets the pieces were cut from)
 - `docs/*.png` (contact sheets and the sheet template — the same artwork)
 

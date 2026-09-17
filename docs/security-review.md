@@ -561,5 +561,6 @@ SAN-shaped strings pass (≤ 10 chars, regex + chess.js); the displaced player i
 link — no. Conclusion: justified as a general concern, low in this design. Cheap
 improvements filed under R11: `og:title`/`og:image` so the WhatsApp/SMS preview shows
 the real site's branding, and one sentence ("odkaz posílej jen tomu, s kým chceš hrát")
-in the bar or on the privacy page.
+in the bar or on the privacy page. *Done the same evening:* `og:*` tags + `public/og.jpg`
+(a static image, same origin, no script) and the sentence in the friend bar.
 

@@ -621,7 +621,7 @@ používají." Parked as a task, not a feature. Notes for when it starts:
   YouTube and X even before posting anything; a taken handle is the cheapest thing to
   lose and the hardest to get back.
 
-### R11 quick step — link previews and one sentence about links (from the phishing question, 2026-09-17)
+### R11 quick step — link previews and one sentence about links — DONE 2026-09-17 (`og:*` + `twitter:card` in `index.html`, `public/og.jpg` 1200×630 cut from the splash with the site name, the sentence in the friend bar's waiting state)
 `og:title`, `og:description`, `og:image` (a board with animals) in `index.html` so a
 shared `#hra=` link previews as Zvířecí šachy in WhatsApp/SMS/Messenger, and the line
 "odkaz posílej jen tomu, s kým chceš hrát — kdo ho má, může si sednout ke stolu" in the

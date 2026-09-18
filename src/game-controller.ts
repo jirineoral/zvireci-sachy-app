@@ -118,6 +118,14 @@ interface PreMoveInfo {
 /** Engine options currently loaded: the level's play settings, full-strength analysis, or stale (level changed; reload before the next search). */
 type EngineMode = 'play' | 'analysis' | 'stale';
 
+/**
+ * Pilot feedback: the computer answered in a blink, which read as "it is not thinking"
+ * and pulled the child into blitzing back. Its reply now arrives no sooner than this long
+ * after the human's move (search time counts towards it); the board stays locked and the
+ * status reads "přemýšlím…" meanwhile.
+ */
+const THINK_PAUSE_MS: readonly [number, number] = [1000, 2000];
+
 export class GameController {
   private readonly chess: Chess;
   private readonly board: BoardBridge;
@@ -902,12 +910,21 @@ export class GameController {
     const search = d.topMoves > 1 ? this.topMovesSearch(d) : this.engine.search(this.chess.fen(), d.limits);
     this.pendingSearch = search;
     this.refreshView(); // locks the board, shows "přemýšlím…"
+    const startedAt = performance.now();
+    const thinkMs = THINK_PAUSE_MS[0] + Math.random() * (THINK_PAUSE_MS[1] - THINK_PAUSE_MS[0]);
 
     search.result
-      .then((move) => {
+      .then(async (move) => {
         if (this.pendingSearch !== search) return; // superseded or cancelled: discard
+        if (move === null) {
+          this.pendingSearch = null;
+          return; // cancelled by stop()
+        }
+        // A visible pause: the move is known, the computer "thinks" a moment longer.
+        const wait = thinkMs - (performance.now() - startedAt);
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        if (this.pendingSearch !== search) return; // a new game / undo / puzzle came in meanwhile
         this.pendingSearch = null;
-        if (move === null) return; // cancelled by stop()
         if (search.fen !== this.chess.fen()) {
           console.error('Stale engine move discarded', search.fen, this.chess.fen());
           return;

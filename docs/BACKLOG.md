@@ -540,6 +540,12 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 - **P5 DONE 2026-09-17 (Phase 19: trays beside the spectator kings + `+N` for the
   leading side) — Captured pieces / material balance** (form, 2026-09-14: "nemám přehled,
   kolik a jaké figurky mi soupeř vyhodil a vice versa; na chess.com vidím, že vedu +3").
+- **P6 DONE 2026-09-18 — The computer answered too fast** ("nepřemýšlí", pulled the child
+  into blitzing back): the engine's reply now lands 1–2 s after the human's move (search
+  time included; board locked, `přemýšlím…`); a new game / undo / puzzle during the pause
+  discards the reply (`THINK_PAUSE_MS` in `game-controller.ts`).
+- **P7 DONE 2026-09-18 — `člověk` had `Velmistr` twice** (level 5 and the ladder's level 7):
+  levels are now Batole · Školák · Učeň · Kandidát · Mistr · Král šachu · Velmistr.
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
 

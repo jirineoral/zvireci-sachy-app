@@ -48,6 +48,13 @@ engine in its footer. The board is [chessground](https://github.com/lichess-org/
 (GPL-3.0-or-later) and the rules are [chess.js](https://github.com/jhlywa/chess.js)
 (BSD-2-Clause). The app itself is GPL-3.0 (see Licence above).
 
+## The computer takes its time
+
+The engine's move lands 1–2 seconds after yours even when the search itself took 300 ms
+(pilot feedback: an instant reply read as "it is not thinking" and pulled children into
+blitzing). The board stays locked with `přemýšlím…`; a new game or undo during the pause
+discards the reply.
+
 ## Helpers are off by default
 
 After the pilot's first feedback, the move feedback (`Hodnocení tahů`) starts **off** and

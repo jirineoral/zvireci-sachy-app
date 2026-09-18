@@ -6,7 +6,7 @@
     { "id": "zabky", "name": "žáby", "za": "žáby", "sound": "Kvák!", "hurt": "Kvá…",
       "levels": ["Jikra", "Pulec", "Žabka", "Skokan", "Ropucha", "Žabí král"] },
     { "id": "clovek", "name": "člověk", "za": "člověka", "sound": "Hm!", "hurt": "Au!",
-      "levels": ["Batole", "Školák", "Učeň", "Mistr", "Velmistr", "Král šachu"] },
+      "levels": ["Batole", "Školák", "Učeň", "Kandidát", "Mistr", "Král šachu"] },
     { "id": "had", "name": "hadi", "za": "hady", "sound": "Sss!", "hurt": "Sss…",
       "levels": ["Vajíčko", "Hádě", "Užovka", "Zmije", "Krajta", "Hadí král"] },
     { "id": "jezevcici", "name": "jezevčíci", "za": "jezevčíky", "sound": "Haf!", "hurt": "Kňuc…",

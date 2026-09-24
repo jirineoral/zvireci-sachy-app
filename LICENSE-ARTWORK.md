@@ -13,6 +13,7 @@ It does **not** cover the artwork, which is not a derivative of any GPL work:
 - `public/piece-sets/farm/*.png`
 - `public/splash/*.jpg`, `public/og.jpg` (the link-preview image, cut from the splash)
 - `assets/source/**` (the generated sheets the pieces were cut from)
+- `assets/social/*` (social media pictures and screenshots made from the same artwork)
 - `docs/*.png` (contact sheets and the sheet template — the same artwork)
 
 These images were generated with AI tools for this project. To the extent they are

@@ -669,6 +669,12 @@ body {
   font-size: 0.85rem;
 }
 
+.credits .social-line {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
 .credits .feedback-link {
   color: #7fd17a;
   font-weight: 600;

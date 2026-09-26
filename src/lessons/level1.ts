@@ -203,7 +203,7 @@ export const LEVEL1: readonly Lesson[] = [
         explain: 'Ano! Na f1 vede rovná a volná cesta.',
         wrongExplain: {
           a6: 'Na a6 ne. V cestě stojí tvoje figurka a věž nepřeskakuje.',
-          c3: 'Na c3 ne. Tam se nejede rovně a věž jezdí jen rovně.',
+          c3: 'Na c3 ne. Cesta tam nevede rovně a věž jezdí jen rovně.',
         },
         wrongDefault: 'Věž jezdí jen rovně a nepřeskakuje.',
       },
@@ -291,7 +291,7 @@ export const LEVEL1: readonly Lesson[] = [
         accept: ['c1g5'],
         completeness: { kind: 'lands', square: 'g5' },
         text: 'Střelec bere šikmo, stejně jak jezdí. Vezmi střelcem černou figurku.',
-        success: 'Výborně! Na tu druhou figurku nedosáhne. Stojí na světlém poli.',
+        success: 'Výborně! Na druhou figurku tvůj střelec nedosáhne. Stojí na světlém poli.',
         wrongDefault: 'Tím nic nevezmeš. Najdi figurku, ke které vede šikmá cesta.',
       },
       {

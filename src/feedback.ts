@@ -76,6 +76,7 @@ export interface ClassifyInput {
   secondBestEval: number | null; // eval of the second-best move before (human POV), if known
   played: UciMove;
   sacrificed: number; // pawns of material the human gives up (see sacrificeOf)
+  obvious: boolean; // a take-back or the only move that keeps the material (see isObviousMove)
 }
 
 export function classifyMove(input: ClassifyInput): Glyph | null {
@@ -85,47 +86,146 @@ export function classifyMove(input: ClassifyInput): Glyph | null {
   const isBest = input.bestMove !== null && input.played === input.bestMove;
   const chancesLost = winningChances(evalBefore) - winningChances(evalAfter);
 
-  if (chancesLost >= t.blunder) return '??';
-  if (chancesLost >= t.mistake) return '?';
-  if (chancesLost >= t.inaccuracy) return '?!';
+  // The engine's own best move is never a mistake: when the two searches (before / after)
+  // disagree, the drop is search noise, and the feedback would suggest the very same move.
+  if (!isBest) {
+    if (chancesLost >= t.blunder) return '??';
+    if (chancesLost >= t.mistake) return '?';
+    if (chancesLost >= t.inaccuracy) return '?!';
+  }
 
   const live = Math.abs(evalBefore) <= t.liveEval;
   // A sound sacrifice that is the engine's best move. The eval "before" already includes the
   // sacrifice's consequences (a mating sac reads as +M), so "already winning" cannot be the
-  // filter here; "not losing" is.
-  if (isBest && input.sacrificed >= t.sacrificePawns && evalBefore >= t.notLosing) return '!!';
+  // filter here; "not losing" is — and the second-best move must not win anyway (a piece
+  // given back in a won position is no brilliancy).
   if (
     isBest &&
+    input.sacrificed >= t.sacrificePawns &&
+    evalBefore >= t.notLosing &&
+    (input.secondBestEval === null || input.secondBestEval <= t.liveEval)
+  ) {
+    return '!!';
+  }
+  // "!" = the one good move, but not the obvious take-back (its alternatives just lose the
+  // material, so the gap to the second best is large by nature).
+  if (
+    isBest &&
+    !input.obvious &&
     input.secondBestEval !== null &&
     evalBefore - input.secondBestEval >= t.greatGap &&
     live
   ) {
     return '!';
   }
-  if (!isBest && input.sacrificed >= t.sacrificePawns && loss < t.soundSacrifice) return '!?';
+  // A sound sacrifice other than the best move, in a live game the player is not losing.
+  if (!isBest && input.sacrificed >= t.sacrificePawns && loss < t.soundSacrifice && evalBefore >= t.notLosing && live) return '!?';
   return null;
 }
 
+/** Material balance in pawns from `color`'s side: own minus the opponent's. */
+function balance(chess: Chess, color: Color): number {
+  return material(chess, color) - material(chess, color === 'w' ? 'b' : 'w');
+}
+
 /**
- * Material the human gives up with `played` from the position `fenBefore`, measured after
- * the opponent's best reply (first move of the post-move PV). Positive = the human is
- * down material afterwards. Rules come from chess.js; this only counts pieces.
+ * Net material the human gives up with `played` from `fenBefore`: the balance (own minus
+ * opponent's) before, minus the balance after `played` and the engine's line that follows
+ * (`line[0]` the opponent's reply, `line[1]` the human's next move, …). The balance is read
+ * after each of the human's next two moves in the line and the best one counts, so taking
+ * and being taken back cancels out (an ordinary trade is 0) while a piece left for the
+ * opponent stays given up. With no human move in the line, it is read after the reply.
+ * Rules come from chess.js; this only counts pieces.
  */
-export function sacrificeOf(
-  fenBefore: string,
-  human: Color,
-  played: UciMove,
-  opponentReply: UciMove | undefined,
-): number {
+export function sacrificeOf(fenBefore: string, human: Color, played: UciMove, line: readonly UciMove[]): number {
   const clone = new Chess(fenBefore);
-  const before = material(clone, human);
+  const before = balance(clone, human);
   try {
     clone.move(uciToMove(played));
-    if (opponentReply) clone.move(uciToMove(opponentReply));
   } catch {
-    return 0; // PV did not fit the position (should not happen); no sacrifice claimed
+    return 0; // should not happen; no sacrifice claimed
   }
-  return before - material(clone, human);
+  let after = balance(clone, human);
+  let best: number | null = null;
+  for (let i = 0; i < Math.min(line.length, 4) && !clone.isGameOver(); i++) {
+    try {
+      clone.move(uciToMove(line[i]));
+    } catch {
+      break; // the PV did not fit (should not happen); count what was played so far
+    }
+    after = balance(clone, human);
+    if (i % 2 === 1) best = best === null ? after : Math.max(best, after); // after a human move
+  }
+  return before - (best ?? after);
+}
+
+/** Balance after the first `plies` moves of `line` from `fen` (fewer if the line is shorter). */
+function balanceAlong(fen: string, color: Color, line: readonly UciMove[], plies: number): number {
+  const chess = new Chess(fen);
+  for (const uci of line.slice(0, plies)) {
+    if (chess.isGameOver()) break;
+    try {
+      chess.move(uciToMove(uci));
+    } catch {
+      break;
+    }
+  }
+  return balance(chess, color);
+}
+
+/**
+ * True when the engine's best line just keeps the material balance while its second-best
+ * line loses material (within the next four plies): the best move just saves a piece —
+ * the only sensible move, not a "great" one. `bestLine` / `secondLine` are the engine's
+ * lines from `fenBefore` (human to move).
+ */
+function onlyMoveKeepingMaterial(fenBefore: string, bestLine: readonly UciMove[], secondLine: readonly UciMove[] | null): boolean {
+  if (secondLine === null || secondLine.length === 0 || bestLine.length === 0) return false;
+  const human = new Chess(fenBefore).turn();
+  const now = balance(new Chess(fenBefore), human);
+  const best = balanceAlong(fenBefore, human, bestLine, 4);
+  const second = balanceAlong(fenBefore, human, secondLine, 4);
+  return best <= now + 1 && best - second >= THRESHOLDS.sacrificePawns;
+}
+
+/** The opponent's move just before the human's: the position it was played in and the move. */
+export interface PreviousMove {
+  fen: string;
+  move: UciMove;
+}
+
+/**
+ * True when `played` is the obvious move rather than a find: it captures on the square the
+ * opponent just moved to (a take-back, or taking what was just put en prise), or answers a
+ * capture by restoring exactly the material balance of before it, or it is the engine's best move that merely keeps the material while the
+ * second best loses some (see onlyMoveKeepingMaterial). Its alternatives just lose
+ * material, so the gap to the second best is large by nature; no "!" for it.
+ */
+export function isObviousMove(
+  prev: PreviousMove | null,
+  fenBefore: string,
+  played: UciMove,
+  bestLine: readonly UciMove[],
+  secondLine: readonly UciMove[] | null,
+): boolean {
+  return isObviousReply(prev, played) || (bestLine[0] === played && onlyMoveKeepingMaterial(fenBefore, bestLine, secondLine));
+}
+
+function isObviousReply(prev: PreviousMove | null, played: UciMove): boolean {
+  if (prev === null) return false;
+  const chess = new Chess(prev.fen);
+  const mover = chess.turn() === 'w' ? 'b' : 'w'; // the human moves after the opponent
+  const balancePrev = balance(chess, mover);
+  try {
+    const opponent = chess.move(uciToMove(prev.move));
+    const mine = chess.move(uciToMove(played));
+    if (!mine.captured) return false;
+    if (mine.to === opponent.to) return true; // takes (back) on the square the opponent just moved to
+    if (!opponent.captured) return false;
+  } catch {
+    return false;
+  }
+  return balance(chess, mover) === balancePrev;
 }
 
 export function uciToMove(uci: UciMove): { from: string; to: string; promotion?: string } {

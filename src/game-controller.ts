@@ -18,7 +18,7 @@ import {
 } from './board-bridge';
 import { DEFAULT_DIFFICULTY, difficulty, isDifficultyLevel, type Difficulty, type DifficultyLevel } from './difficulty';
 import { MATE_SCORE, type Analysis, type Engine, type EngineOptions, type PvLine, type Search, type UciMove } from './engine';
-import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
+import { ANALYSIS, classifyMove, isObviousMove, sacrificeOf, uciToMove, type Glyph, type PreviousMove } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
 import { commentaryFor, pick, positionAt, type PlyRecord, type SpeakerVoice } from './review';
 import { DEFAULT_VOICE, ENDINGS, PUZZLE_BUBBLES } from './commentary';
@@ -127,6 +127,8 @@ interface PreMoveInfo {
   evalBefore: number; // human POV
   bestMove: UciMove | null;
   secondBestEval: number | null; // human POV
+  bestLine: UciMove[];
+  secondLine: UciMove[] | null;
 }
 
 /** Engine options currently loaded: the level's play settings, full-strength analysis, or stale (level changed; reload before the next search). */
@@ -492,10 +494,12 @@ export class GameController {
     this.afterPositionChange();
   }
 
-  puzzleHint(): void {
-    if (!this.puzzle || this.chess.turn() !== this.humanColor) return;
+  /** Shows the next hint step; false when there is nothing to hint (not the solver's turn). */
+  puzzleHint(): boolean {
+    if (!this.puzzle || this.chess.turn() !== this.humanColor) return false;
     this.puzzle.hint = this.puzzle.hint >= 2 ? 2 : ((this.puzzle.hint + 1) as 1 | 2);
     this.refreshView();
+    return true;
   }
 
   get inPuzzle(): boolean {
@@ -508,7 +512,10 @@ export class GameController {
     this.puzzle = null;
   }
 
-  /** Puzzle mode: compare the human's move with the solution; promotions come from the data. */
+  /**
+   * Puzzle mode: compare the human's move with the solution; promotions come from the data.
+   * Any checkmate solves the puzzle too (a mate-in-N often has more than one mating move).
+   */
   private handlePuzzleMove(from: Square, to: Square): void {
     const puzzle = this.puzzle!;
     const expected = puzzle.moves[puzzle.index];
@@ -517,6 +524,23 @@ export class GameController {
       return;
     }
     if (`${from}${to}` !== expected.slice(0, 4)) {
+      const mate = this.chess
+        .moves({ square: from, verbose: true })
+        .find((m) => {
+          if (m.to !== to) return false;
+          const probe = new Chess(this.chess.fen());
+          probe.move(m.san);
+          return probe.isCheckmate();
+        });
+      if (mate) {
+        this.chess.move(mate.san);
+        puzzle.index = puzzle.moves.length;
+        puzzle.hint = 0;
+        puzzle.message = 'solved';
+        this.options.onPuzzleResult('solved');
+        this.afterPositionChange();
+        return;
+      }
       puzzle.attempts++;
       puzzle.message = 'wrong';
       this.options.onPuzzleResult('wrong');
@@ -858,15 +882,7 @@ export class GameController {
       .then((lines) => {
         if (gen !== this.transition || lines === null) return; // cancelled / superseded
         if (fen !== this.chess.fen()) return; // the human already moved
-        const best = lines.find((l) => l.multipv === 1);
-        const second = lines.find((l) => l.multipv === 2);
-        if (!best) return;
-        this.preMove = {
-          fen,
-          evalBefore: best.scoreCp,
-          bestMove: best.pv[0] ?? null,
-          secondBestEval: second ? second.scoreCp : null,
-        };
+        this.preMove = preMoveInfo(fen, lines) ?? this.preMove;
       })
       .catch((err) => console.error('pre-move analysis failed', err));
   }
@@ -974,19 +990,54 @@ export class GameController {
    */
   private async evaluateHumanMove(fenBefore: string, played: UciMove): Promise<void> {
     const status = gameStatus(this.chess);
-    const pre = this.preMove && this.preMove.fen === fenBefore ? this.preMove : null;
+    let pre = this.preMove && this.preMove.fen === fenBefore ? this.preMove : null;
     this.preMove = null;
-    const ply = this.chess.history().length - 1;
+    const history = this.chess.history({ verbose: true });
+    const ply = history.length - 1;
+    const opponentMove = history[ply - 1];
+    const prev: PreviousMove | null = opponentMove ? { fen: opponentMove.before, move: opponentMove.lan } : null;
     const gen = this.transition;
+    // Same conditions as analysis A (feedbackActive before the move; B19: a forced move gets no glyph).
+    const wanted = this.feedbackEnabled && this.engineState === 'ready' && !this.twoPlayer && !this.remote && new Chess(fenBefore).moves().length > 1;
 
-    if (this.pendingAnalysis !== null) {
-      await this.cancelSearch(); // analysis A still running: let the engine settle it first
-      if (gen !== this.transition) return;
+    const running = this.pendingAnalysis;
+    if (running !== null) {
+      if (wanted && pre === null && running.fen === fenBefore) {
+        // A fast mover: analysis A of the position just left is still running. Let it finish
+        // instead of cancelling it (a transition meanwhile cancels it and bumps `gen`).
+        this.evaluating = true;
+        this.refreshView();
+        let lines: PvLine[] | null = null;
+        try {
+          lines = await running.result;
+        } finally {
+          this.evaluating = false;
+        }
+        if (gen !== this.transition || lines === null) return;
+        pre = preMoveInfo(fenBefore, lines);
+      } else {
+        await this.cancelSearch(); // analysis A still running: let the engine settle it first
+        if (gen !== this.transition) return;
+      }
     }
-    if (!this.feedbackEnabled || this.engineState !== 'ready' || pre === null) return;
+    if (!wanted) return;
+    if (pre === null && this.pendingAnalysis === null) {
+      // Analysis A never ran for this position (the move came before it started): run it now.
+      this.evaluating = true;
+      this.refreshView();
+      let lines: PvLine[] | null = null;
+      try {
+        lines = await this.runAnalysis(2, fenBefore);
+      } finally {
+        this.evaluating = false;
+      }
+      if (gen !== this.transition || lines === null) return;
+      pre = preMoveInfo(fenBefore, lines);
+    }
+    if (pre === null) return;
 
     let evalAfter: number; // human POV
-    let reply: UciMove | undefined;
+    let line: UciMove[] = []; // the opponent's reply and the engine's line after it, as far as known
     if (status.over) {
       // Nothing to search in a finished game: mate delivered = best possible, any draw = 0.
       evalAfter = this.chess.isCheckmate() ? MATE_SCORE : 0;
@@ -999,7 +1050,7 @@ export class GameController {
       let probeFen = this.chess.fen();
       let probeOver: number | null = null;
       if (forced) {
-        reply = `${forced.from}${forced.to}${forced.promotion ?? ''}`;
+        line = [`${forced.from}${forced.to}${forced.promotion ?? ''}`];
         const probe = new Chess(probeFen);
         probe.move(forced.san);
         probeFen = probe.fen();
@@ -1020,7 +1071,7 @@ export class GameController {
         const best = lines.find((l) => l.multipv === 1);
         if (!best) return;
         evalAfter = forced ? best.scoreCp : -best.scoreCp; // B is opponent-to-move unless the reply was forced
-        if (!forced) reply = best.pv[0];
+        line = forced ? [...line, ...best.pv] : best.pv;
       }
     }
 
@@ -1030,9 +1081,10 @@ export class GameController {
       bestMove: pre.bestMove,
       secondBestEval: pre.secondBestEval,
       played,
-      sacrificed: sacrificeOf(fenBefore, this.humanColor, played, reply),
+      sacrificed: sacrificeOf(fenBefore, this.humanColor, played, line),
+      obvious: isObviousMove(prev, fenBefore, played, pre.bestLine, pre.secondLine),
     });
-    const wantsBetter = glyph === '?!' || glyph === '?' || glyph === '??';
+    const wantsBetter = (glyph === '?!' || glyph === '?' || glyph === '??') && pre.bestMove !== played;
     this.plies[ply] = { glyph, betterSan: wantsBetter ? sanOf(fenBefore, pre.bestMove) : null };
   }
 
@@ -1293,4 +1345,19 @@ function sanOf(fen: string, uci: UciMove | null): string | null {
   } catch {
     return null;
   }
+}
+
+/** Analysis A's lines → what the classifier needs from the position before the move; null without a best line. */
+function preMoveInfo(fen: string, lines: PvLine[]): PreMoveInfo | null {
+  const best = lines.find((l) => l.multipv === 1);
+  const second = lines.find((l) => l.multipv === 2);
+  if (!best) return null;
+  return {
+    fen,
+    evalBefore: best.scoreCp,
+    bestMove: best.pv[0] ?? null,
+    secondBestEval: second ? second.scoreCp : null,
+    bestLine: best.pv,
+    secondLine: second ? second.pv : null,
+  };
 }

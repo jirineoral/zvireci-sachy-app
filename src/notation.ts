@@ -6,8 +6,9 @@
 const TO_CZECH: Record<string, string> = { N: 'J', B: 'S', R: 'V', Q: 'D', K: 'K' };
 const TO_ENGLISH: Record<string, string> = { J: 'N', S: 'B', V: 'R', D: 'Q', K: 'K' };
 
-/** "Nxd4" → "Jxd4", "exd8=Q+" → "exd8=D+"; castling and pawn moves unchanged. */
+/** "Nxd4" → "Jxd4", "exd8=Q+" → "exd8=D+", "O-O" → "0-0" (Czech usage, as the lessons teach). */
 export function czechSan(san: string): string {
+  if (san.startsWith('O-O')) return san.replace(/O/g, '0');
   return san.replace(/^[NBRQK]/, (p) => TO_CZECH[p]).replace(/=([NBRQ])/, (_, p: string) => `=${TO_CZECH[p]}`);
 }
 
@@ -19,6 +20,8 @@ const CZECH_TOKEN = /^(\d+\.(?:\.\.)?)?([JSVDK])([a-h]?[1-8]?x?[a-h][1-8](?:=[JS
 const CZECH_PAWN_PROMOTION = /^(\d+\.(?:\.\.)?)?([a-h](?:x[a-h])?[18])=([JSVD])([+#]?[!?]*)$/;
 
 function tokenToEnglish(token: string): string {
+  const castle = /^(\d+\.(?:\.\.)?)?0-0(-0)?([+#]?[!?]*)$/.exec(token);
+  if (castle) return `${castle[1] ?? ''}O-O${castle[2] ? '-O' : ''}${castle[3]}`;
   const piece = CZECH_TOKEN.exec(token);
   if (piece) {
     const rest = piece[3].replace(/=([JSVD])/, (_, p: string) => `=${TO_ENGLISH[p]}`);

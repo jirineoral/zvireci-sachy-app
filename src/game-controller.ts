@@ -171,6 +171,8 @@ export class GameController {
   private twoPlayer = false;
   /** Phase 20: a game over a link — this browser moves `humanColor`, the other side's moves arrive by `applyRemoteMove`. */
   private remote = false;
+  /** Phase 20: the friend has not opened the link yet — the status line says so instead of "Na tahu". */
+  private remoteWaiting = false;
   /** Phase 12: the piece drop in progress (board locked, engine waiting), or null. */
   private starting: { done: Promise<void>; cancel: () => void } | null = null;
 
@@ -328,6 +330,18 @@ export class GameController {
     return this.remote;
   }
 
+  /** Phase 20: a game (or a puzzle, a training position) under way that a new friend game would end. */
+  get gameInProgress(): boolean {
+    return this.started && this.reviewPly === null && !this.chess.isGameOver();
+  }
+
+  /** Phase 20: the friend-bar says whether we are still waiting for the friend to join. */
+  setRemoteWaiting(waiting: boolean): void {
+    if (this.remoteWaiting === waiting) return;
+    this.remoteWaiting = waiting;
+    if (this.remote) this.refreshView();
+  }
+
   /** The colour this browser moves. */
   get humanSide(): Color {
     return this.humanColor;
@@ -336,6 +350,7 @@ export class GameController {
   private leaveRemote(): void {
     if (!this.remote) return;
     this.remote = false;
+    this.remoteWaiting = false;
     this.options.onRemoteEnd();
   }
 
@@ -1011,7 +1026,7 @@ export class GameController {
       engine: this.engineIndicator(),
       preGame: !this.started && sans.length === 0 && !status.over,
       analysing: this.analysisProgress,
-      puzzle: this.puzzle ? this.puzzleStatusText() : this.starting ? 'Figurky nastupují…' : null,
+      puzzle: this.puzzle ? this.puzzleStatusText() : this.starting ? 'Figurky nastupují…' : this.remote && this.remoteWaiting && !status.over ? 'Čekám na kamaráda…' : null,
     });
     this.renderControls();
     const preGame = !this.started;

@@ -252,8 +252,10 @@ const friendPanel = buildFriendPanel({
     const p = pieceSets?.colorPreference;
     return p === 'w' || p === 'b' ? p : 'random';
   },
+  inProgress: () => game.gameInProgress,
   start: (color, sans) => game.startRemoteGame(color, sans),
   applyMove: (san, ply) => game.applyRemoteMove(san, ply),
+  waiting: (on) => game.setRemoteWaiting(on),
   leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
 });
 {

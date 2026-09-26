@@ -526,6 +526,11 @@ test('test: the first answer is final, wrong answers show the solution', () => {
   v = m.dispatch({ type: 'move', from: 'f7', to: 'f8', promotion: 'q' });
   assert.equal(v.feedback.text, 'Tohle ne. Pozor, to je pat! Soupeř nemá žádný tah a není v šachu. To je remíza.');
   assert.deepEqual(v.shapes.at(-1), { from: 'f7', to: 'f8', brush: 'green' });
+  const ok = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'square'));
+  assert.equal(ok.dispatch({ type: 'choose', id: 'g6' }).feedback.text, 'Správně! Sloupec g, řada 6. Je to pole g6.');
+  const c = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'knight'));
+  for (const [f, t] of [['g1', 'h3'], ['h3', 'g5'], ['g5', 'h7']]) v = c.dispatch({ type: 'move', from: f, to: t });
+  assert.equal(v.feedback.text, 'Tohle ne. Došly ti tahy. Jde to na 3 tahy.');
   const k = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'escape'));
   v = k.dispatch({ type: 'move', from: 'h1', to: 'g1' });
   assert.equal(v.phase, 'stepDone');

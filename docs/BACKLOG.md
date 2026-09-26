@@ -413,7 +413,7 @@ Cheaper than it looks. A list of FENs, the existing engine as the opponent, and
 a goal check on the result (win required / draw sufficient). Roughly a day. No
 server.
 
-### R6 — Lessons, graded (STARTED 2026-09-26: owner wants a teaching platform; plan in `docs/phase-21-plan.md`; **21a DONE 2026-09-26 on branch `phase-21a`, for dev**: step engine, course map + teacher picker, `skm.lessons`, puzzle theme filter, `check:lessons`, level 1 lessons 1–7; next 21b = rest of level 1, pawn-war minigame, test, badge, diploma): absolute beginner → beginner → lightly advanced →
+### R6 — Lessons, graded (STARTED 2026-09-26: owner wants a teaching platform; plan in `docs/phase-21-plan.md`; **21a DONE 2026-09-26 on branch `phase-21a`, for dev**: step engine, course map + teacher picker, `skm.lessons`, puzzle theme filter, `check:lessons`, level 1 lessons 1–7; **21b DONE 2026-09-26 on branch `phase-21b`**: level 1 lessons 8–17, mini-games (pěšcová válka, seber všechny pěšce) against a weak local move picker, lesson 18 Zkouška úrovně 1 (11 tasks, pass 9), badge in the course map, printable A4 diploma (name typed locally); owner/son content review pending; next 21c = level 2): absolute beginner → beginner → lightly advanced →
 intermediate → advanced → expert → master
 This is B13; merge. The most expensive item on the list and the one where a
 mistake teaches many children something wrong. The work is content, not code,

@@ -100,15 +100,25 @@ teacher: the owl (default; an emoji placeholder until the drawing exists) or the
 they play. A lesson runs on the main board in 4–8 short steps — look (`show`), play the
 move (`move`: every correct answer is accepted, a wrong one is explained: „tvůj král by
 byl v šachu“, „tady by ti věž vzala jezdce“), eat all the stars with one piece (`collect`)
-or pick an answer (`choose`). Pieces are named with their chess name and how they look in
+or pick an answer (`choose`), or play a mini-game (`mini`: pěšcová válka, seber všechny
+pěšce) against a deliberately weak local move picker with its own win condition (the
+mini-games have no kings, so they cannot go through chess.js or Stockfish;
+`src/lessons/mini.ts`). Pieces are named with their chess name and how they look in
 the child's set („věž (u tebe kůzle s hradem na hlavě)“). The last step points to practice:
 a game at a level, puzzles of a band and theme, or an ending.
 
 Lessons are data in `src/lessons/*.ts`, reviewed in git; `npm run check:lessons` must pass
 before shipping (legal and consistent FENs, complete lists of accepted moves — incl.
-Stockfish for "best move" tasks — collect limits solvable, Czech text lint). Progress lives
-in the browser (`skm.lessons`). 21a ships level 1, lessons 1–7 (the board and all pieces);
-plan and curriculum in `docs/phase-21-plan.md`.
+Stockfish for "best move" tasks — collect limits solvable, choose answers verified with
+chess.js where possible (šach / mat / pat, „smí rošádovat?“), mini-games beatable by a
+careful-beginner bot, Czech text lint). Progress lives in the browser (`skm.lessons`).
+
+Each level ends with a test (`lesson.test`): ~10 tasks, one attempt each, no hints, the
+score at the end. Passing earns the level's badge (course map) and a printable diploma
+(„Diplom“: the child types a name, which is never sent anywhere and is stored — as
+`skm.diplomaName` — only when „Zapamatuj si moje jméno“ is ticked; „Vytisknout“ prints the
+sheet alone on an A4 landscape page). Level 1 (lessons 1–18) is complete; plan and
+curriculum in `docs/phase-21-plan.md`.
 
 ## Puzzles
 

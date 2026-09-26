@@ -291,7 +291,7 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
     if (!test || next === prev || step.kind === 'show') return next;
     if (next.phase === 'stepDone') {
       results.set(index, true);
-      return next;
+      return step.kind === 'choose' ? { ...next, feedback: { tone: 'good', text: `Správně! ${step.explain}` } } : next;
     }
     const wrongChoice = step.kind === 'choose' && next.feedback?.tone === 'bad';
     if (next.phase !== 'wrong' && !wrongChoice) return next; // e.g. a collect move on the way
@@ -303,7 +303,7 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
     }
     const solution: Shape[] =
       step.kind === 'move' ? [{ from: step.accept[0].slice(0, 2) as Square, to: step.accept[0].slice(2, 4) as Square, brush: 'green' }] : [];
-    const why = next.feedback?.text ?? '';
+    const why = (next.feedback?.text ?? '').replace(/ Zkus to znovu\.$/, ''); // one attempt: no „try again“
     return { ...next, phase: 'stepDone', feedback: { tone: 'bad', text: `Tohle ne. ${why}`.trim() }, feedbackShapes: [...next.feedbackShapes, ...solution] };
   };
 

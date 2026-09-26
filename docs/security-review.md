@@ -653,3 +653,16 @@ Reviewer findings (confirmed) and what changed. **Deploy the Worker first, then 
   leaving; any other mode (`Nová hra`, puzzle, ending, friend link, loaded game) ends
   lesson mode through `onLessonEnd` before the board is synced again.
 - **Nothing is sent**: no names, no progress; the diploma name (21b) will stay local.
+
+### 2026-09-26 — Phase 21b (lessons: mini-games, level test, diploma)
+- **Diploma name (the only personal datum in the app).** Typed in the diploma dialog,
+  rendered with `textContent` only; control, zero-width and bidi-override characters are
+  stripped and the length capped at 40 (`src/lessons/diploma.ts`). Never sent: no fetch,
+  not in any URL, not in analytics. Stored in `localStorage['skm.diplomaName']` only while
+  „Zapamatuj si moje jméno“ is ticked; unticking removes it. A stored value is re-cleaned
+  on read.
+- **Printing** clones the sheet (DOM nodes, no HTML strings) into a body-level container
+  shown only under `@media print`; the teacher avatar is the same-origin piece image or an
+  emoji. No new host, CSP unchanged.
+- **Progress** gains `tests.l1` / `badges.l1` (same id pattern and key cap as before).
+- **Mini-games** run a local move picker (no worker, no engine); nothing new is loaded.

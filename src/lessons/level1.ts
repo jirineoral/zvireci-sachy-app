@@ -1357,7 +1357,7 @@ export const LEVEL1: readonly Lesson[] = [
         ],
         correct: ['ano'],
         verify: { kind: 'castle', side: 'k' },
-        explain: 'Ano, smí! Věž napadená být smí. Hlídat musíš jen pole, přes která jde král.',
+        explain: 'Ano, smí! Věž napadená být smí. Záleží jen na polích, kudy jde král.',
         wrongDefault: 'Věž napadená být smí. Král jde přes f1 na g1 a tam nikdo neútočí.',
       },
     ],

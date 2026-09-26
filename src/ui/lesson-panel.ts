@@ -4,14 +4,19 @@
  * answer buttons, and Zpět / Zkusit znovu / Dál / Tohle umím / Zpět do lekcí / Zpět do hry;
  * at the end the outro, practice pointers and the next lesson.
  *
+ * Phase 21b: mini-games (a scoreboard; the opponent's reply is sent after a short pause)
+ * and level tests (the score while answering; at the end the result, the badge, „Diplom“
+ * and „Zkusit zkoušku znovu“; no „Tohle umím“).
+ *
  * The panel owns the lesson runner; the board is an adapter handed in with the lesson
  * (`LessonBoard`, src/ui/lesson-board.ts). The glue forwards the board's events to
  * `input()`. Everything else goes out through callbacks — no global state, no storage:
  * progress is the caller's (src/lessons/progress.ts). All text via textContent.
  */
 import '../styles/lessons.css';
-import { lessonAfter } from '../lessons/course';
-import { createLessonRunner, needsPromotion, renderToBoard, type LessonBoard, type LessonInput, type LessonRunner, type LessonView } from '../lessons/runner';
+import { plural } from '../czech';
+import { COURSE, lessonAfter } from '../lessons/course';
+import { createLessonRunner, needsPromotion, renderToBoard, type LessonBoard, type LessonInput, type LessonRunner, type LessonView, type TestView } from '../lessons/runner';
 import { animalSingular, type TextContext } from '../lessons/text';
 import type { Lesson, PieceType, PracticePointer } from '../lessons/types';
 import type { Teacher } from '../lessons/progress';
@@ -42,8 +47,10 @@ export interface LessonPanelDeps {
   teacher: () => TeacherInfo;
   /** Which piece a promoting pawn becomes; null = cancelled. Absent → always a queen. */
   askPromotion?: (color: 'w' | 'b') => Promise<PieceType | null>;
-  /** The last step was finished: mark the lesson done. */
-  onLessonDone: (lesson: Lesson) => void;
+  /** The last step was finished: mark the lesson done (a test: only when `result.passed`). */
+  onLessonDone: (lesson: Lesson, result: TestView | null) => void;
+  /** „Diplom“ after a passed test. */
+  onDiploma?: (level: number) => void;
   /** „Tohle umím“: mark done; the panel then calls `onBackToMap`. */
   onKnowIt: (lesson: Lesson) => void;
   /** „Zpět do lekcí“ (and after „Tohle umím“): show the course map. */
@@ -94,6 +101,8 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   teacherRow.append(who, bubble);
 
   const choices = el('div', '', 'lesson-choices');
+  const result = el('div', '', 'lesson-result');
+  result.setAttribute('role', 'status');
   const practice = el('div', '', 'lesson-practice');
 
   const backStepBtn = button('◀ Zpět', 'lesson-prev');
@@ -108,13 +117,29 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   const secondary = el('div', '', 'lesson-actions lesson-actions-secondary');
   secondary.append(knowBtn, mapBtn, leaveBtn);
 
-  container.append(head, teacherRow, choices, practice, actions, secondary);
+  container.append(head, teacherRow, choices, result, practice, actions, secondary);
 
   let lesson: Lesson | null = null;
   let runner: LessonRunner | null = null;
   let board: LessonBoard | null = null;
   let doneReported = false;
   let busy = false; // a promotion question is open
+  let replyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const cancelReply = (): void => {
+    if (replyTimer !== null) clearTimeout(replyTimer);
+    replyTimer = null;
+  };
+
+  /** Mini-game: the opponent answers after a short pause, so the child sees both moves. */
+  const scheduleReply = (view: LessonView): void => {
+    if (!view.mini?.thinking || replyTimer !== null) return;
+    const r = runner;
+    replyTimer = setTimeout(() => {
+      replyTimer = null;
+      if (runner === r && !busy) dispatch({ type: 'reply' });
+    }, MINI_REPLY_MS);
+  };
 
   const render = (view: LessonView): void => {
     if (!lesson || !board) return;
@@ -125,11 +150,9 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     bubbleText.textContent = finished ? (view.outro ?? '') : view.text;
     feedback.textContent = view.feedback?.text ?? '';
     feedback.className = `lesson-feedback${view.feedback ? ` is-${view.feedback.tone}` : ''}`;
-    counter.textContent =
-      view.stepKind === 'collect' && !finished
-        ? `Hvězdy: ${view.stars.length === 0 ? 'všechny snědené' : `zbývá ${view.stars.length}`}${view.maxMoves !== null ? ` · tahy ${view.movesUsed} z ${view.maxMoves}` : ''}`
-        : '';
+    counter.textContent = finished ? '' : counterText(view);
     counter.hidden = counter.textContent === '';
+    renderResult(view);
 
     choices.replaceChildren(
       ...view.choices
@@ -143,8 +166,27 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     );
     choices.hidden = choices.childElementCount === 0;
 
-    const next = finished ? lessonAfter(lesson.id) : null;
+    const failedTest = finished && view.test?.passed === false;
+    const next = finished && !failedTest ? lessonAfter(lesson.id) : null;
     practice.replaceChildren(
+      ...(finished && view.test
+        ? [
+            ...(view.test.passed && deps.onDiploma
+              ? [
+                  (() => {
+                    const b = button('Diplom 🖨', 'lesson-diploma');
+                    b.addEventListener('click', () => deps.onDiploma?.(lesson!.level));
+                    return b;
+                  })(),
+                ]
+              : []),
+            (() => {
+              const b = button('Zkusit zkoušku znovu', view.test.passed ? 'lesson-restart' : 'lesson-restart lesson-next-lesson');
+              b.addEventListener('click', () => dispatch({ type: 'restart' }));
+              return b;
+            })(),
+          ]
+        : []),
       ...view.practice.map((p) => {
         const b = button(p.label, 'lesson-practice-btn');
         b.addEventListener('click', () => deps.onPractice(p));
@@ -168,16 +210,37 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     nextBtn.hidden = finished;
     nextBtn.disabled = !view.canNext;
     nextBtn.textContent = view.stepIndex === view.stepCount - 1 && view.canNext ? 'Dokončit ✓' : 'Dál ▶';
-    knowBtn.hidden = finished;
+    knowBtn.hidden = finished || lesson.test !== undefined;
 
     if (finished && !doneReported) {
       doneReported = true;
-      deps.onLessonDone(lesson);
+      deps.onLessonDone(lesson, view.test);
     }
+    if (!finished) doneReported = false; // a restarted test reports again
+    scheduleReply(view);
+  };
+
+  const renderResult = (view: LessonView): void => {
+    result.replaceChildren();
+    result.hidden = true;
+    if (view.phase !== 'lessonDone' || !view.test || !lesson) return;
+    const t = view.test;
+    const levelTitle = COURSE.find((l) => l.level === lesson!.level)?.title ?? '';
+    result.append(el('div', `Výsledek: ${t.correct} z ${t.total}`, 'lesson-score'));
+    if (t.passed) {
+      const badge = el('div', '', 'lesson-badge');
+      badge.append(el('span', '🏅', 'lesson-badge-icon'), el('span', `Odznak: Úroveň ${lesson.level} · ${levelTitle}`));
+      result.append(badge);
+    } else {
+      result.append(el('div', `Na odznak potřebuješ aspoň ${t.passScore} ${plural(t.passScore, 'správnou odpověď', 'správné odpovědi', 'správných odpovědí')}.`, 'lesson-score-note'));
+    }
+    result.className = `lesson-result ${t.passed ? 'is-passed' : 'is-failed'}`;
+    result.hidden = false;
   };
 
   const dispatch = (event: LessonInput): void => {
     if (!runner || busy) return;
+    if (event.type !== 'reply') cancelReply();
     const before = runner.view;
     const after = runner.dispatch(event);
     // A no-op click must not reset the board's selection; a refused move must snap back.
@@ -238,6 +301,7 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   };
 
   const close = (): void => {
+    cancelReply();
     container.hidden = true;
     lesson = null;
     runner = null;
@@ -246,6 +310,7 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
 
   return {
     start(l: Lesson, b: LessonBoard, ctx: TextContext): void {
+      cancelReply();
       lesson = l;
       board = b;
       runner = createLessonRunner(l, ctx);
@@ -262,6 +327,27 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
       return lesson;
     },
   };
+}
+
+const MINI_REPLY_MS = 550;
+
+/** The line under the teacher's text: stars and moves, a mini-game's score, a test's score. */
+function counterText(view: LessonView): string {
+  if (view.stepKind === 'collect') {
+    const stars = `Hvězdy: ${view.stars.length === 0 ? 'všechny snědené' : `zbývá ${view.stars.length}`}`;
+    const moves = view.maxMoves !== null ? ` · tahy ${view.movesUsed} z ${view.maxMoves}` : '';
+    return `${stars}${moves}${view.test ? ` · správně ${view.test.correct} z ${view.test.answered}` : ''}`;
+  }
+  if (view.mini) {
+    const m = view.mini;
+    const score =
+      m.goal === 'promote-first'
+        ? `Tvoji pěšci: ${m.mine} · soupeřovi: ${m.theirs}`
+        : `Zbývá sebrat: ${m.theirs} ${plural(m.theirs, 'pěšce', 'pěšce', 'pěšců')}`;
+    return m.thinking ? `${score} · soupeř táhne…` : score;
+  }
+  if (view.test && view.test.answered > 0) return `Správně ${view.test.correct} z ${view.test.answered}`;
+  return '';
 }
 
 function el(tag: string, text: string, className?: string): HTMLElement {

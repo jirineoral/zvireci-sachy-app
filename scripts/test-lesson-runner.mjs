@@ -1,14 +1,20 @@
 // Node test of the lesson runner (src/lessons/runner.ts): drives every lesson through its
 // correct answers, then checks wrong answers, explanations, text resolution, the board
-// adapter glue and progress storage. Run: npm run test:lessons
+// adapter glue and progress storage. Phase 21b: mini-games (won through the runner by the
+// careful-beginner bot of mini-sim.mjs), level tests (one attempt, score, pass/fail),
+// the new explanations (pat, check but not mate), castling / en passant, the diploma name.
+// Run: npm run test:lessons
 import './ts-hooks.mjs';
 import assert from 'node:assert/strict';
+import { childMove } from './mini-sim.mjs';
 
 const { COURSE, allLessons } = await import('../src/lessons/course.ts');
 const { createLessonRunner, renderToBoard, needsPromotion } = await import('../src/lessons/runner.ts');
 const { parsePlacement, pseudoTargets } = await import('../src/lessons/geometry.ts');
 const { resolveText } = await import('../src/lessons/text.ts');
 const progress = await import('../src/lessons/progress.ts');
+const diploma = await import('../src/lessons/diploma.ts');
+const { seededRandom } = await import('../src/lessons/mini.ts');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -60,11 +66,35 @@ function collectPath(step) {
 const byId = (id) => allLessons().find((l) => l.id === id);
 const stepIndex = (lesson, id) => lesson.steps.findIndex((s) => s.id === id);
 
+/** Plays the current mini step with the careful beginner until it is won (retrying lost games). */
+function winMini(r, step) {
+  let v = r.view;
+  for (let game = 0; game < 30; game++) {
+    for (let ply = 0; ply < 300 && v.phase === 'task'; ply++) {
+      assert.equal(v.mini.thinking, false);
+      const m = childMove(step.goal, parsePlacement(v.fen), step.fen.split(' ')[1], Math.random);
+      assert.ok(m, 'the child has a move');
+      assert.ok(v.movable.dests.get(m[0])?.includes(m[1]), `${m[0]}-${m[1]} offered`);
+      v = r.dispatch({ type: 'move', from: m[0], to: m[1] });
+      if (v.phase !== 'task') break;
+      assert.equal(v.mini.thinking, true, 'waiting for the reply');
+      assert.equal(v.movable, null, 'board locked while the opponent thinks');
+      assert.equal(v.canNext, false);
+      v = r.dispatch({ type: 'reply' });
+    }
+    if (v.phase === 'stepDone') return v;
+    assert.equal(v.phase, 'wrong');
+    assert.match(v.feedback.text, /Zkus to znovu!$/);
+    v = r.dispatch({ type: 'retry' });
+  }
+  throw new Error(`${step.id}: not won in 30 games`);
+}
+
 // 1. Every lesson end to end with correct answers.
 for (const level of COURSE) {
   for (const lesson of level.lessons) {
     test(`${lesson.id}: correct path`, () => {
-      const r = createLessonRunner(lesson, { animalId: 'kuzlata' });
+      const r = createLessonRunner(lesson, { animalId: 'kuzlata' }, 0, { random: seededRandom(7) });
       for (const [i, step] of lesson.steps.entries()) {
         let v = r.view;
         assert.equal(v.stepIndex, i);
@@ -84,6 +114,8 @@ for (const level of COURSE) {
         } else if (step.kind === 'choose') {
           const opt = step.options.find((o) => o.id === step.correct[0]);
           v = opt.square ? r.dispatch({ type: 'square', square: opt.square }) : r.dispatch({ type: 'choose', id: opt.id });
+        } else if (step.kind === 'mini') {
+          v = winMini(r, step);
         }
         if (step.kind !== 'show') {
           assert.equal(v.phase, 'stepDone', `${step.id}: not solved (${v.feedback?.text})`);
@@ -94,8 +126,12 @@ for (const level of COURSE) {
         v = r.dispatch({ type: 'next' });
       }
       assert.equal(r.view.phase, 'lessonDone');
-      assert.ok(r.view.outro);
+      assert.equal(r.view.outro, resolveText(lesson.outro, { animalId: 'kuzlata' }));
       assert.equal(r.view.canNext, false);
+      if (lesson.test) {
+        assert.equal(r.view.test.correct, r.view.test.total);
+        assert.equal(r.view.test.passed, true);
+      } else assert.equal(r.view.test, null);
     });
   }
 }
@@ -288,6 +324,264 @@ test('progress: round trip, unknown ids dropped, next lesson', () => {
   assert.equal(progress.nextLesson(p).id, 'l1-strelec');
   p = progress.setTeacher(s, p, 'owl');
   assert.deepEqual(progress.readLessonProgress(s), p);
+});
+
+// 6. Phase 21b — new explanations, castling, en passant, check highlight.
+test('a stalemating move is explained as pat', () => {
+  const v = wrongMove('l1-pat', 'avoid', 'e7', 'f7');
+  assert.equal(v.phase, 'wrong');
+  assert.equal(v.feedback.text, 'Pozor, to je pat! Soupeř nemá žádný tah a není v šachu. To je remíza.');
+});
+
+test('mate task: check but not mate shows the defence', () => {
+  const v = wrongMove('l1-mat', 'queen-rank', 'b1', 'h1');
+  assert.equal(v.feedback.text, 'To je šach, ale ne mat. Soupeř se ještě zachrání, podívej se na šipku.');
+  assert.deepEqual(v.shapes.at(-1), { from: 'h8', to: 'g8', brush: 'red' });
+  // Not a check at all → the step's own text.
+  const w = wrongMove('l1-mat', 'back-rank', 'a1', 'a2');
+  assert.equal(w.feedback.text, byId('l1-mat').steps[stepIndex(byId('l1-mat'), 'back-rank')].wrongDefault);
+});
+
+test('safe squares: a square the opponent guards is explained', () => {
+  assert.equal(wrongMove('l1-utok-obrana', 'save', 'e4', 'f6').feedback.text, 'Tady by ti věž vzala jezdce.');
+  assert.equal(wrongMove('l1-utok-obrana', 'save', 'e4', 'c5').feedback.text, 'Tady by ti střelec vzal jezdce.');
+  assert.equal(wrongMove('l1-utok-obrana', 'take-free', 'c1', 'c4').feedback.text, 'Tady by ti pěšec vzal věž.');
+});
+
+test('check is highlighted in lessons (not in tests, not in diagrams)', () => {
+  const sach = byId('l1-sach');
+  assert.equal(createLessonRunner(sach, { animalId: null }).view.check, 'white');
+  assert.equal(createLessonRunner(byId('l1-mat'), { animalId: null }).view.check, 'black');
+  assert.equal(createLessonRunner(byId('l1-vez'), { animalId: null }).view.check, null);
+  const exam = byId('l1-zkouska');
+  assert.equal(createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'state-check')).view.check, null);
+});
+
+test('check: escape, block, capture; a move that ignores the check is explained', () => {
+  const v = wrongMove('l1-sach', 'escape', 'e1', 'd1');
+  assert.equal(v.feedback.text, 'Tam nesmíš. To pole hlídá soupeřova věž.');
+  assert.equal(wrongMove('l1-sach', 'block', 'c3', 'b5').feedback.text, 'Tvůj král je v šachu. Tenhle tah ho nezachrání.');
+  assert.equal(wrongMove('l1-sach', 'capture', 'g3', 'f1').feedback.text, 'Tím šach zakryješ, to taky jde. Ale teď zkus věž vzít.');
+});
+
+test('castling: the king move castles, the other side is explained', () => {
+  const lesson = byId('l1-rosada');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'short'));
+  assert.ok(r.view.movable.dests.get('e1').includes('g1') && r.view.movable.dests.get('e1').includes('c1'));
+  assert.equal(r.dispatch({ type: 'move', from: 'e1', to: 'c1' }).feedback.text, 'To je dlouhá rošáda, k věži na a1. Teď zkus krátkou, k věži na h1.');
+  r.dispatch({ type: 'retry' });
+  const v = r.dispatch({ type: 'move', from: 'e1', to: 'g1' });
+  assert.equal(v.phase, 'stepDone');
+  assert.ok(v.fen.startsWith('4k3/8/8/8/8/8/8/R4RK1 '), v.fen);
+});
+
+test('en passant: the pawn disappears', () => {
+  const lesson = byId('l1-mimochodem');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'take'));
+  const v = r.dispatch({ type: 'move', from: 'e5', to: 'd6' });
+  assert.equal(v.phase, 'stepDone');
+  assert.ok(v.fen.startsWith('4k3/8/3P4/8/8/8/8/4K3 '), v.fen);
+});
+
+test('promotion: every piece accepted in the lesson; a capture-promotion into a guarded square explained', () => {
+  const lesson = byId('l1-promena');
+  for (const p of ['q', 'r', 'b', 'n']) {
+    const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'promote'));
+    assert.equal(r.dispatch({ type: 'move', from: 'b7', to: 'b8', promotion: p }).phase, 'stepDone');
+  }
+  assert.equal(wrongMove('l1-promena', 'take-promote', 'c7', 'c8').feedback.text, 'Tady by ti věž vzala dámu.');
+});
+
+// 7. Mini-games.
+test('mini: board, scoreboard, reply, needsPromotion off', () => {
+  const lesson = byId('l1-pescova-valka');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'full'), { random: seededRandom(1) });
+  let v = r.view;
+  assert.equal(v.stepKind, 'mini');
+  assert.deepEqual({ mine: v.mini.mine, theirs: v.mini.theirs, thinking: v.mini.thinking, result: v.mini.result }, { mine: 8, theirs: 8, thinking: false, result: null });
+  assert.equal(v.check, null);
+  assert.equal(v.movable.color, 'white');
+  assert.deepEqual(v.movable.dests.get('e2').sort(), ['e3', 'e4']);
+  assert.equal(v.movable.dests.get('e7'), undefined, 'only own pawns move');
+  assert.ok(v.canNext, 'a mini-game can be skipped');
+  assert.equal(r.dispatch({ type: 'move', from: 'e2', to: 'e5' }), v, 'an impossible move is ignored');
+  assert.equal(r.dispatch({ type: 'reply' }), v, 'no reply before the child moved');
+  v = r.dispatch({ type: 'move', from: 'e2', to: 'e4' });
+  assert.equal(v.mini.thinking, true);
+  assert.equal(v.movable, null);
+  assert.equal(r.dispatch({ type: 'move', from: 'd2', to: 'd4' }), v, 'no move while the opponent thinks');
+  v = r.dispatch({ type: 'reply' });
+  assert.equal(v.mini.thinking, false);
+  assert.equal(parsePlacement(v.fen).get(v.lastMove[1]).color, 'b', 'the opponent moved');
+  assert.equal(needsPromotion({ ...v, fen: '8/P7/8/8/8/8/8/p7 w - - 0 1' }, 'a7', 'a8'), false);
+});
+
+test('mini: winning by promotion, losing by the opponent\'s promotion, a draw when blocked', () => {
+  const mk = (fen, goal = 'promote-first') => ({
+    id: 't', level: 9, number: 1, title: 't', outro: 't',
+    steps: [{ id: 'm', kind: 'mini', fen, diagram: true, goal, engineLevel: 1, text: 't' }],
+  });
+  let r = createLessonRunner(mk('8/8/P7/8/8/8/7p/8 w - - 0 1'), { animalId: null });
+  let v = r.dispatch({ type: 'move', from: 'a6', to: 'a7' });
+  v = r.dispatch({ type: 'reply' }); // h2-h1: the opponent promotes first
+  assert.equal(v.phase, 'wrong');
+  assert.equal(v.mini.result, 'lost');
+  assert.equal(v.feedback.text, 'Soupeřův pěšec doběhl na konec. Tentokrát vyhrál soupeř. Zkus to znovu!');
+  assert.ok(v.canRetry && v.canNext);
+  r = createLessonRunner(mk('8/P7/8/8/8/8/7p/8 w - - 0 1'), { animalId: null });
+  v = r.dispatch({ type: 'move', from: 'a7', to: 'a8' });
+  assert.equal(v.phase, 'stepDone');
+  assert.equal(v.feedback.text, 'Tvůj pěšec doběhl na konec. Vyhráváš!');
+  r = createLessonRunner(mk('8/8/8/p7/8/P7/8/8 w - - 0 1'), { animalId: null });
+  v = r.dispatch({ type: 'move', from: 'a3', to: 'a4' }); // black a5 is now blocked
+  assert.equal(v.phase, 'wrong');
+  assert.equal(v.mini.result, 'draw');
+  assert.equal(v.feedback.text, 'Soupeř nemá žádný tah. Je to remíza. Zkus to znovu!');
+});
+
+test('mini: the queen game — a pawn takes the queen, pawns pass when blocked', () => {
+  const mk = (fen) => ({
+    id: 't', level: 9, number: 1, title: 't', outro: 't',
+    steps: [{ id: 'm', kind: 'mini', fen, diagram: true, goal: 'capture-all-pawns', engineLevel: 1, text: 't' }],
+  });
+  let r = createLessonRunner(mk('8/2p5/8/8/8/8/8/3Q4 w - - 0 1'), { animalId: null });
+  let v = r.dispatch({ type: 'move', from: 'd1', to: 'd6' });
+  v = r.dispatch({ type: 'reply' });
+  assert.equal(v.mini.result, 'lost');
+  assert.equal(v.feedback.text, 'Pěšec ti vzal dámu. Tentokrát vyhrál soupeř. Zkus to znovu!');
+  r = createLessonRunner(mk('8/2p5/8/8/8/8/8/2Q5 w - - 0 1'), { animalId: null });
+  v = r.dispatch({ type: 'move', from: 'c1', to: 'c6' }); // blocks the only pawn
+  v = r.dispatch({ type: 'reply' });
+  assert.equal(v.feedback.text, 'Soupeř nemůže táhnout. Hraješ znovu ty.');
+  assert.equal(v.movable.color, 'white');
+  v = r.dispatch({ type: 'move', from: 'c6', to: 'c7' });
+  assert.equal(v.phase, 'stepDone');
+  assert.equal(v.mini.result, 'won');
+});
+
+test('mini: the weak picker is beatable through the runner (careful beginner, 100 games)', () => {
+  for (const [lessonId, stepId, minWins] of [['l1-pescova-valka', 'full', 70], ['l1-hodnota', 'queen-vs-pawns', 80]]) {
+    const lesson = byId(lessonId);
+    const step = lesson.steps[stepIndex(lesson, stepId)];
+    let wins = 0;
+    for (let seed = 1; seed <= 100; seed++) {
+      const random = seededRandom(seed);
+      const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, stepId), { random });
+      let v = r.view;
+      for (let ply = 0; ply < 300 && v.phase === 'task'; ply++) {
+        const m = childMove(step.goal, parsePlacement(v.fen), 'w', random);
+        v = r.dispatch({ type: 'move', from: m[0], to: m[1] });
+        if (v.phase === 'task') v = r.dispatch({ type: 'reply' });
+      }
+      if (v.mini?.result === 'won') wins++;
+    }
+    assert.ok(wins >= minWins, `${lessonId}: ${wins} wins of 100`);
+  }
+});
+
+// 8. Level test.
+const exam = byId('l1-zkouska');
+/** Answers the test: `wrongAt` = step ids answered wrongly. Returns the final view. */
+function takeExam(wrongAt) {
+  const r = createLessonRunner(exam, { animalId: null });
+  let v = r.view;
+  for (const step of exam.steps) {
+    const wrong = wrongAt.includes(step.id);
+    if (step.kind === 'choose') {
+      const opt = step.options.find((o) => (wrong ? !step.correct.includes(o.id) : step.correct.includes(o.id)));
+      v = opt.square ? r.dispatch({ type: 'square', square: opt.square }) : r.dispatch({ type: 'choose', id: opt.id });
+    } else if (step.kind === 'move') {
+      const dests = v.movable.dests;
+      let uci = step.accept[0];
+      if (wrong) {
+        const [from, tos] = [...dests].find(([f, t]) => t.some((to) => !step.accept.some((a) => a.startsWith(f + to)))) ?? [];
+        uci = from ? from + tos.find((to) => !step.accept.some((a) => a.startsWith(from + to))) : 'f7f8q';
+        if (step.id === 'promote') uci = 'f7f8q';
+      }
+      v = r.dispatch({ type: 'move', from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+    } else if (step.kind === 'collect') {
+      const path = wrong ? [['g1', 'h3'], ['h3', 'g5'], ['g5', 'h7']] : collectPath(step);
+      for (const [from, to] of path) v = r.dispatch({ type: 'move', from, to });
+    }
+    if (step.kind !== 'show') {
+      assert.equal(v.phase, 'stepDone', `${step.id}: one attempt, then done`);
+      assert.equal(v.feedback.tone, wrong ? 'bad' : 'good', `${step.id}: ${v.feedback.text}`);
+      if (wrong) assert.match(v.feedback.text, /^Tohle ne\. /);
+      assert.equal(v.canRetry, false);
+      assert.equal(v.canBack, false);
+    }
+    v = r.dispatch({ type: 'next' });
+  }
+  return { r, v };
+}
+
+test('test: the first answer is final, wrong answers show the solution', () => {
+  const r = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'square'));
+  let v = r.dispatch({ type: 'choose', id: 'f6' });
+  assert.equal(v.phase, 'stepDone');
+  assert.equal(v.feedback.text, 'Tohle ne. Sloupec g, řada 6. Je to pole g6.');
+  assert.equal(v.choices.find((c) => c.id === 'g6').state, 'correct');
+  assert.equal(r.dispatch({ type: 'choose', id: 'g6' }), v, 'no second attempt');
+  const m = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'promote'));
+  v = m.dispatch({ type: 'move', from: 'f7', to: 'f8', promotion: 'q' });
+  assert.equal(v.feedback.text, 'Tohle ne. Pozor, to je pat! Soupeř nemá žádný tah a není v šachu. To je remíza.');
+  assert.deepEqual(v.shapes.at(-1), { from: 'f7', to: 'f8', brush: 'green' });
+  const ok = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'square'));
+  assert.equal(ok.dispatch({ type: 'choose', id: 'g6' }).feedback.text, 'Správně! Sloupec g, řada 6. Je to pole g6.');
+  const c = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'knight'));
+  for (const [f, t] of [['g1', 'h3'], ['h3', 'g5'], ['g5', 'h7']]) v = c.dispatch({ type: 'move', from: f, to: t });
+  assert.equal(v.feedback.text, 'Tohle ne. Došly ti tahy. Jde to na 3 tahy.');
+  const k = createLessonRunner(exam, { animalId: null }, stepIndex(exam, 'escape'));
+  v = k.dispatch({ type: 'move', from: 'h1', to: 'g1' });
+  assert.equal(v.phase, 'stepDone');
+  assert.equal(v.feedback.text, 'Tohle ne. Tam nesmíš. To pole hlídá soupeřova věž.');
+});
+
+test('test: 11/11, 9/11 pass; 8/11 fails with its own outro and no practice; restart', () => {
+  let { r, v } = takeExam([]);
+  assert.deepEqual(v.test, { correct: 11, answered: 11, total: 11, passScore: 9, passed: true });
+  ({ v } = takeExam(['square', 'knight']));
+  assert.equal(v.test.correct, 9);
+  assert.equal(v.test.passed, true);
+  assert.equal(v.outro, exam.outro);
+  ({ r, v } = takeExam(['knight', 'state-pat', 'promote']));
+  assert.equal(v.phase, 'lessonDone');
+  assert.deepEqual(v.test, { correct: 8, answered: 11, total: 11, passScore: 9, passed: false });
+  assert.equal(v.outro, exam.test.failOutro);
+  assert.deepEqual(v.practice, []);
+  v = r.dispatch({ type: 'restart' });
+  assert.equal(v.stepIndex, 0);
+  assert.equal(v.phase, 'task');
+  assert.deepEqual(v.test, { correct: 0, answered: 0, total: 11, passScore: 9, passed: null });
+});
+
+test('progress: a passed test marks done, test and badge', () => {
+  const s = fakeStorage();
+  let p = progress.readLessonProgress(s);
+  p = progress.markTestPassed(s, p, exam);
+  assert.deepEqual(progress.readLessonProgress(s), { done: { 'l1-zkouska': true }, tests: { l1: true }, badges: { l1: true }, teacher: 'owl' });
+  assert.equal(progress.markTestPassed(s, p, byId('l1-vez')), p, 'not a test: nothing');
+});
+
+test('diploma name: stored only when remembered, cleaned', () => {
+  const m = new Map();
+  const s = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) };
+  assert.equal(diploma.readDiplomaName(s), null);
+  diploma.writeDiplomaName(s, 'Eliška', false);
+  assert.equal(m.size, 0);
+  diploma.writeDiplomaName(s, '  Eliš\u0007ka \u202eNováková  ', true);
+  assert.equal(diploma.readDiplomaName(s), 'Eliška Nováková');
+  diploma.writeDiplomaName(s, 'x'.repeat(100), true);
+  assert.equal(diploma.readDiplomaName(s).length, diploma.DIPLOMA_NAME_MAX);
+  diploma.writeDiplomaName(s, 'Eliška', false);
+  assert.equal(diploma.readDiplomaName(s), null);
+  const throwing = { getItem: () => { throw new Error('x'); }, setItem: () => { throw new Error('x'); }, removeItem: () => { throw new Error('x'); } };
+  assert.equal(diploma.readDiplomaName(throwing), null);
+  const warn = console.warn;
+  console.warn = () => {};
+  diploma.writeDiplomaName(throwing, 'a', true);
+  console.warn = warn;
+  assert.equal(diploma.czechDate(new Date(2026, 8, 26)), '26. 9. 2026');
 });
 
 console.log(`test-lesson-runner: ${passed} passed${process.exitCode ? ', FAILURES above' : ''}`);

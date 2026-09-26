@@ -11,12 +11,17 @@
  * (`renderToBoard` below), the rest (teacher text, feedback, choice buttons, Dál /
  * Zkusit znovu) through the lesson panel. Board events go back in as inputs:
  * a dropped piece → `{ type: 'move' }`, a clicked square → `{ type: 'square' }`.
+ *
+ * Phase 21b: `mini` steps (a mini-game against the weak local picker in mini.ts — the UI
+ * sends `{ type: 'reply' }` after a short pause while `view.mini.thinking`), and level
+ * tests (`lesson.test`: one attempt per task, the first answer is final, a score).
  */
 import { Chess, type Color, type Square } from 'chess.js';
 import { plural } from '../czech';
 import { attackersOf, findKing, moved, parsePlacement, placementOf, pseudoTargets, rankOf } from './geometry';
+import { countPawns, miniOutcome, pickReply, type MiniResult } from './mini';
 import { PIECE_NAMES, resolveText, tookVerb, type TextContext } from './text';
-import type { ChooseStep, CollectStep, Lesson, LessonStep, MoveStep, PieceType, PracticePointer, Shape } from './types';
+import type { ChooseStep, CollectStep, Completeness, Lesson, LessonStep, MiniStep, MoveStep, PieceType, PracticePointer, Shape } from './types';
 
 export type BoardColor = 'white' | 'black';
 
@@ -33,7 +38,11 @@ export type LessonInput =
   /** `Zkusit znovu`: restart the current step. */
   | { type: 'retry' }
   /** Previous step. */
-  | { type: 'back' };
+  | { type: 'back' }
+  /** Mini-game: the opponent's move (the UI sends it after a short pause while `mini.thinking`). */
+  | { type: 'reply' }
+  /** Start the whole lesson over (a level test after its result). */
+  | { type: 'restart' };
 
 export type Phase =
   /** Waiting for the child (a show step waits for `Dál`). */
@@ -58,6 +67,26 @@ export interface Feedback {
   text: string;
 }
 
+/** A mini-game's scoreboard. */
+export interface MiniView {
+  goal: MiniStep['goal'];
+  /** The child's pawns (pěšcová válka) / the pawns still to take (seber všechny pěšce). */
+  mine: number;
+  theirs: number;
+  /** The opponent is about to move (the board is locked; the UI sends `reply`). */
+  thinking: boolean;
+  result: MiniResult['result'] | null;
+}
+
+/** A level test's score. `passed` is set once the test is finished. */
+export interface TestView {
+  correct: number;
+  answered: number;
+  total: number;
+  passScore: number;
+  passed: boolean | null;
+}
+
 export interface LessonView {
   lessonId: string;
   title: string;
@@ -74,6 +103,8 @@ export interface LessonView {
   /** Null = the board is locked. Dests include pseudo-legal moves (explained when illegal). */
   movable: { color: BoardColor; dests: Map<Square, Square[]> } | null;
   lastMove: [Square, Square] | null;
+  /** The side whose king is in check (the board highlights it), or null. */
+  check: BoardColor | null;
   /** Arrows/circles of the step plus the feedback's (e.g. a red arrow from the attacker). */
   shapes: Shape[];
   /** Stars still on the board. */
@@ -89,9 +120,18 @@ export interface LessonView {
   canNext: boolean;
   canRetry: boolean;
   canBack: boolean;
-  /** Set when `phase === 'lessonDone'`. */
+  /** Set when `phase === 'lessonDone'` (a failed test gets its `failOutro`). */
   outro: string | null;
   practice: readonly PracticePointer[];
+  /** Mini-game steps only. */
+  mini: MiniView | null;
+  /** Level tests only. */
+  test: TestView | null;
+}
+
+export interface RunnerOptions {
+  /** Random source of the mini-game opponent (tests pass a seeded one). */
+  random?: () => number;
 }
 
 export interface LessonRunner {
@@ -112,8 +152,8 @@ export interface LessonRunner {
  * returned view. Nothing here may mutate chess.js game state: a lesson is not a game.
  */
 export interface LessonBoard {
-  /** Put a position on the board (any FEN, also kingless diagrams). */
-  setPosition(fen: string, orientation: BoardColor, turnColor: BoardColor, lastMove: [Square, Square] | null): void;
+  /** Put a position on the board (any FEN, also kingless diagrams); `check` highlights that king. */
+  setPosition(fen: string, orientation: BoardColor, turnColor: BoardColor, lastMove: [Square, Square] | null, check?: BoardColor | null): void;
   /** Which pieces may move where; null locks the board. */
   setMovable(movable: { color: BoardColor; dests: Map<Square, Square[]> } | null): void;
   /** Arrows and circles (replaces the previous ones). */
@@ -124,7 +164,7 @@ export interface LessonBoard {
 
 /** Pushes the board part of a view into the adapter. Choice squares become circles. */
 export function renderToBoard(board: LessonBoard, view: LessonView): void {
-  board.setPosition(view.fen, view.orientation, view.turnColor, view.lastMove);
+  board.setPosition(view.fen, view.orientation, view.turnColor, view.lastMove, view.check);
   board.setMovable(view.movable);
   const choiceShapes: Shape[] = view.choices
     .filter((c) => c.square)
@@ -135,6 +175,7 @@ export function renderToBoard(board: LessonBoard, view: LessonView): void {
 
 /** Whether a move from→to is a pawn reaching the last rank (the UI asks which piece). */
 export function needsPromotion(view: LessonView, from: Square, to: Square): boolean {
+  if (view.stepKind === 'mini') return false; // a mini-game pawn on the last rank simply wins
   const piece = parsePlacement(view.fen).get(from);
   return piece?.type === 'p' && (rankOf(to) === 7 || rankOf(to) === 0);
 }
@@ -155,14 +196,27 @@ interface StepState {
   stars: Square[];
   movesUsed: number;
   choiceState: Record<string, 'wrong' | 'correct'>;
+  /** Mini-game steps: waiting for the opponent's reply / the final result. */
+  mini: { awaiting: boolean; result: MiniResult | null } | null;
 }
 
-export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep = 0): LessonRunner {
+export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep = 0, options: RunnerOptions = {}): LessonRunner {
   let index = clamp(startStep, 0, lesson.steps.length - 1);
   let state: StepState = initStep(lesson.steps[index]);
   let finished = false;
+  const random = options.random ?? Math.random;
+  const test = lesson.test ?? null;
+  /** Level tests: step index → answered correctly. */
+  let results = new Map<number, boolean>();
+  const taskCount = lesson.steps.filter((s) => s.kind !== 'show').length;
 
   const t = (s: string): string => resolveText(s, ctx);
+
+  const testView = (): TestView | null => {
+    if (!test) return null;
+    const correct = [...results.values()].filter(Boolean).length;
+    return { correct, answered: results.size, total: taskCount, passScore: test.passScore, passed: finished ? correct >= test.passScore : null };
+  };
 
   const build = (): LessonView => {
     const step = lesson.steps[index];
@@ -176,11 +230,31 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
       const piece = board.get(currentPieceSquare(step, state))!;
       movable = { color: boardColor(piece.color), dests: new Map([[currentPieceSquare(step, state), pseudoTargets(board, currentPieceSquare(step, state))]]) };
     }
+    let mini: MiniView | null = null;
+    if (step.kind === 'mini') {
+      const board = parsePlacement(state.fen);
+      const child = turnOf(step.fen);
+      const engine = otherColor(child);
+      if (!locked && !state.mini?.awaiting) {
+        const dests = new Map<Square, Square[]>();
+        for (const [sq, p] of board) if (p.color === child) dests.set(sq, pseudoTargets(board, sq));
+        movable = { color: boardColor(child), dests };
+      }
+      mini = {
+        goal: step.goal,
+        mine: countPawns(board, child),
+        theirs: countPawns(board, engine),
+        thinking: !finished && state.mini?.awaiting === true,
+        result: state.mini?.result?.result ?? null,
+      };
+    }
     const choices: ChoiceView[] =
       step.kind === 'choose'
         ? step.options.map((o) => ({ id: o.id, label: o.label, square: o.square, state: state.choiceState[o.id] ?? 'idle' }))
         : [];
-    const canNext = phase === 'stepDone' || (phase === 'task' && (step.kind === 'show' || step.kind === 'mini'));
+    // Nothing is locked: a mini-game can be left any time (except while the reply is pending).
+    const canNext = phase === 'stepDone' || (phase === 'task' && step.kind === 'show') || (step.kind === 'mini' && !test && state.mini?.awaiting !== true);
+    const tv = testView();
     return {
       lessonId: lesson.id,
       title: lesson.title,
@@ -190,9 +264,11 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
       phase,
       fen: state.fen,
       orientation: step.orientation ?? 'white',
-      turnColor: movable?.color ?? boardColor(turn),
+      turnColor: movable?.color ?? boardColor(step.kind === 'mini' ? turnOf(step.fen) : turn),
       movable,
       lastMove: state.lastMove,
+      // No check highlight in a test: it would give „šach / mat / pat“ away.
+      check: step.kind === 'mini' || step.diagram || test ? null : checkOf(state.fen),
       shapes: [...(step.shapes ?? []), ...state.feedbackShapes],
       stars: state.stars,
       text: t(step.text),
@@ -201,11 +277,34 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
       movesUsed: state.movesUsed,
       maxMoves: step.kind === 'collect' ? (step.maxMoves ?? null) : null,
       canNext: !finished && canNext,
-      canRetry: !finished && (phase === 'wrong' || (phase === 'task' && state.movesUsed > 0)),
-      canBack: !finished && index > 0,
-      outro: finished ? t(lesson.outro) : null,
-      practice: finished ? (lesson.practice ?? []) : [],
+      canRetry: !finished && !test && (phase === 'wrong' || (phase === 'task' && state.movesUsed > 0)),
+      canBack: !finished && !test && index > 0,
+      outro: finished ? t(tv && !tv.passed ? test!.failOutro : lesson.outro) : null,
+      practice: finished && (!tv || tv.passed) ? (lesson.practice ?? []) : [],
+      mini: finished ? null : mini,
+      test: tv,
     };
+  };
+
+  /** Level tests: one attempt — the first answer is final, right or wrong (then explained). */
+  const settleTest = (step: LessonStep, prev: StepState, next: StepState): StepState => {
+    if (!test || next === prev || step.kind === 'show') return next;
+    if (next.phase === 'stepDone') {
+      results.set(index, true);
+      return step.kind === 'choose' ? { ...next, feedback: { tone: 'good', text: `Správně! ${step.explain}` } } : next;
+    }
+    const wrongChoice = step.kind === 'choose' && next.feedback?.tone === 'bad';
+    if (next.phase !== 'wrong' && !wrongChoice) return next; // e.g. a collect move on the way
+    results.set(index, false);
+    if (step.kind === 'choose') {
+      const choiceState = { ...next.choiceState };
+      for (const c of step.correct) choiceState[c] = 'correct';
+      return { ...next, phase: 'stepDone', choiceState, feedback: { tone: 'bad', text: `Tohle ne. ${step.explain}` } };
+    }
+    const solution: Shape[] =
+      step.kind === 'move' ? [{ from: step.accept[0].slice(0, 2) as Square, to: step.accept[0].slice(2, 4) as Square, brush: 'green' }] : [];
+    const why = (next.feedback?.text ?? '').replace(/ Zkus to znovu\.$/, ''); // one attempt: no „try again“
+    return { ...next, phase: 'stepDone', feedback: { tone: 'bad', text: `Tohle ne. ${why}`.trim() }, feedbackShapes: [...next.feedbackShapes, ...solution] };
   };
 
   let view = build();
@@ -224,30 +323,40 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
         }
         break;
       case 'back':
-        if (index === 0) break;
+        if (index === 0 || test) break;
         finished = false;
         index--;
         state = initStep(lesson.steps[index]);
         break;
       case 'retry':
-        if (finished) break;
+        if (finished || test) break;
         state = initStep(step);
+        break;
+      case 'restart':
+        index = 0;
+        finished = false;
+        results = new Map();
+        state = initStep(lesson.steps[0]);
         break;
       case 'move':
         if (state.phase !== 'task' || finished) break;
-        if (step.kind === 'move') state = onMove(step, state, input.from, input.to, input.promotion);
-        else if (step.kind === 'collect') state = onCollect(step, state, input.from, input.to);
+        if (step.kind === 'move') state = settleTest(step, state, onMove(step, state, input.from, input.to, input.promotion));
+        else if (step.kind === 'collect') state = settleTest(step, state, onCollect(step, state, input.from, input.to));
+        else if (step.kind === 'mini') state = onMiniMove(step, state, input.from, input.to);
+        break;
+      case 'reply':
+        if (step.kind === 'mini' && !finished) state = onMiniReply(step, state, random);
         break;
       case 'square':
         if (step.kind !== 'choose' || state.phase !== 'task' || finished) break;
         {
           const option = step.options.find((o) => o.square === input.square);
-          if (option) state = onChoose(step, state, option.id);
+          if (option) state = settleTest(step, state, onChoose(step, state, option.id));
         }
         break;
       case 'choose':
         if (step.kind !== 'choose' || state.phase !== 'task' || finished) break;
-        state = onChoose(step, state, input.id);
+        state = settleTest(step, state, onChoose(step, state, input.id));
         break;
     }
     if (before.index === index && before.state === state && before.finished === finished) return view;
@@ -262,6 +371,7 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
     dispatch,
     goTo(i: number): LessonView {
       index = clamp(i, 0, lesson.steps.length - 1);
+      if (index === 0) results = new Map();
       finished = false;
       state = initStep(lesson.steps[index]);
       view = build();
@@ -275,11 +385,12 @@ function initStep(step: LessonStep): StepState {
     phase: 'task',
     fen: step.fen,
     lastMove: null,
-    feedback: step.kind === 'mini' ? { tone: 'info', text: 'Tahle minihra se teprve chystá. Zatím pokračuj dál.' } : null,
+    feedback: null,
     feedbackShapes: [],
     stars: step.kind === 'collect' ? [...step.stars] : [...(step.stars ?? [])],
     movesUsed: 0,
     choiceState: {},
+    mini: step.kind === 'mini' ? { awaiting: false, result: null } : null,
   };
 }
 
@@ -320,7 +431,7 @@ function onMove(step: MoveStep, state: StepState, from: Square, to: Square, prom
     chess.move({ from, to, promotion: promo });
     return { ...state, phase: 'stepDone', fen: chess.fen(), lastMove: [from, to], feedback: { tone: 'good', text: step.success ?? SUCCESS_DEFAULT }, feedbackShapes: [] };
   }
-  const why = explainWrongMove(state.fen, from, to, promo, step);
+  const why = explainWrongMove(state.fen, from, to, promo, step, step.completeness);
   if (legal) chess.move({ from, to, promotion: promo });
   return {
     ...state,
@@ -334,7 +445,8 @@ function onMove(step: MoveStep, state: StepState, from: Square, to: Square, prom
 
 /**
  * Why a move is not the answer. Order: the step's own text for this move → illegal (own
- * king attacked afterwards) → the moved piece can be taken → the step's `wrongDefault`.
+ * king attacked afterwards) → stalemate → (mate tasks) check but not mate, with the
+ * defence as an arrow → the moved piece can be taken → the step's `wrongDefault`.
  */
 export function explainWrongMove(
   fen: string,
@@ -342,6 +454,7 @@ export function explainWrongMove(
   to: Square,
   promotion: PieceType | undefined,
   step: Pick<MoveStep, 'wrong' | 'wrongDefault'>,
+  completeness?: Completeness,
 ): { text: string; shapes: Shape[] } {
   const uci = `${from}${to}${promotion ?? ''}`;
   const own = step.wrong?.[uci] ?? step.wrong?.[`${from}${to}`];
@@ -378,6 +491,14 @@ export function explainWrongMove(
   }
 
   chess.move({ from, to, promotion });
+  if (chess.isStalemate()) {
+    return { text: 'Pozor, to je pat! Soupeř nemá žádný tah a není v šachu. To je remíza.', shapes: [] };
+  }
+  if (completeness?.kind === 'mate' && chess.inCheck()) {
+    const replies = chess.moves({ verbose: true });
+    const save = replies.find((m) => m.captured) ?? replies.find((m) => m.piece === 'k') ?? replies[0];
+    return { text: 'To je šach, ale ne mat. Soupeř se ještě zachrání, podívej se na šipku.', shapes: save ? [{ from: save.from, to: save.to, brush: 'red' }] : [] };
+  }
   const takers = chess.moves({ verbose: true }).filter((m) => m.to === to);
   if (takers.length > 0) {
     const cheapest = takers.reduce((a, b) => (VALUE[a.piece as PieceType] <= VALUE[b.piece as PieceType] ? a : b));
@@ -431,6 +552,68 @@ export function movesWord(n: number): string {
   return plural(n, 'tah', 'tahy', 'tahů');
 }
 
+// --- mini-games ----------------------------------------------------------------------
+
+function otherColor(c: Color): Color {
+  return c === 'w' ? 'b' : 'w';
+}
+
+function onMiniMove(step: MiniStep, state: StepState, from: Square, to: Square): StepState {
+  if (!state.mini || state.mini.awaiting || state.mini.result) return state;
+  const board = parsePlacement(state.fen);
+  const child = turnOf(step.fen);
+  if (board.get(from)?.color !== child || !pseudoTargets(board, from).includes(to)) return state;
+  const next = moved(board, from, to);
+  const after: StepState = {
+    ...state,
+    fen: `${placementOf(next)} ${otherColor(child)} - - 0 1`,
+    lastMove: [from, to],
+    movesUsed: state.movesUsed + 1,
+    feedback: null,
+    feedbackShapes: [],
+    mini: { awaiting: true, result: null },
+  };
+  const outcome = miniOutcome(step.goal, next, child, child);
+  return outcome ? finishMini(step, after, outcome, otherColor(child)) : after;
+}
+
+function onMiniReply(step: MiniStep, state: StepState, random: () => number): StepState {
+  if (!state.mini?.awaiting || state.mini.result) return state;
+  const child = turnOf(step.fen);
+  const engine = otherColor(child);
+  const board = parsePlacement(state.fen);
+  const reply = pickReply(step.goal, board, engine, step.engineLevel, random);
+  if (!reply) {
+    // Only in „seber všechny pěšce“ (pěšcová válka ends as a draw before this): the pawns pass.
+    return {
+      ...state,
+      fen: `${placementOf(board)} ${child} - - 0 1`,
+      mini: { awaiting: false, result: null },
+      feedback: { tone: 'info', text: 'Soupeř nemůže táhnout. Hraješ znovu ty.' },
+    };
+  }
+  const next = moved(board, reply[0], reply[1]);
+  const after: StepState = { ...state, fen: `${placementOf(next)} ${child} - - 0 1`, lastMove: reply, mini: { awaiting: false, result: null }, feedback: null };
+  const outcome = miniOutcome(step.goal, next, engine, child);
+  if (!outcome) return after;
+  return finishMini(step, after, outcome, child, board.get(reply[1])?.type);
+}
+
+/** `blocked` = the side to move next (the one without a move in a draw); `taken` = what the last move took. */
+function finishMini(step: MiniStep, state: StepState, outcome: MiniResult, blocked: Color, taken?: PieceType): StepState {
+  const mini = { awaiting: false, result: outcome };
+  if (outcome.result === 'won') {
+    const text = step.success ?? (outcome.reason === 'promoted' ? 'Tvůj pěšec doběhl na konec. Vyhráváš!' : 'Soupeři nezbyl žádný pěšec. Vyhráváš!');
+    return { ...state, phase: 'stepDone', mini, feedback: { tone: 'good', text } };
+  }
+  let text: string;
+  if (outcome.result === 'draw') text = blocked === turnOf(step.fen) ? 'Nemáš žádný tah. Je to remíza.' : 'Soupeř nemá žádný tah. Je to remíza.';
+  else if (outcome.reason === 'piece-taken') text = `Pěšec ti vzal ${PIECE_NAMES[taken && taken !== 'p' ? taken : 'q'].acc}. Tentokrát vyhrál soupeř.`;
+  else if (outcome.reason === 'promoted') text = 'Soupeřův pěšec doběhl na konec. Tentokrát vyhrál soupeř.';
+  else text = 'Nezbyl ti žádný pěšec. Tentokrát vyhrál soupeř.';
+  return { ...state, phase: 'wrong', mini, feedback: { tone: 'bad', text: `${text} Zkus to znovu!` } };
+}
+
 // --- choose steps --------------------------------------------------------------------
 
 function onChoose(step: ChooseStep, state: StepState, id: string): StepState {
@@ -442,6 +625,16 @@ function onChoose(step: ChooseStep, state: StepState, id: string): StepState {
 }
 
 // --- helpers --------------------------------------------------------------------------
+
+/** The side in check in a full, legal FEN (null for kingless or broken positions). */
+function checkOf(fen: string): BoardColor | null {
+  try {
+    const chess = new Chess(fen);
+    return chess.inCheck() ? boardColor(chess.turn()) : null;
+  } catch {
+    return null;
+  }
+}
 
 function turnOf(fen: string): Color {
   return fen.trim().split(/\s+/)[1] === 'b' ? 'b' : 'w';

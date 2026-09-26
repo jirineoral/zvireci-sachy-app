@@ -421,6 +421,7 @@ function lintText(text, label, ctx = { animalId: 'kuzlata' }) {
   if (/O-O/.test(plain)) err(`${label}: O-O — write 0-0`);
   if (/dvojit/i.test(plain)) err(`${label}: „dvojitý“ — the term is „dvojný“`);
   if (/pěšák/i.test(plain)) err(`${label}: „pěšák“ — the term is „pěšec“`);
+  if (/anastasi|anastázi(?!in)/i.test(plain)) err(`${label}: the mate is spelled „Anastáziin mat“`);
   if (/\bjsi\s+\p{L}+l\b/u.test(plain) || /\p{L}+l\s+jsi\b/u.test(plain)) err(`${label}: gendered „jsi …l“ — the child may be a girl; rephrase`);
   if (/\b(jsi|bys|by\s+sis?)(\s+\p{L}+){0,2}\s+\p{L}+la\b/u.test(plain) || /\p{L}+la\s+(jsi|bys)\b/u.test(plain)) err(`${label}: gendered past tense („jsi …la“, „bys …la“) — rephrase without gender`);
 }

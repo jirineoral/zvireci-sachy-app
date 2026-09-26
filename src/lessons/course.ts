@@ -3,11 +3,12 @@
  * decision 1). 21a ships level 1, lessons 1–7; the rest of level 1 is 21b, level 2 is 21c.
  */
 import { LEVEL1 } from './level1';
+import { LEVEL2 } from './level2';
 import type { CourseLevel, Lesson } from './types';
 
 export const COURSE: readonly CourseLevel[] = [
   { level: 1, title: 'Úplný začátečník', lessons: LEVEL1 },
-  { level: 2, title: 'Začátečník', lessons: [] },
+  { level: 2, title: 'Začátečník', lessons: LEVEL2 },
 ];
 
 export function allLessons(): Lesson[] {

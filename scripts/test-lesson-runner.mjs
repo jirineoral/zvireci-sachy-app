@@ -229,6 +229,70 @@ test('back / goTo / next refused on an unsolved task', () => {
   assert.equal(r.view.phase, 'task');
 });
 
+// 2b. Level 2: every task step also gets a wrong answer (explained, never a bare „špatně“).
+for (const lesson of COURSE.find((l) => l.level === 2)?.lessons ?? []) {
+  test(`${lesson.id}: wrong answers explained`, () => {
+    let tasks = 0;
+    for (const [i, step] of lesson.steps.entries()) {
+      if (step.kind === 'show') continue;
+      const r = createLessonRunner(lesson, { animalId: 'kuzlata' }, i);
+      let v;
+      if (step.kind === 'move') {
+        // A specific wrong move when the step has one, otherwise any offered non-accepted move.
+        const own = Object.keys(step.wrong ?? {})[0];
+        let uci = own;
+        if (!uci) {
+          for (const [from, tos] of r.view.movable.dests) {
+            const to = tos.find((t) => !step.accept.some((a) => a.startsWith(`${from}${t}`)));
+            if (to) { uci = `${from}${to}`; break; }
+          }
+        }
+        assert.ok(uci, `${step.id}: no wrong move offered`);
+        v = r.dispatch({ type: 'move', from: uci.slice(0, 2), to: uci.slice(2, 4) });
+        assert.equal(v.phase, 'wrong', `${step.id}: ${uci} not refused`);
+        if (own) assert.equal(v.feedback.text, step.wrong[own]);
+        assert.ok(r.dispatch({ type: 'retry' }).phase === 'task');
+        const ok = step.accept[step.accept.length - 1]; // the last accepted answer works too
+        assert.equal(r.dispatch({ type: 'move', from: ok.slice(0, 2), to: ok.slice(2, 4), promotion: ok[4] }).phase, 'stepDone', `${step.id}: ${ok} not accepted`);
+      } else if (step.kind === 'choose') {
+        const bad = step.options.find((o) => !step.correct.includes(o.id));
+        v = bad.square ? r.dispatch({ type: 'square', square: bad.square }) : r.dispatch({ type: 'choose', id: bad.id });
+        assert.equal(v.phase, 'task');
+        assert.equal(v.feedback.text, step.wrongExplain?.[bad.id] ?? step.wrongDefault);
+      }
+      assert.equal(v.feedback.tone, 'bad');
+      assert.ok(v.feedback.text.length > 10 && !/^špatně/i.test(v.feedback.text), `${step.id}: weak explanation`);
+      tasks++;
+    }
+    assert.ok(tasks > 0, 'a lesson without tasks');
+  });
+}
+
+test('level 2: stalemate instead of mate is named', () => {
+  const v = wrongMove('l2-dama-kral', 'mate', 'b7', 'f7');
+  assert.match(v.feedback.text, /^To je pat!/);
+});
+
+test('level 2: a pinned pawn cannot take — the mate is accepted', () => {
+  const lesson = byId('l2-vazba');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'mate'));
+  const v = r.dispatch({ type: 'move', from: 'e4', to: 'd6' });
+  assert.equal(v.phase, 'stepDone');
+});
+
+test('level 2: black tasks are shown from black\'s side', () => {
+  const lesson = byId('l2-ovcak');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'defend'));
+  assert.equal(r.view.orientation, 'black');
+  assert.equal(r.view.movable.color, 'black');
+  assert.equal(r.dispatch({ type: 'move', from: 'g7', to: 'g6' }).phase, 'stepDone');
+});
+
+test('level 2: a piece left en prise in a tactic is explained', () => {
+  // Scholar's defence: ...Dh4 lets the white queen take it.
+  assert.equal(wrongMove('l2-ovcak', 'defend', 'd8', 'h4').feedback.text, 'Tady by ti dáma vzala dámu.');
+});
+
 // 3. Texts.
 test('placeholders: animal + chess name on first mention only', () => {
   assert.equal(resolveText('Tohle je {věž}. {Věž} jezdí rovně.', { animalId: 'kuzlata' }), 'Tohle je věž (u tebe kůzle s hradem na hlavě). Věž jezdí rovně.');

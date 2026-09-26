@@ -8,8 +8,9 @@
  * Phase 21a report: the controller needs a "lesson mode" that pauses its board sync and
  * the engine). It works just as well on a separate `Chessground()` instance.
  *
- * Only constant SVG (the star) reaches chessground's customSvg; texts on shapes go through
- * chessground's `label`, which it renders as SVG text (no HTML).
+ * Only constant SVG (the star) reaches chessground's customSvg. Texts on shapes go through
+ * chessground's `label`, which chessground writes with `innerHTML` into an SVG <text>: they
+ * are lesson constants, but are escaped here anyway (`svgText`) so no string ever becomes markup.
  */
 import type { Api } from '@lichess-org/chessground/api';
 import type { DrawShape } from '@lichess-org/chessground/draw';
@@ -81,7 +82,7 @@ export function createChessgroundLessonBoard(api: Api, handlers: LessonBoardHand
         orig: s.from,
         dest: s.to,
         brush: s.brush ?? 'green',
-        label: s.label ? { text: s.label } : undefined,
+        label: s.label ? { text: svgText(s.label) } : undefined,
       }));
       redraw();
     },
@@ -98,4 +99,9 @@ export function createChessgroundLessonBoard(api: Api, handlers: LessonBoardHand
       api.setAutoShapes([]);
     },
   };
+}
+
+/** Escapes a shape label for chessground, which inserts `label.text` with innerHTML. */
+function svgText(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }

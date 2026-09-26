@@ -176,6 +176,8 @@ export const THEME_NAMES: readonly (readonly [string, string])[] = [
   ['smotheredMate', 'dušený mat'],
   ['arabianMate', 'arabský mat'],
   ['anastasiaMate', 'Anastasiin mat'],
+  ['bodenMate', 'Bodenův mat'],
+  ['epauletteMate', 'epoletový mat'],
   ['mate', 'mat'],
   ['fork', 'vidlička'],
   ['pin', 'vazba'],

@@ -265,8 +265,9 @@ test('back / goTo / next refused on an unsolved task', () => {
   assert.equal(r.view.phase, 'task');
 });
 
-// 2b. Level 2: every task step also gets a wrong answer (explained, never a bare „špatně“).
-for (const lesson of COURSE.find((l) => l.level === 2)?.lessons ?? []) {
+// 2b. Levels 2–3: every task step also gets a wrong answer (explained, never a bare „špatně“).
+// Test lessons (one attempt, no retry) are covered separately below.
+for (const lesson of COURSE.filter((l) => l.level === 2 || l.level === 3).flatMap((l) => l.lessons).filter((l) => !l.test)) {
   test(`${lesson.id}: wrong answers explained`, () => {
     let tasks = 0;
     for (const [i, step] of lesson.steps.entries()) {
@@ -546,7 +547,8 @@ test('mini: the weak picker is beatable through the runner (careful beginner, 10
 // 8. Level test.
 const exam = byId('l1-zkouska');
 /** Answers the test: `wrongAt` = step ids answered wrongly. Returns the final view. */
-function takeExam(wrongAt) {
+function takeExam(wrongAt, exam2 = exam) {
+  const exam = exam2;
   const r = createLessonRunner(exam, { animalId: null });
   let v = r.view;
   for (const step of exam.steps) {
@@ -612,6 +614,27 @@ test('test: 11/11, 9/11 pass; 8/11 fails with its own outro and no practice; res
   assert.equal(v.phase, 'lessonDone');
   assert.deepEqual(v.test, { correct: 8, answered: 11, total: 11, passScore: 9, passed: false });
   assert.equal(v.outro, exam.test.failOutro);
+  assert.deepEqual(v.practice, []);
+  v = r.dispatch({ type: 'restart' });
+  assert.equal(v.stepIndex, 0);
+  assert.equal(v.phase, 'task');
+  assert.deepEqual(v.test, { correct: 0, answered: 0, total: 11, passScore: 9, passed: null });
+});
+
+// 8b. Level 3 test (same one-attempt/pass/fail/restart rules as l1-zkouska).
+const exam3 = byId('l3-zkouska');
+test('l3 test: 11/11, 9/11 pass; 8/11 fails with its own outro and no practice; restart', () => {
+  let { v } = takeExam([], exam3);
+  assert.deepEqual(v.test, { correct: 11, answered: 11, total: 11, passScore: 9, passed: true });
+  assert.equal(v.outro, exam3.outro);
+  ({ v } = takeExam(['t-guard', 't-lure'], exam3));
+  assert.equal(v.test.correct, 9);
+  assert.equal(v.test.passed, true);
+  let r;
+  ({ r, v } = takeExam(['t-guard', 't-lure', 't-attract'], exam3));
+  assert.equal(v.phase, 'lessonDone');
+  assert.deepEqual(v.test, { correct: 8, answered: 11, total: 11, passScore: 9, passed: false });
+  assert.equal(v.outro, exam3.test.failOutro);
   assert.deepEqual(v.practice, []);
   v = r.dispatch({ type: 'restart' });
   assert.equal(v.stepIndex, 0);

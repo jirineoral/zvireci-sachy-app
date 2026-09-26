@@ -1,14 +1,17 @@
 /**
  * Lessons: the course — levels in order, each with its lessons (docs/phase-21-plan.md,
  * decision 1). 21a ships level 1, lessons 1–7; the rest of level 1 is 21b, level 2 is 21c.
+ * Phase 22 adds level 3 (docs/phase-22-plan.md).
  */
 import { LEVEL1 } from './level1';
 import { LEVEL2 } from './level2';
+import { LEVEL3 } from './level3';
 import type { CourseLevel, Lesson } from './types';
 
 export const COURSE: readonly CourseLevel[] = [
   { level: 1, title: 'Úplný začátečník', lessons: LEVEL1 },
   { level: 2, title: 'Začátečník', lessons: LEVEL2 },
+  { level: 3, title: 'Mírně pokročilý', lessons: LEVEL3 },
 ];
 
 export function allLessons(): Lesson[] {

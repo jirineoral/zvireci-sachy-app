@@ -1,7 +1,7 @@
 /**
- * Level 2 — Začátečník, lessons 1–13: notation, the "what does it threaten" routine, basic
- * tactics, back-rank mate, the opening, the three basic mates and reviewing one's own game
- * (docs/phase-21-plan.md, curriculum). Lesson 14 (the level test) is not here.
+ * Level 2 — Začátečník, lessons 1–14: notation, the "what does it threaten" routine, basic
+ * tactics, back-rank mate, the opening, the three basic mates, reviewing one's own game and
+ * the level test (docs/phase-21-plan.md, curriculum).
  *
  * Positions are game-like: opening lines (Italian, Two Knights, Petroff, Caro-Kann,
  * Scandinavian, Damiano, Blackburne–Shilling, Steinitz, QGD) and simplified middlegames /
@@ -1080,5 +1080,153 @@ export const LEVEL2: readonly Lesson[] = [
     ],
     outro: 'Rozbor je jako trenér, který má čas na každý tvůj tah. Používej ho po každé partii.',
     practice: [{ kind: 'play', level: 1, label: 'Zahraj si partii a pak ji rozeber' }],
+  },
+
+  {
+    id: 'l2-zkouska',
+    level: 2,
+    number: 14,
+    title: 'Zkouška úrovně 2',
+    test: {
+      passScore: 8,
+      badge: 'l2',
+      failOutro: 'Tentokrát to nevyšlo. Podívej se znovu na lekce, které ti dělaly potíže, a zkus to znovu.',
+    },
+    steps: [
+      {
+        id: 'intro',
+        kind: 'show',
+        fen: START,
+        text: 'Zkouška úrovně 2! Čeká tě 10 úloh. Na každou máš jen jeden pokus a žádnou nápovědu. Když zvládneš aspoň 8, získáš odznak a diplom.',
+      },
+      {
+        // 1.e4 e5 2.Jf3 — read the notation, play the move.
+        id: 'notation',
+        kind: 'move',
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 3 2',
+        accept: ['b8c6'],
+        completeness: { kind: 'lands', square: 'c6', from: 'b8' },
+        text: 'Přečti zápis a zahraj tah: Jc6.',
+        success: 'Správně! Jezdec b8 šel na pole c6.',
+        wrongDefault: 'Jc6 znamená: jezdec jde na pole c6. Který jezdec tam dosáhne?',
+      },
+      {
+        id: 'hrozi',
+        kind: 'choose',
+        fen: 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3',
+        text: 'Bílý zahrál Dh5. Co bílému teď hrozí?',
+        options: [
+          { id: 'mat', label: 'Mat na f7' },
+          { id: 'e5', label: 'Vzít pěšce e5' },
+          { id: 'nic', label: 'Nic nehrozí' },
+        ],
+        correct: ['mat'],
+        explain: 'Ano! Dáma a střelec míří na f7. Hrozí Dxf7 a to je mat.',
+        wrongExplain: {
+          e5: 'Pěšec e5 dámu nenapadá. Podívej se, kam míří dáma a střelec.',
+          nic: 'Pozor, hrozí! Podívej se, kam míří dáma a střelec.',
+        },
+        wrongDefault: 'Podívej se, kam míří dáma a střelec.',
+      },
+      {
+        // Damiano: 1.e4 e5 2.Jf3 f6? 3.Jxe5 fxe5 4.Dh5+ g6 — double attack with the queen.
+        id: 'utok',
+        kind: 'move',
+        fen: 'rnbqkbnr/pppp3p/6p1/4p2Q/4P3/8/PPPP1PPP/RNB1KB1R w KQkq - 0 5',
+        accept: ['h5e5'],
+        completeness: { kind: 'best' },
+        text: 'Najdi dvojný útok dámou.',
+        success: 'Paráda! Šach a zároveň útok na věž h8.',
+        wrongDefault: 'Hledej tah dámou, který napadne dvě věci naráz. Jedna z nich je král.',
+      },
+      {
+        // Lichess puzzle wvGrh — a knight fork on king and queen.
+        id: 'vidlicka',
+        kind: 'move',
+        fen: '8/6p1/p2k3p/1p4q1/5n2/4Q1NP/P4PP1/6K1 w - - 0 34',
+        accept: ['g3e4'],
+        completeness: { kind: 'best' },
+        text: 'Najdi vidličku jezdcem.',
+        success: 'Paráda! Šach a útok na dámu naráz.',
+        wrongDefault: 'Hledej skok jezdce, který napadne dvě černé figurky naráz.',
+      },
+      {
+        // Steinitz: 1.e4 e5 2.Jf3 Jc6 3.Sb5 d6 — the knight is pinned to the king.
+        id: 'vazba',
+        kind: 'choose',
+        fen: 'r1bqkbnr/ppp2ppp/2np4/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4',
+        text: 'Smí černý jezdec c6 táhnout?',
+        options: [
+          { id: 'ano', label: 'Ano' },
+          { id: 'ne', label: 'Ne' },
+        ],
+        correct: ['ne'],
+        explain: 'Správně, nesmí. Jeho král by pak byl v šachu.',
+        wrongDefault: 'Kdyby jezdec uhnul, střelec by dával šach králi.',
+      },
+      {
+        // Petroff: 1.e4 e5 2.Jf3 Jf6 3.Jxe5 Jxe4? 4.De2 — a discovered check.
+        id: 'odtazny',
+        kind: 'move',
+        fen: 'rnbqkb1r/pppp1ppp/5n2/4N3/8/8/PPPPQPPP/RNB1KB1R w KQkq - 2 5',
+        accept: ['e5c6'],
+        completeness: { kind: 'best' },
+        text: 'Uhni jezdcem tak, aby dal šach a napadl něco velkého.',
+        success: 'Paráda! Dáma dává šach a jezdec napadá dámu d8.',
+        wrongDefault: 'Uhni jezdcem tak, aby napadl černou dámu.',
+      },
+      {
+        id: 'rada',
+        kind: 'move',
+        fen: '6k1/5ppp/p7/1p6/8/P7/1P3PPP/4R1K1 w - - 0 25',
+        accept: ['e1e8'],
+        completeness: { kind: 'mate' },
+        text: 'Dej mat na poslední řadě.',
+        success: 'Mat! Černý král je zavřený za svými pěšci.',
+        wrongDefault: 'Hledej šach na osmé řadě.',
+      },
+      {
+        // 1.e4 e5 2.Jf3 Jc6 3.Sc4 Jf6 — develop another piece, not the edge knight again.
+        id: 'zahajeni',
+        kind: 'choose',
+        fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4',
+        text: 'Který tah se tu hodí nejvíc?',
+        options: [
+          { id: 'jc3', label: 'Jc3' },
+          { id: 'jh4', label: 'Jh4' },
+          { id: 'a3', label: 'a3' },
+        ],
+        correct: ['jc3'],
+        explain: 'Ano! Jc3 vyvede další figurku a hlídá střed.',
+        wrongDefault: 'Vyváděj figurky, které ještě stojí doma.',
+      },
+      {
+        // 1.e4 e5 2.Sc4 Jc6 3.Dh5 g6 4.Df3 — defend against the second ovčácký mat try.
+        id: 'ovcak',
+        kind: 'move',
+        fen: 'r1bqkbnr/pppp1p1p/2n3p1/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 1 4',
+        orientation: 'black',
+        accept: ['g8f6', 'd8e7', 'g8h6', 'f7f5', 'd8f6'],
+        completeness: { kind: 'best', marginCp: 60 },
+        text: 'Bílý hrozí na f7. Ubraň se.',
+        success: 'Výborně! Útok na f7 je odražený.',
+        wrongDefault: 'Tohle pole f7 neubrání. Bílý zahraje Dxf7 a je to mat.',
+      },
+      {
+        id: 'mat',
+        kind: 'move',
+        fen: '7k/1Q6/6K1/8/8/8/8/8 w - - 0 1',
+        accept: ['b7a8', 'b7b8', 'b7c8', 'b7g7', 'b7h7'],
+        completeness: { kind: 'mate' },
+        text: 'Dej mat. Ale pozor na pat!',
+        success: 'Mat! Výborně.',
+        wrongDefault: 'Tohle ještě není mat. Hledej šach, po kterém král nemá kam utéct.',
+      },
+    ],
+    outro: 'Zkouška je za tebou! Odznak je tvůj a můžeš si vytisknout diplom.',
+    practice: [
+      { kind: 'play', level: 3, label: 'Zahraj si partii proti silnějšímu soupeři' },
+      { kind: 'puzzles', band: 'zacatecnik', count: 10, label: 'Úlohy: víc taktiky' },
+    ],
   },
 ];

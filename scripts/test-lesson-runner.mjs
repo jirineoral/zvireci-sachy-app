@@ -676,4 +676,72 @@ test('diploma name: stored only when remembered, cleaned', () => {
   assert.equal(diploma.czechDate(new Date(2026, 8, 26)), '26. 9. 2026');
 });
 
+// Level 5, first batch (lucena/philidor/bb/kombinace): a few targeted checks beyond the
+// generic correct-path loop above.
+const chooseAt = (lessonId, stepId, id) => {
+  const lesson = byId(lessonId);
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, stepId));
+  return r.dispatch({ type: 'choose', id });
+};
+const squareAt = (lessonId, stepId, square) => {
+  const lesson = byId(lessonId);
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, stepId));
+  return r.dispatch({ type: 'square', square });
+};
+
+test('l5-lucena: a king move that keeps the checks going is explained, then the bridge', () => {
+  const v = chooseAt('l5-lucena', 'checks', 'kc5');
+  assert.equal(v.phase, 'task');
+  assert.match(v.feedback.text, /sebere pěšce b7/);
+  assert.equal(chooseAt('l5-lucena', 'checks', 'vb4').phase, 'stepDone');
+});
+
+test('l5-lucena: a winning but off-plan rook move is explained kindly', () => {
+  const lesson = byId('l5-lucena');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'rook4'));
+  const v = r.dispatch({ type: 'move', from: 'd1', to: 'd5' });
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /I to vyhrává/);
+});
+
+test('l5-lucena: the promotion offers a choice; a queen wins, a bishop is explained as a draw', () => {
+  const lesson = byId('l5-lucena');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'promote'));
+  assert.ok(needsPromotion(r.view, 'b7', 'b8'));
+  const w = r.dispatch({ type: 'move', from: 'b7', to: 'b8', promotion: 'b' });
+  assert.notEqual(w.phase, 'stepDone');
+  assert.match(w.feedback.text, /remíza/);
+  const r2 = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'promote'));
+  assert.equal(r2.dispatch({ type: 'move', from: 'b7', to: 'b8', promotion: 'q' }).phase, 'stepDone');
+});
+
+test('l5-philidor: a side check from a5 is explained, then the rook goes far behind', () => {
+  const v = chooseAt('l5-philidor', 'switch', 'a5');
+  assert.equal(v.phase, 'task');
+  assert.match(v.feedback.text, /hrozí mat/);
+  assert.equal(chooseAt('l5-philidor', 'switch', 'a1').phase, 'stepDone');
+});
+
+test('l5-dva-strelci: reachable verify — a square the bishop wall guards is refused', () => {
+  const v = squareAt('l5-dva-strelci', 'reach', 'e5');
+  assert.equal(v.phase, 'task');
+  assert.match(v.feedback.text, /hlídá střelec d4/);
+  assert.equal(squareAt('l5-dva-strelci', 'reach', 'e7').phase, 'stepDone');
+});
+
+test('l5-dva-strelci: the final mate is Sh6-g7#', () => {
+  const lesson = byId('l5-dva-strelci');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'mate'));
+  const v = r.dispatch({ type: 'move', from: 'h6', to: 'g7' });
+  assert.equal(v.phase, 'stepDone');
+});
+
+test('l5-kombinace: both forced queen mates are accepted (Df6+ as played, Dxf7 too)', () => {
+  const lesson = byId('l5-kombinace');
+  for (const to of ['f6', 'f7']) {
+    const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'qf6'));
+    assert.equal(r.dispatch({ type: 'move', from: 'f3', to }).phase, 'stepDone', `Df3-${to}`);
+  }
+});
+
 console.log(`test-lesson-runner: ${passed} passed${process.exitCode ? ', FAILURES above' : ''}`);

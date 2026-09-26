@@ -570,8 +570,9 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 
 ## Owner decisions 2026-09-26 (from the operations notes)
 - **Contact:** always the feedback form, never a personal address. Option on the table:
-  `info@zvirecisachy.cz` via Cloudflare Email Routing (free, forwards to the owner's
-  Gmail) — not set up, awaiting the owner's go.
+  a role address on the domain via Cloudflare Email Routing (free, forwards to the owner's
+  inbox). *2026-09-27:* set up by the owner; the address is deliberately not written in
+  the repository or on the site (spam).
 - **`člověk` set:** the same (owner's) face on both sides is intended; nothing to change.
 - **Share sheet on a real phone:** the owner tests with his son (PC + phone).
 - **Cloudflare SSL "Full (strict)":** irrelevant while the DNS records are DNS-only (the

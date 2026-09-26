@@ -13,13 +13,14 @@ if (!target) {
 const git = (...args) => execFileSync('git', ['-C', target, ...args], { stdio: 'inherit' });
 // GitHub itself commits to the Pages branch when the custom domain is (re)set in the
 // settings ("Create CNAME"); rebase onto that before pushing.
+// Commits use the machine's own git identity (no address hard-coded in this public repo).
 git('add', '-A');
 try {
-  git('-c', 'user.name=Jiri', '-c', 'user.email=jiri.neoral@gmail.com', 'commit', '-q', '-m', message);
+  git('commit', '-q', '-m', message);
 } catch {
   console.log('push-pages: nothing to commit');
 }
 git('fetch', '-q');
-git('-c', 'user.name=Jiri', '-c', 'user.email=jiri.neoral@gmail.com', 'rebase', '-q', 'origin/main');
+git('rebase', '-q', 'origin/main');
 git('push', '-q');
 console.log(`push-pages: pushed ${target}`);

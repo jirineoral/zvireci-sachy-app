@@ -13,12 +13,17 @@
  *    inaccuracy/mistake/blunder lines), {captured} the captured piece in the accusative
  *    ("pěšce", "dámu"), {zvuk} the speaker's noise, {bolest} the speaker's "ouch" noise
  *    (reactions to losing a piece).
+ *  - `mate`, `stalemate` and the draw lines are said by whoever made the last move — also
+ *    the engine's king when the child lost — so they stay side-neutral: no gloating.
  */
 
 export type Situation =
   | 'mate'
   | 'stalemate'
   | 'draw'
+  | 'drawRepetition'
+  | 'drawMaterial'
+  | 'drawFifty'
   | 'brilliant'
   | 'great'
   | 'interesting'
@@ -51,7 +56,7 @@ export const DEFAULT_VOICE = { sound: 'Hm!', hurt: 'Au!' } as const;
 /** What the king of the side to move says before the first move (ply 0). */
 export const OPENING: readonly string[] = [
   'Tak jdeme na to! Sleduju každý tah, nic mi neuteče.',
-  'Partie začíná. {zvuk} Držte mi palce… teda kopýtka nebo plovací blány.',
+  'Partie začíná. {zvuk} Drž mi palce… nebo tlapky, kopýtka, křidýlka!',
   'Šachovnice připravená, figurky nastoupily. Kdo první mrkne, prohrává!',
   'Rozbor partie! Já komentuju, ty koukáš. Dohoda?',
   'Před prvním tahem je vždycky nejvíc napětí. Slyšíš to ticho?',
@@ -62,34 +67,51 @@ export const OPENING: readonly string[] = [
 
 export const TEMPLATES: Record<Situation, readonly string[]> = {
   mate: [
-    'Šach mat! {san} a je hotovo. {zvuk}',
-    '{san} — mat! Král soupeře nemá kam utéct. Tohle se bude vyprávět!',
-    'Mat! Po {san} soupeř jen zírá. Královská práce.',
-    '{san} a soupeřův král padá do sítě. Konec, výhra!',
-    'A je to! {san} znamená mat. Můžeme slavit. {zvuk}',
+    'Mat! {san} a je hotovo. {zvuk}',
+    '{san} — mat! Král nemá kam utéct.',
+    'Mat po {san}. Dobrá partie!',
+    '{san} — mat. Konec partie.',
+    'A je to! {san} znamená mat. {zvuk}',
     'Mat po {san}. Kdo by to byl řekl na začátku partie?',
-    '{san} — poslední tah partie. Soupeřův král vyvěsil bílou vlajku.',
-    'Šach a mat! {san} zavřelo všechny dveře i okna.',
+    '{san} — poslední tah partie. Díky za hru!',
+    '{san} — šach a mat! Všechny dveře i okna jsou zavřené.',
   ],
   stalemate: [
-    'Pat! Po {san} nemá soupeř žádný tah. Remíza — půl bodu pro každého.',
-    '{san} a je pat. Ještě že jsem byl tak dobře schovaný.',
-    'Pat! Nikdo nevyhrál, nikdo neprohrál. Příště to dotáhneme.',
-    'Remíza patem po {san}. Soupeřův král stojí a nemůže se pohnout.',
-    '{san} — pat. Tohle se stane, když má král moc málo místa.',
+    'Pat! Po {san} nemá soupeř žádný povolený tah. Remíza — půl bodu pro každého.',
+    'Soupeř není v šachu, ale nemá žádný povolený tah — to je pat.',
+    'Pat: král není v šachu, ale nemůže se pohnout on ani žádná jeho figurka.',
+    'Pat! Nikdo nevyhrál, nikdo neprohrál.',
+    '{san} — pat. Pozor, když má soupeřův král moc málo místa!',
     'Pat! Půl bodu je taky bod… teda půlka bodu.',
-    'Po {san} je pat. Když už nemá kdo hrát, partie končí remízou.',
-    '{zvuk} Pat. Hlavně že jsme se nenechali dát mat.',
+    'Po {san} je pat: soupeř nemůže táhnout, a přitom není v šachu. Remíza.',
+    '{zvuk} Pat. Příště nechám soupeřovu králi víc místa.',
   ],
   draw: [
-    'Remíza! Po {san} už nikdo nemůže vyhrát. Podáme si ruce.',
+    'Remíza po {san}. Podáme si ruce.',
     '{san} a je remíza. Spravedlivé rozdělení bodu.',
-    'Nerozhodně. Materiál nestačí na mat ani jedné straně.',
     'Remíza po {san}. Oba králové si můžou jít odpočinout.',
     'Půl na půl. Příště to bude celý bod, uvidíš.',
     '{san} — remíza. Někdy je to nejlepší, co se dá vytěžit.',
-    'Nerozhodně! Ani jedna armáda dnes nepadla.',
+    'Nerozhodně! Nikdo nevyhrál, nikdo neprohrál.',
     'Remíza. {zvuk} Žádný poražený, žádný vítěz, jen dobrý zápas.',
+  ],
+  drawRepetition: [
+    'Remíza! Po {san} je na šachovnici potřetí stejná pozice.',
+    'Potřetí to samé! {san} a je remíza opakováním.',
+    '{san} — trojí opakování pozice. Remíza, podáme si ruce.',
+    'Točíme se v kruhu. Potřetí stejná pozice — remíza. {zvuk}',
+  ],
+  drawMaterial: [
+    'Remíza! Po {san} už nikdo nemá dost figur na mat.',
+    '{san} a materiál nestačí na mat ani jedné straně. Remíza.',
+    'Zbylo nás tu málo. Mat už dát nejde — remíza.',
+    'Po {san} už mat nikdo nedá. Podáme si ruce. {zvuk}',
+  ],
+  drawFifty: [
+    'Remíza podle pravidla 50 tahů. Tak dlouho nikdo nic nesebral!',
+    '{san} — padesát tahů bez braní a bez tahu pěšcem. Remíza.',
+    'Po {san} je remíza: padesát tahů se nebralo a pěšci stáli.',
+    'Pravidlo 50 tahů! {zvuk} Remíza, podáme si ruce.',
   ],
   brilliant: [
     '{san}!! Obětuju a nebojím se. Tohle byl tah snů!',
@@ -154,7 +176,7 @@ export const TEMPLATES: Record<Situation, readonly string[]> = {
   promotion: [
     '{san} — proměna! Z pěšce je najednou velké zvíře.',
     'Pěšec došel na konec a proměnil se: {san}! {zvuk}',
-    '{san}! Malý pěšák, velká kariéra.',
+    '{san}! Malý pěšec, velká kariéra.',
     'Proměna {san}. Takhle se z pěšce stane hvězda.',
     '{san} — pěšec dorazil až na poslední řadu. Zasloužené povýšení!',
     'Koruna pro pěšce: {san}! Kdo by to do něj řekl.',
@@ -166,7 +188,7 @@ export const TEMPLATES: Record<Situation, readonly string[]> = {
     '{san} — král se schoval za pěšce. Chytré.',
     'Rošáda! Král si našel útulný domeček.',
     '{san}. Nejdřív bezpečí krále, potom útok. Tak se to má dělat.',
-    'Rošáda {san}. Král a věž si vyměnili místa jako v tanci.',
+    'Rošáda {san}. Král skočil o dvě pole a věž ho přeskočila. Jako v tanci!',
     '{san} — král v bunkru, věž připravená. {zvuk}',
     'Rošáda! Nejlepší tah pro klidný spánek krále.',
     '{san}. Král je v bezpečí a může začít ta pravá zábava.',
@@ -186,7 +208,7 @@ export const TEMPLATES: Record<Situation, readonly string[]> = {
     'Dáma je moje! {san}. Soupeř právě přišel o nejsilnější figuru.',
     '{san}! Sbohem, dámo. Bez tebe to bude pro soupeře těžké.',
     'Dáma dolů! {san} — a šachovnice je najednou mnohem klidnější.',
-    '{san}! Královna soupeře odchází. {zvuk}',
+    '{san}! Soupeřova dáma odchází. {zvuk}',
     'Beru dámu: {san}. Tohle je jako vyhrát celý poklad.',
     '{san}! Devět bodů materiálu v jednom tahu. Paráda!',
     'Dáma pryč po {san}. Soupeřův král se najednou cítí sám.',
@@ -203,21 +225,21 @@ export const TEMPLATES: Record<Situation, readonly string[]> = {
   ],
   capture: [
     '{san} — beru {captured}. Každý kousek se počítá.',
-    'Ňam! {san} a {captured} je pryč.',
+    'Ňam! {san} a beru {captured}.',
     '{san}. O jednoho protivníka míň na šachovnici.',
     'Beru {captured}: {san}. Materiál, materiál!',
     '{san} — malý úlovek, ale úlovek.',
     'Sebral jsem {captured} tahem {san}. {zvuk}',
     '{san}! Soupeř právě přišel o pomocníka.',
     'Braní {san}. Šachovnice se pomalu vyprazdňuje.',
-    '{san} — a {captured} jde do krabice.',
+    '{san} — {captured} posílám do krabice.',
     'Beru! {san}. Kdo neuhne, ten dostane.',
     '{san}. Tahle výměna se mi líbí.',
     'Křup! {san}. Beru {captured} a jdu dál.',
   ],
   check: [
     '{san} — šach! Králi, uhni!',
-    'Šach po {san}. Soupeřův král se musí hýbat, ať chce nebo ne.',
+    'Šach po {san}. Soupeřův král se musí hýbat, ať chce, nebo ne.',
     '{san}! Šach. Král soupeře nemá klid ani na chvilku.',
     'Šach! {san} — a soupeř má o starost víc.',
     '{san} — šach. Tohle soupeřova koruna nesnáší.',
@@ -226,12 +248,12 @@ export const TEMPLATES: Record<Situation, readonly string[]> = {
     'Šach po {san}. Král utíká, ale kam?',
   ],
   firstMove: [
-    '{san} — a jedeme! První tah partie.',
-    'Otevírám {san}. Střed šachovnice je nejdůležitější.',
-    '{san}. Klasika, která nikdy nezklame.',
+    '{san} — a jedeme! Můj první tah.',
+    'Začínáme: {san}. Teď se ukáže, kdo má lepší plán.',
+    '{san}. První krok je za mnou.',
     'První tah: {san}. Odsud může vzniknout cokoliv.',
     '{san}! Figurky se probouzejí. {zvuk}',
-    'Začínám {san}. Jdeme si pro střed.',
+    'Můj první tah: {san}. Tak schválně.',
     '{san} — první krok dlouhé cesty.',
     'Úvodní tah {san}. Soupeř už přemýšlí.',
   ],
@@ -254,14 +276,14 @@ export const TEMPLATES: Record<Situation, readonly string[]> = {
 /** The *other* king's reaction to the human's blunder or brilliancy. */
 export const REACTIONS = {
   blunder: [
-    'Cože? To se smí? Beru všema deseti… teda beru!',
-    'Děkuju, děkuju! Tohle si zarámuju.',
-    'Hihi. Tohle jsem ani nečekal. {zvuk}',
-    'Mé figurky tančí radostí. Ještě jednou takhle, prosím!',
-    'Vidíte to? Vidíte to všichni? Zapsat!',
-    'Hurá! Tomuhle říkám dárek.',
-    'To byl tah pro mě! Dneska mám štěstí.',
-    'Pssst, nic neříkejte, ať si to nerozmyslí.',
+    'Uf, to jsem nečekal! Beru, ale ty se ještě vrátíš do hry, uvidíš.',
+    'Tohle se mi hodí. Příště mi to tak lehké neudělej!',
+    'Dárek? Díky. Ale nevzdávej to, hraješ dobře.',
+    'Cože? To se smí? Beru všemi deseti… ale partie ještě neskončila!',
+    'Ups, tohle ti uteklo. Stane se i mistrům. Hraj dál!',
+    'To je pro mě dobrá zpráva. Ale ty to ještě můžeš otočit. {zvuk}',
+    'Tohle jsem nečekal. Najdi, co bylo lepší — příště to zahraješ ty.',
+    'Beru si to. Nedělej si hlavu, každý někdy něco přehlédne.',
   ],
   brilliant: [
     'Cože?! To bylo… vlastně krásné. Mrzí mě to, ale klobouk dolů.',
@@ -275,13 +297,21 @@ export const REACTIONS = {
   ],
   captured: [
     '{bolest} To bolelo.',
-    '{bolest} Tenhle mi bude chybět.',
-    '{bolest} Viděl jsem to a stejně jsem neuhnul.',
-    '{bolest} Nevadí, mám jich víc… snad.',
+    '{bolest} Tahle figurka mi bude chybět.',
+    'Viděl jsem to, a stejně jsem neuhnul. {bolest}',
+    'Nevadí, mám jich víc… snad.',
     '{bolest} Tak to byl podraz.',
-    '{bolest} Kdo to počítá? Já, bohužel.',
-    '{bolest} Pomsta bude sladká.',
-    '{bolest} Hej! Toho jsem měl rád.',
+    'Kdo to počítá? Já, bohužel. {bolest}',
+    'Pomsta bude sladká!',
+    'Hej! Tu figurku jsem měl rád.',
+    '{bolest} Kam jsem se to díval?',
+    'No počkej, to ti vrátím!',
+    'Ach jo. Další do krabice.',
+    'To nebylo moc kamarádské. {bolest}',
+    'Škoda, bojovala statečně.',
+    '{bolest} Dobře, zapisuju si to.',
+    'Hmm, tohle jsem měl pohlídat.',
+    'Jedna padla, ostatní drží. Hrajeme dál!',
   ],
   mated: [
     'Prohrál jsem. Ale příště? Příště to bude jiné!',
@@ -292,6 +322,24 @@ export const REACTIONS = {
     'Mat! Musím uznat, tohle bylo zasloužené.',
     'Padám. Ale koruna zůstává, odveta bude!',
     'Gratuluju. Naučil jsem se toho dneska hodně.',
+  ],
+} as const;
+
+/** Puzzle mode (Phase 10): the child's king after a correct / a wrong move. */
+export const PUZZLE_BUBBLES = {
+  correct: [
+    '{zvuk} Správně! Pokračuj.',
+    '{zvuk} Přesně tak! A dál?',
+    '{zvuk} Ano! Ještě kousek.',
+    '{zvuk} Trefa! Jedeme dál.',
+    '{zvuk} Paráda, to sedí. Další tah?',
+  ],
+  wrong: [
+    'Hm… to ne. Zkus to znovu.',
+    'Tudy cesta nevede. Zkus jiný tah.',
+    'Skoro! Ale ještě ne. Podívej se znovu.',
+    'To není ono. Co šachy a braní?',
+    'Ne, ne. Zkus to jinak — třeba ti pomůže nápověda.',
   ],
 } as const;
 
@@ -313,11 +361,14 @@ export const ENDINGS = {
     'Tentokrát ne. Odpočinu si a příště to bude jiné.',
     'Au. Byla to dobrá partie, i když ne pro mě. Ještě jednou?',
     'Nevadí. Každý král občas prohraje. Nová hra?',
-    'Tak tohle bolelo. Ale už vím, co příště jinak.',
+    'Tak tohle bolelo. Ale už vím, co příště udělám jinak.',
   ],
   draw: [
     'Remíza. Podáme si ruce?',
     'Nerozhodně! Nikdo nespadl z trůnu.',
     'Půl bodu pro každého. Odveta?',
+    '{zvuk} Remíza! Tahle partie byla vyrovnaná.',
+    'Nikdo nevyhrál, nikdo neprohrál. Dáme další?',
+    'Remíza — a koruna mi zůstává na hlavě. Ještě jednu?',
   ],
 } as const;

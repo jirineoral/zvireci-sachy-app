@@ -63,6 +63,9 @@ export function situationOf(
 ): Situation {
   if (after.isCheckmate()) return 'mate';
   if (after.isStalemate()) return 'stalemate';
+  if (after.isInsufficientMaterial()) return 'drawMaterial';
+  if (after.isThreefoldRepetition()) return 'drawRepetition';
+  if (after.isDrawByFiftyMoves()) return 'drawFifty';
   if (after.isGameOver()) return 'draw';
   if (record?.glyph) {
     const glyphSituation = GLYPH_SITUATION[record.glyph];

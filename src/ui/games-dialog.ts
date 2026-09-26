@@ -3,6 +3,7 @@
  * box. All text through `textContent`; PGN is parsed by chess.js only.
  */
 import { PgnError, RESULT_LABEL, recordFromPgn, statsFrom, type GameRecord, type GameStore, type Tally } from '../games';
+import { count } from '../czech';
 import { ChesscomError, fetchArchives, fetchMonth, isValidUsername, readChesscomUsername, writeChesscomUsername, type ChesscomGame, type ChesscomMonth } from '../chesscom';
 
 export interface GamesDialogDeps {
@@ -128,8 +129,9 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
         const li = document.createElement('li');
         const info = document.createElement('div');
         info.className = 'games-info';
-        const who = g.humanColor === 'w' ? `${g.white} (ty) × ${g.black}` : g.humanColor === 'b' ? `${g.white} × ${g.black} (ty)` : `${g.white} × ${g.black}`;
-        info.append(el('span', fmtDate(g.playedAt), 'games-date'), el('span', who, 'games-who'), el('span', `${RESULT_LABEL[g.result]} · ${Math.ceil(g.sans.length / 2)} tahů${g.startEvalCp !== undefined ? ' · zanalyzováno' : ''}`, 'games-meta'));
+        const you = g.mode === 'two' ? null : g.humanColor; // two people at one board: nobody is "ty"
+        const who = you === 'w' ? `${g.white} (ty) × ${g.black}` : you === 'b' ? `${g.white} × ${g.black} (ty)` : `${g.white} × ${g.black}`;
+        info.append(el('span', fmtDate(g.playedAt), 'games-date'), el('span', who, 'games-who'), el('span', `${RESULT_LABEL[g.result]} · ${count(Math.ceil(g.sans.length / 2), 'tah', 'tahy', 'tahů')}${g.startEvalCp !== undefined ? ' · zanalyzováno' : ''}`, 'games-meta'));
         const openBtn = button('Otevřít', 'games-open');
         openBtn.addEventListener('click', () => {
           void deps.open(g).then((ok) => {
@@ -199,7 +201,7 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
         info.className = 'games-info';
         const r = g.record;
         const who = r.humanColor === 'w' ? `${r.white} (ty) × ${r.black}` : r.humanColor === 'b' ? `${r.white} × ${r.black} (ty)` : `${r.white} × ${r.black}`;
-        info.append(el('span', fmtDate(g.endTime), 'games-date'), el('span', who, 'games-who'), el('span', `${RESULT_LABEL[r.result]} · ${Math.ceil(r.sans.length / 2)} tahů${g.timeClass ? ' · ' + g.timeClass : ''}`, 'games-meta'));
+        info.append(el('span', fmtDate(g.endTime), 'games-date'), el('span', who, 'games-who'), el('span', `${RESULT_LABEL[r.result]} · ${count(Math.ceil(r.sans.length / 2), 'tah', 'tahy', 'tahů')}${g.timeClass ? ' · ' + g.timeClass : ''}`, 'games-meta'));
         const openBtn = button('Otevřít', 'games-open');
         openBtn.addEventListener('click', () => {
           void deps.open(r).then((ok) => {
@@ -233,7 +235,7 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
     ccList.replaceChildren();
     try {
       const games = await fetchMonth(month, ccUser.value.trim());
-      ccSetMessage(games.length > 0 ? `${games.length} partií.` : '');
+      ccSetMessage(games.length > 0 ? `${count(games.length, 'partie', 'partie', 'partií')}.` : '');
       ccRenderGames(games);
     } catch (err) {
       ccFail(err);

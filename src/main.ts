@@ -92,9 +92,9 @@ app.innerHTML = `
     </div>
     <footer class="credits">
       <p class="mission">Pro děti napořád zdarma. Bez registrace; nic o tobě neukládáme, všechno zůstává v tomhle
-      prohlížeči (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich). Při hře
-      s kamarádem projdou tahy přes náš server a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu
-      otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
+      prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
+      Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
+      a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
       <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
       <p class="social-line">Sleduj nás: <a href="https://www.facebook.com/zvirecisachy" target="_blank" rel="noopener">Facebook</a> · <a href="https://www.youtube.com/@zvirecisachy" target="_blank" rel="noopener">YouTube</a></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
@@ -205,8 +205,9 @@ controller = new GameController(
       endgamePanel.onGameRecord(record);
     },
     onGameLoaded: (record) => {
-      const you = record.humanColor === 'w' ? ' (ty)' : '';
-      const them = record.humanColor === 'b' ? ' (ty)' : '';
+      const human = record.mode === 'two' ? null : record.humanColor; // two people: nobody is "ty"
+      const you = human === 'w' ? ' (ty)' : '';
+      const them = human === 'b' ? ' (ty)' : '';
       matchupEl.textContent = `Rozbor: ${record.white}${you} × ${record.black}${them} · ${RESULT_LABEL[record.result]}`;
     },
     onGameStart: () => {

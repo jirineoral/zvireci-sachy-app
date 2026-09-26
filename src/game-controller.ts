@@ -21,7 +21,7 @@ import { MATE_SCORE, type Analysis, type Engine, type EngineOptions, type PvLine
 import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 import { gameStatus, type GameStatus } from './game-status';
 import { commentaryFor, pick, positionAt, type PlyRecord, type SpeakerVoice } from './review';
-import { DEFAULT_VOICE, ENDINGS } from './commentary';
+import { DEFAULT_VOICE, ENDINGS, PUZZLE_BUBBLES } from './commentary';
 import { analyseGame, type AnalysisHandle } from './analysis';
 import { newGameId, replayRecord, resultOf, type GameRecord } from './games';
 import { renderEvalBar } from './ui/eval-bar';
@@ -447,9 +447,9 @@ export class GameController {
       case 'solved':
         return `${zvuk} Vyřešeno! Jsi hlava.`;
       case 'correct':
-        return `${zvuk} Správně! Pokračuj.`;
+        return pick(PUZZLE_BUBBLES.correct, `${p.moves.join(' ')}:${p.index}`).replace('{zvuk}', zvuk);
       case 'wrong':
-        return 'Hm… to ne. Zkus to znovu.';
+        return pick(PUZZLE_BUBBLES.wrong, `${p.moves.join(' ')}:${p.index}:${p.attempts}`);
       default:
         return 'Najdi nejlepší tah!';
     }
@@ -1026,7 +1026,7 @@ export class GameController {
     const analysed = this.reviewPly !== null && this.evalAt(this.reviewPly) !== null;
     this.els.analyseButton.hidden = this.reviewPly === null || this.engineState !== 'ready';
     this.els.analyseButton.disabled = this.gameAnalysis !== null || (analysed && this.evalAt(sans.length) !== null);
-    this.els.analyseButton.textContent = this.gameAnalysis !== null ? 'Analyzuji…' : analysed ? 'Zanalyzováno' : 'Analyzovat partii';
+    this.els.analyseButton.textContent = this.gameAnalysis !== null ? 'Analyzuju…' : analysed ? 'Zanalyzováno' : 'Analyzovat partii';
     renderEvalBar(this.els.evalBar, {
       visible: this.reviewPly !== null && analysed,
       cp: this.reviewPly !== null ? this.evalAt(this.reviewPly) : null,

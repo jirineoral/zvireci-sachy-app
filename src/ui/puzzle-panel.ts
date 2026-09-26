@@ -56,7 +56,8 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
     if (!set || !progressState) return;
     const c = bandCounts(set, progressState);
     progress.textContent = `Vyřešeno ${c.solved} z ${c.total} · ${c.label}`;
-    info.textContent = current ? `Úloha ${current.id} · rating ${current.rating}${current.themes.length ? ' · ' + current.themes.slice(0, 3).join(', ') : ''}` : '';
+    const themes = current ? themeNames(current.themes).slice(0, 3) : [];
+    info.textContent = current ? `Úloha ${current.id} · obtížnost ${current.rating}${themes.length ? ' · ' + themes.join(', ') : ''}` : '';
   };
 
   const ensureLoaded = (): Promise<void> => {
@@ -132,6 +133,65 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
       }
     },
   };
+}
+
+/**
+ * Czech names of Lichess puzzle themes, most telling first. Tags missing here (length,
+ * "crushing", "master", rare mate patterns…) are not shown at all.
+ */
+const THEME_NAMES: readonly (readonly [string, string])[] = [
+  ['mateIn1', 'mat 1. tahem'],
+  ['mateIn2', 'mat 2. tahem'],
+  ['mateIn3', 'mat 3. tahem'],
+  ['mateIn4', 'mat 4. tahem'],
+  ['mateIn5', 'mat 5. tahem'],
+  ['backRankMate', 'mat na poslední řadě'],
+  ['smotheredMate', 'dušený mat'],
+  ['arabianMate', 'arabský mat'],
+  ['anastasiaMate', 'Anastasiin mat'],
+  ['mate', 'mat'],
+  ['fork', 'vidlička'],
+  ['pin', 'vazba'],
+  ['skewer', 'rentgen'],
+  ['discoveredAttack', 'odtažný útok'],
+  ['discoveredCheck', 'odtažný šach'],
+  ['doubleCheck', 'dvojitý šach'],
+  ['hangingPiece', 'nechráněná figurka'],
+  ['trappedPiece', 'chycená figurka'],
+  ['sacrifice', 'oběť'],
+  ['attraction', 'vlákání'],
+  ['deflection', 'odlákání'],
+  ['capturingDefender', 'odstranění obránce'],
+  ['clearance', 'uvolnění cesty'],
+  ['interference', 'přerušení'],
+  ['intermezzo', 'mezitah'],
+  ['quietMove', 'tichý tah'],
+  ['defensiveMove', 'obranný tah'],
+  ['promotion', 'proměna'],
+  ['advancedPawn', 'daleko postoupený pěšec'],
+  ['enPassant', 'braní mimochodem'],
+  ['castling', 'rošáda'],
+  ['kingsideAttack', 'útok na krále'],
+  ['queensideAttack', 'útok na dámském křídle'],
+  ['attackingF2F7', 'útok na f2/f7'],
+  ['exposedKing', 'odkrytý král'],
+  ['pawnEndgame', 'pěšcová koncovka'],
+  ['rookEndgame', 'věžová koncovka'],
+  ['bishopEndgame', 'střelcová koncovka'],
+  ['knightEndgame', 'jezdcová koncovka'],
+  ['queenEndgame', 'dámská koncovka'],
+  ['queenRookEndgame', 'koncovka s dámou a věží'],
+  ['endgame', 'koncovka'],
+  ['middlegame', 'střední hra'],
+  ['opening', 'zahájení'],
+];
+
+/** The puzzle's themes as Czech names; "mat" and "koncovka" only when nothing more exact is known. */
+function themeNames(themes: readonly string[]): string[] {
+  const known = THEME_NAMES.filter(([tag]) => themes.includes(tag)).map(([tag]) => tag);
+  const exactMate = known.some((t) => t.startsWith('mateIn') || t.endsWith('Mate'));
+  const exactEndgame = known.some((t) => t.endsWith('Endgame'));
+  return THEME_NAMES.filter(([tag]) => known.includes(tag) && !(tag === 'mate' && exactMate) && !(tag === 'endgame' && exactEndgame)).map(([, name]) => name);
 }
 
 function el(tag: string, text: string, className?: string): HTMLElement {

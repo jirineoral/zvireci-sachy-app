@@ -4,6 +4,7 @@
  * "M<n>". The bar follows the board's orientation so white's share sits at the bottom
  * when white is at the bottom.
  */
+import { decimal } from '../czech';
 import { MATE_SCORE } from '../engine';
 import { requireElement } from './dom';
 
@@ -24,7 +25,7 @@ export function evalText(cp: number): string {
   const mateIn = MATE_SCORE - Math.abs(cp);
   if (mateIn <= 1000) return `${cp < 0 ? '−' : ''}M${mateIn}`;
   const pawns = cp / 100;
-  return `${pawns > 0 ? '+' : pawns < 0 ? '−' : ''}${Math.abs(pawns).toFixed(1)}`;
+  return `${pawns > 0 ? '+' : pawns < 0 ? '−' : ''}${decimal(Math.abs(pawns), 1)}`;
 }
 
 export function renderEvalBar(el: HTMLElement, view: EvalBarView): void {

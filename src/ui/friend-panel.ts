@@ -71,7 +71,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     if (client === null) return;
     const parts: string[] = [];
     if (seat) parts.push(`Hraješ s kamarádem — máš ${COLOR_NAME[seat]}.`);
-    if (connection === 'connecting') parts.push('Připojuji…');
+    if (connection === 'connecting') parts.push('Připojuju…');
     else if (connection === 'reconnecting') parts.push('Spojení vypadlo, zkouším znovu…');
     else if (connection === 'closed') parts.push(note || 'Odpojeno.');
     else if (!peer) parts.push(sans.length === 0 && game <= 1 ? 'Čekám na kamaráda — pošli mu odkaz. Posílej ho jen tomu, s kým chceš hrát: kdo ho má, může si sednout ke stolu.' : 'Kamarád je odpojený…');

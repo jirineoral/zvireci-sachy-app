@@ -8,6 +8,7 @@ import { IMPORT_MESSAGES, ImportError, importPieceImage } from '../image-import'
 import type { PieceSetManager } from '../piece-sets';
 import { copyText, piecePrompt } from '../prompts';
 import { cutSheet } from '../sheet-cutter';
+import { count as countOf } from '../czech';
 import { decodeImageData, imageDataToPng } from '../image-import';
 import { PIECE_CODES, PIECE_LABELS, newSetId, type PieceCode, type UserSet, type UserSetStore } from '../user-sets';
 
@@ -211,7 +212,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
     if (swapFirst === null) {
       swapFirst = code;
       renderSlots();
-      setMessage(`Vybráno: ${PIECE_LABELS[code]}. Klikni na figurku, se kterou ji prohodit.`);
+      setMessage(`Vybráno: ${PIECE_LABELS[code]}. Klikni na figurku, se kterou ji chceš prohodit.`);
       return;
     }
     if (swapFirst !== code) {
@@ -264,7 +265,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
       swapFirst = null;
       renderSlots();
       if (count === 12) setMessage('Našel jsem 12 figurek — zkontroluj, jestli sedí role, a ulož.');
-      else setMessage(`Našel jsem ${count} figurek (nahoře ${rowCounts[0]}, dole ${rowCounts[1]}). Zkontroluj mezery mezi figurkami, nebo chybějící nahraj po jedné.`, true);
+      else setMessage(`Našel jsem ${countOf(count, 'figurku', 'figurky', 'figurek')} (nahoře ${rowCounts[0]}, dole ${rowCounts[1]}). Zkontroluj mezery mezi figurkami, nebo chybějící nahraj po jedné.`, true);
     } catch (err) {
       setMessage(err instanceof ImportError ? err.message : IMPORT_MESSAGES.encode, true);
     } finally {

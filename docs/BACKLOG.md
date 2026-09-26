@@ -546,6 +546,15 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
   discards the reply (`THINK_PAUSE_MS` in `game-controller.ts`).
 - **P7 DONE 2026-09-18 — `člověk` had `Velmistr` twice** (level 5 and the ladder's level 7):
   levels are now Batole · Školák · Učeň · Kandidát · Mistr · Král šachu · Velmistr.
+- **P8 DONE 2026-09-26 (branch `review-win-chances`) — Move feedback called "??" in decided
+  positions** (owner's son): a mate two moves later than possible, being mated two moves
+  sooner than necessary, or losing a knight with two rooks up / down all read as `Hrubá
+  chyba`. Causes: `??` fired at ≥ 300 cp lost regardless of the eval (the "decided" escape
+  covered only `?` / `?!`); a mate-in-3 followed by a position where depth 12 finds only
+  +15 lost ~85 pawns on paper; "mate appears for the first time" was always `??`. Fix:
+  `?!` / `?` / `??` now judge the drop in winning chances (Lichess formula, eval capped at
+  ±1000 cp, cut-offs 0.1 / 0.2 / 0.3) — same function for live feedback and game review.
+  `!!` / `!` / `!?` unchanged.
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
 

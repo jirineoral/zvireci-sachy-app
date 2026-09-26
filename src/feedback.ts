@@ -28,17 +28,30 @@ export const GLYPH_CLASS: Record<Glyph, string> = {
 };
 
 export const THRESHOLDS = {
-  inaccuracy: 50, // cp lost
-  mistake: 100,
-  blunder: 300,
-  winThrown: { from: 200, to: 50 }, // was winning by ≥ from, now below to
-  greatGap: 150, // best move beats the second best by this much → "!"
+  // ?! ? ?? judge the drop in winning chances (Lichess's formula and cut-offs), not raw
+  // centipawns: in a decided position (two rooks up, or a mate either way) a lost knight
+  // or a mate two moves later/sooner changes nothing and is not a mistake, while throwing
+  // a won game away or walking into mate from an open position still is.
+  inaccuracy: 0.1, // winning chances lost, on the -1…1 scale of winningChances()
+  mistake: 0.2,
+  blunder: 0.3,
+  greatGap: 150, // best move beats the second best by this much (cp) → "!"
   sacrificePawns: 2, // material given up to count as a sacrifice
+  soundSacrifice: 50, // cp at most lost by a non-best sacrifice for "!?"
   liveEval: 400, // |eval| beyond this the position is no longer "live" for "!"
   notLosing: -100, // "!!" requires the player not to be losing before the sacrifice
-  decided: 900, // |eval| beyond this on both sides: only ?? can still apply
   mateScore: MATE_SCORE,
 } as const;
+
+/**
+ * Winning chances in -1…1 for a mover-POV score (Lichess: 2 / (1 + e^(-0.00368208·cp)) - 1),
+ * with the score capped at ±1000 cp first, so every mate and every crushing eval read as
+ * "won" / "lost" alike.
+ */
+export function winningChances(cp: number): number {
+  const capped = Math.max(-1000, Math.min(1000, cp));
+  return 2 / (1 + Math.exp(-0.00368208 * capped)) - 1;
+}
 
 /** Fixed analysis limits (same for every difficulty level, so verdicts are comparable). */
 export const ANALYSIS = { depth: 12, movetimeMs: 700 } as const;
@@ -68,27 +81,13 @@ export interface ClassifyInput {
 export function classifyMove(input: ClassifyInput): Glyph | null {
   const t = THRESHOLDS;
   const { evalBefore, evalAfter } = input;
-  const loss = evalBefore - evalAfter;
+  const loss = evalBefore - evalAfter; // cp, for "!?"
   const isBest = input.bestMove !== null && input.played === input.bestMove;
-  const mateNow = evalAfter <= -(t.mateScore - 1000);
-  const mateBefore = evalBefore <= -(t.mateScore - 1000);
+  const chancesLost = winningChances(evalBefore) - winningChances(evalAfter);
 
-  if (
-    loss >= t.blunder ||
-    (evalBefore >= t.winThrown.from && evalAfter < t.winThrown.to) ||
-    (mateNow && !mateBefore)
-  ) {
-    return '??';
-  }
-
-  const decided =
-    Math.abs(evalBefore) > t.decided &&
-    Math.abs(evalAfter) > t.decided &&
-    Math.sign(evalBefore) === Math.sign(evalAfter);
-  if (!decided) {
-    if (loss >= t.mistake) return '?';
-    if (loss >= t.inaccuracy) return '?!';
-  }
+  if (chancesLost >= t.blunder) return '??';
+  if (chancesLost >= t.mistake) return '?';
+  if (chancesLost >= t.inaccuracy) return '?!';
 
   const live = Math.abs(evalBefore) <= t.liveEval;
   // A sound sacrifice that is the engine's best move. The eval "before" already includes the
@@ -103,7 +102,7 @@ export function classifyMove(input: ClassifyInput): Glyph | null {
   ) {
     return '!';
   }
-  if (!isBest && input.sacrificed >= t.sacrificePawns && loss < t.inaccuracy) return '!?';
+  if (!isBest && input.sacrificed >= t.sacrificePawns && loss < t.soundSacrifice) return '!?';
   return null;
 }
 

@@ -3,7 +3,7 @@ import './styles/pieces.css';
 import './styles/app.css';
 import './styles/intro.css';
 
-import { createEngine } from './engine';
+import { createEngine, type Engine } from './engine';
 import { GameController } from './game-controller';
 import { initPieceSets, type ColorPreference, type PieceSetManager } from './piece-sets';
 import { setDifficultyLabels } from './ui/controls';
@@ -65,6 +65,7 @@ app.innerHTML = `
     </details>
     <div class="campaign-bar" hidden><span class="campaign-text"></span><button type="button" class="campaign-next" hidden></button><button type="button" class="campaign-open">Kampaň…</button></div>
     <div class="status"></div>
+    <button type="button" class="engine-retry" hidden>Zkusit znovu</button>
     <div class="friend-bar" hidden></div>
     <div class="review-controls" hidden>
       <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
@@ -127,16 +128,22 @@ const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
 const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 
 // The controller owns engine-failure handling (before and after the handshake). It is
-// constructed after the engine, hence the late binding.
+// constructed after the engine, hence the late binding. `Zkusit znovu` creates a new one.
 let controller: GameController | undefined;
-const engine = createEngine(
-  ENGINE_WORKER_URL,
-  (err) => {
-    if (controller) controller.engineFailed(err);
-    else console.error('Engine failed before the controller existed', err);
-  },
-  { expectedWasmBytes: ENGINE_WASM_BYTES },
-);
+function startEngine(): Engine {
+  const created: Engine = createEngine(
+    ENGINE_WORKER_URL,
+    (err) => {
+      if (controller) controller.engineFailed(err, created);
+      else console.error('Engine failed before the controller existed', err);
+    },
+    { expectedWasmBytes: ENGINE_WASM_BYTES },
+  );
+  return created;
+}
+const engine = startEngine();
+const engineRetryButton = requireElement<HTMLButtonElement>(app, '.engine-retry');
+engineRetryButton.addEventListener('click', () => controller?.retryEngine(startEngine()));
 
 const boardEl = requireElement<HTMLElement>(app, '.board');
 
@@ -221,6 +228,9 @@ controller = new GameController(
     onTrainingStart: (color) => {
       pieceSets?.startGame(color);
       renderMatchup();
+    },
+    onEngineState: (state) => {
+      engineRetryButton.hidden = state !== 'failed';
     },
   },
 );

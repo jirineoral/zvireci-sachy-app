@@ -8,7 +8,7 @@
  */
 import { Chess } from 'chess.js';
 import { MATE_SCORE, type Engine, type PvLine } from './engine';
-import { ANALYSIS, classifyMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
+import { ANALYSIS, classifyMove, isObviousMove, sacrificeOf, uciToMove, type Glyph } from './feedback';
 
 export interface PositionEval {
   /** Best line score, white POV, mate-normalised centipawns. */
@@ -19,6 +19,9 @@ export interface PositionEval {
   /** Second-best score from the side to move's POV, if the engine reported one. */
   secondCpMover: number | null;
   bestCpMover: number;
+  /** The engine's best line from this position (UCI), empty when none; the second best, if reported. */
+  pv: string[];
+  secondPv: string[] | null;
 }
 
 export interface PlyAnalysis {
@@ -69,7 +72,7 @@ export function analyseGame(engine: Engine, startFen: string, sans: readonly str
 
   const evaluate = async (chess: Chess): Promise<PositionEval | null> => {
     const terminal = terminalEval(chess);
-    if (terminal !== null) return { evalCp: terminal, bestUci: null, bestSan: null, secondCpMover: null, bestCpMover: chess.turn() === 'w' ? terminal : -terminal };
+    if (terminal !== null) return { evalCp: terminal, bestUci: null, bestSan: null, secondCpMover: null, bestCpMover: chess.turn() === 'w' ? terminal : -terminal, pv: [], secondPv: null };
     const lines: PvLine[] | null = await engine.analyse(chess.fen(), { depth: ANALYSIS.depth, movetimeMs: ANALYSIS.movetimeMs, multiPv: 2 }).result;
     if (lines === null) return null; // cancelled
     const best = lines.find((l) => l.multipv === 1);
@@ -90,7 +93,36 @@ export function analyseGame(engine: Engine, startFen: string, sans: readonly str
       bestSan,
       secondCpMover: second ? second.scoreCp : null,
       bestCpMover: best.scoreCp,
+      pv: best.pv,
+      secondPv: second ? second.pv : null,
     };
+  };
+
+  // Stockfish answers a position with a single legal move at once, with a depth-1 score
+  // (e.g. a forced recapture before a mate). Such a position is worth exactly what the
+  // forced move leads to.
+  const forcedEval = (chess: Chess, next: PositionEval): PositionEval => {
+    const only = chess.moves({ verbose: true })[0];
+    const uci = `${only.from}${only.to}${only.promotion ?? ''}`;
+    return {
+      evalCp: next.evalCp,
+      bestUci: uci,
+      bestSan: only.san,
+      secondCpMover: null,
+      bestCpMover: chess.turn() === 'w' ? next.evalCp : -next.evalCp,
+      pv: [uci, ...next.pv],
+      secondPv: null,
+    };
+  };
+
+  /** The final position has no successor in the game: follow its forced moves (if any) here. */
+  const evaluateLast = async (chess: Chess, depth = 0): Promise<PositionEval | null> => {
+    const moves = chess.moves({ verbose: true });
+    if (moves.length !== 1 || depth >= 8 || chess.isGameOver()) return evaluate(chess);
+    const child = new Chess(chess.fen());
+    child.move(moves[0].san);
+    const next = await evaluateLast(child, depth + 1);
+    return next === null ? null : forcedEval(chess, next);
   };
 
   const result = (async (): Promise<GameAnalysis | null> => {
@@ -98,28 +130,16 @@ export function analyseGame(engine: Engine, startFen: string, sans: readonly str
     for (let i = 0; i < total; i++) {
       if (cancelled) return null;
       onProgress({ done: i, total });
-      const ev = await evaluate(positions[i]);
+      const ev = await (i === total - 1 ? evaluateLast(positions[i]) : evaluate(positions[i]));
       if (ev === null || cancelled) return null;
       evals.push(ev);
     }
     onProgress({ done: total, total });
 
-    // Stockfish answers a position with a single legal move at once, with a depth-1 score
-    // (e.g. a forced recapture before a mate). Such a position is worth exactly what the
-    // forced move leads to: take the next position's eval, walking backwards so chains of
-    // forced moves resolve.
+    // Forced moves (see forcedEval): take the next position's eval, walking backwards so
+    // chains of forced moves resolve. The final position was handled by evaluateLast.
     for (let i = total - 2; i >= 0; i--) {
-      const moves = positions[i].moves({ verbose: true });
-      if (moves.length !== 1) continue;
-      const only = moves[0];
-      const next = evals[i + 1];
-      evals[i] = {
-        evalCp: next.evalCp,
-        bestUci: `${only.from}${only.to}${only.promotion ?? ''}`,
-        bestSan: only.san,
-        secondCpMover: null,
-        bestCpMover: positions[i].turn() === 'w' ? next.evalCp : -next.evalCp,
-      };
+      if (positions[i].moves().length === 1) evals[i] = forcedEval(positions[i], evals[i + 1]);
     }
 
     const plies: PlyAnalysis[] = [];
@@ -133,15 +153,25 @@ export function analyseGame(engine: Engine, startFen: string, sans: readonly str
       // Mover POV values for the classifier.
       const evalBefore = evBefore.bestCpMover;
       const evalAfter = moverIsWhite ? evAfter.evalCp : -evAfter.evalCp;
-      const reply = evAfter.bestUci ?? undefined;
-      const glyph = classifyMove({
-        evalBefore,
-        evalAfter,
-        bestMove: evBefore.bestUci,
-        secondBestEval: evBefore.secondCpMover,
-        played,
-        sacrificed: sacrificeOf(before.fen(), mover, played, reply),
-      });
+      // A forced move (one legal move) is neither good nor bad: no glyph.
+      const glyph =
+        before.moves().length === 1
+          ? null
+          : classifyMove({
+              evalBefore,
+              evalAfter,
+              bestMove: evBefore.bestUci,
+              secondBestEval: evBefore.secondCpMover,
+              played,
+              sacrificed: sacrificeOf(before.fen(), mover, played, evAfter.pv),
+              obvious: isObviousMove(
+                i > 0 ? { fen: positions[i - 1].fen(), move: uciOf(positions[i - 1], sans[i - 1]) } : null,
+                before.fen(),
+                played,
+                evBefore.pv,
+                evBefore.secondPv,
+              ),
+            });
       const wantsBetter = glyph === '?!' || glyph === '?' || glyph === '??';
       plies.push({
         glyph,

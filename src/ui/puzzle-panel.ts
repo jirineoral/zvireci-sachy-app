@@ -11,7 +11,8 @@ export interface PuzzlePanelDeps {
   storage: Storage | null;
   /** Puts the puzzle on the board. */
   start: (puzzle: Puzzle) => Promise<void>;
-  hint: () => void;
+  /** Shows a hint; false when none was shown (not the solver's turn). */
+  hint: () => boolean;
   /** Leaves puzzle mode (a fresh pre-game). */
   leave: () => void;
 }
@@ -45,6 +46,7 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
   let progressState: PuzzleProgress | null = null;
   let current: Puzzle | null = null;
   let attempts = 0;
+  let hinted = false;
   let loading: Promise<void> | null = null;
 
   const setMessage = (text: string, isError = false): void => {
@@ -88,6 +90,7 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
     }
     current = puzzle;
     attempts = 0;
+    hinted = false;
     setMessage('');
     renderProgress();
     await deps.start(puzzle);
@@ -100,7 +103,9 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
     void startNext();
   });
   nextBtn.addEventListener('click', () => void startNext());
-  hintBtn.addEventListener('click', () => deps.hint());
+  hintBtn.addEventListener('click', () => {
+    if (deps.hint()) hinted = true;
+  });
   leaveBtn.addEventListener('click', () => {
     container.hidden = true;
     current = null;
@@ -128,7 +133,7 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
         if (!(current.id in progressState.solved)) progressState.solved[current.id] = attempts + 1;
         writeProgress(deps.storage, progressState);
         renderProgress();
-        setMessage(attempts === 0 ? 'Vyřešeno na první pokus!' : `Vyřešeno (na ${attempts + 1}. pokus).`);
+        setMessage(hinted ? 'Vyřešeno s nápovědou.' : attempts === 0 ? 'Vyřešeno na první pokus!' : `Vyřešeno (na ${attempts + 1}. pokus).`);
       }
     },
   };

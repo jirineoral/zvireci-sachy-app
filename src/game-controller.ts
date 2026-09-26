@@ -378,10 +378,12 @@ export class GameController {
     this.afterPositionChange();
   }
 
-  puzzleHint(): void {
-    if (!this.puzzle || this.chess.turn() !== this.humanColor) return;
+  /** Shows the next hint step; false when there is nothing to hint (not the solver's turn). */
+  puzzleHint(): boolean {
+    if (!this.puzzle || this.chess.turn() !== this.humanColor) return false;
     this.puzzle.hint = this.puzzle.hint >= 2 ? 2 : ((this.puzzle.hint + 1) as 1 | 2);
     this.refreshView();
+    return true;
   }
 
   get inPuzzle(): boolean {
@@ -394,7 +396,10 @@ export class GameController {
     this.puzzle = null;
   }
 
-  /** Puzzle mode: compare the human's move with the solution; promotions come from the data. */
+  /**
+   * Puzzle mode: compare the human's move with the solution; promotions come from the data.
+   * Any checkmate solves the puzzle too (a mate-in-N often has more than one mating move).
+   */
   private handlePuzzleMove(from: Square, to: Square): void {
     const puzzle = this.puzzle!;
     const expected = puzzle.moves[puzzle.index];
@@ -403,6 +408,23 @@ export class GameController {
       return;
     }
     if (`${from}${to}` !== expected.slice(0, 4)) {
+      const mate = this.chess
+        .moves({ square: from, verbose: true })
+        .find((m) => {
+          if (m.to !== to) return false;
+          const probe = new Chess(this.chess.fen());
+          probe.move(m.san);
+          return probe.isCheckmate();
+        });
+      if (mate) {
+        this.chess.move(mate.san);
+        puzzle.index = puzzle.moves.length;
+        puzzle.hint = 0;
+        puzzle.message = 'solved';
+        this.options.onPuzzleResult('solved');
+        this.afterPositionChange();
+        return;
+      }
       puzzle.attempts++;
       puzzle.message = 'wrong';
       this.options.onPuzzleResult('wrong');

@@ -1,90 +1,137 @@
-# Phase 21 — Lessons: a teaching path (R6) (plan, rev. 0 — draft for the owner)
+# Phase 21 — Lessons: a teaching path (R6) (plan, rev. 1)
 
 The owner's goal (2026-09-26): Zvířecí šachy become a **teaching platform**, not only a
-place to play. A child who does not know how the knight moves should be able to start
-here and walk, lesson by lesson, to the point where puzzles, endgames and the campaign
-make sense. Browser-only, no account (the principle stays), Czech.
+place to play. A child who does not know how the knight moves starts here and walks,
+lesson by lesson, to the point where puzzles, endgames and the campaign make sense.
+Browser-only, no account (the principle stays), Czech.
+
+rev. 0 → rev. 1: the owner's answers (below) and a review by an independent reviewer in
+the role of a children's chess coach (curriculum order, phrasing, test, checklist).
+
+## Owner's decisions (2026-09-26)
+- **Teacher = the child's choice.** The first lesson opens with „Vyber si trenéra“: the
+  owl (default — also the brand mascot for social media) or the animal the child plays
+  (the son's wish). Switchable any time in the course map.
+- **Nothing is locked, everything is skippable.** Progress lives only in the browser and
+  can be lost; the child skips by memory. „Tohle umím“ on every lesson marks it done.
+- **Badges and a printable diploma per level**, after a short test without hints. The
+  child's name for the diploma is typed locally and never leaves the browser.
+- **Content review is iterative:** the owner, reviewer agents set up for it, the son, and
+  the community's feedback. Ship, collect feedback, iterate.
 
 ## What already exists and becomes part of the path
-- **Play** against seven levels, the **campaign** (18 opponents), **move feedback** (P8).
-- **Úlohy** — 3 200 puzzles in four bands; **Koncovky** — 17 engine-checked endgames.
-- **Rozbor** — any game analysed move by move.
+Play (7 levels), the campaign, move feedback, **Úlohy** (3 200 puzzles, 4 bands, Lichess
+theme tags), **Koncovky** (17 engine-checked endgames), **Rozbor**. Each lesson ends with a
+pointer into them. **Dependency:** pointers like „5 úloh: mat 1. tahem“ need a *theme
+filter* in the puzzle picker (today it picks by band only) — part of 21a. Tags available
+e.g. mateIn1 97×, fork 576×, pin 150×, backRankMate 133×, hangingPiece 56×.
 
-Lessons add the missing piece in front of all that: *explanation + guided practice*, and
-each lesson ends by pointing to the right existing exercise ("teď si zkus 5 úloh z pásma
-Začátečník", "Koncovka: Dáma a král proti králi").
+## Decisions (veto in review)
+1. **Levels:** Úplný začátečník → Začátečník → Mírně pokročilý → Středně pokročilý →
+   Pokročilý → Expert → Mistr. **This phase ships the first two** (rules and basic tactics,
+   mechanically checkable). Levels 3+ later, with a coach in the review loop.
+2. **A lesson = 4–8 short steps**; one new idea per step; board position + 2–3 sentences
+   in the teacher's bubble + optionally one task:
+   - `show` — text, arrows, highlighted squares; `Dál`.
+   - `move` — play the move; **every** correct answer is accepted (all mates, all moves
+     within the engine margin); a wrong move explains *why* („tvůj král by byl v šachu“,
+     „tady by ti vzal dámu“), then resets.
+   - `collect` — one piece eats all the stars; teaches movement without an opponent.
+   - `choose` — pick one of 2–4 answers (squares or texts).
+   - `mini` — a mini-game against a deliberately weak engine with its own win condition
+     (pěšcová válka: first to promote or take all pawns; seber všechny pěšce).
+3. **Positions and texts are code** (`src/lessons/*.ts`), reviewed in git.
+4. **Mechanical checks before shipping** (`scripts/check-lessons.mjs`): every FEN legal
+   and consistent (side to move, castling/e.p. rights, no pawns on ranks 1/8, the side
+   not to move not in check); every accepted move legal; every mate is mate; the list of
+   accepted moves complete (all mates; Stockfish: no other move within the margin); every
+   `collect` solvable in the stated number of moves; text lint (sentence length, informal
+   „ty“, Czech piece letters, 0-0 not O-O, animal name + chess name in piece lessons).
+5. **Progress** in `localStorage['skm.lessons']` (done lessons, passed tests, badges,
+   teacher). A course map with ticks; the next lesson highlighted; nothing locked.
+6. **UI:** a `Lekce` button → course map → the lesson runs on the main board with the
+   panel under the status (like puzzles/endgames); `Zpět do hry` leaves.
+7. **Animal skins:** piece lessons always name both („věž — u tebe třeba slon“ resolved
+   from the chosen set), so the knowledge transfers to a club board.
 
-## Decisions proposed (veto in review)
-1. **Levels** (the owner's R6 list): Úplný začátečník → Začátečník → Mírně pokročilý →
-   Středně pokročilý → Pokročilý → Expert → Mistr. **This phase ships the first two.**
-   They are rules and basic tactics: content that can be verified mechanically. Levels 3+
-   need a reviewer who plays well (see Risks) and come later.
-2. **A lesson = 4–8 short steps.** Each step is one board position plus two or three
-   sentences, spoken in a bubble by a teacher character, and optionally one task:
-   - `show` — text and arrows/highlighted squares only, `Dál`.
-   - `move` — "zahraj tah": one or more accepted moves; a wrong move gets a short hint
-     and the board resets. Checked by chess.js (and `isCheckmate()` for mate tasks),
-     never by guessing.
-   - `collect` — the Lichess-learn classic: move one piece to eat all the stars/pawns on
-     the board; teaches how a piece moves without any opponent.
-   - `choose` — pick one of 2–3 answers ("je to šach, mat, nebo pat?").
-3. **Positions and texts are code** (`src/lessons/*.ts`, like `endgames.ts`), not a
-   fetched file: reviewed in git, type-checked, tested.
-4. **Automatic checks before anything ships** (a script in `scripts/`): every FEN legal,
-   every accepted move legal, every "mate" task really mate, every `collect` solvable,
-   and for tactic tasks Stockfish confirms the accepted move is the best one by a clear
-   margin (so there is no second equally good answer the child gets told off for).
-5. **Progress** in `localStorage['skm.lessons']` (`{ done: { id: true } }`); a course map
-   shows ticks, the next recommended lesson is highlighted. Nothing locks anything — a
-   child who can already play goes straight to the campaign.
-6. **UI:** a `Lekce` button next to `Úlohy` / `Koncovky` → course map (levels, lessons,
-   ticks) → the lesson runs on the main board with the panel under the status (the same
-   place as puzzles/endgames); `Zpět do hry` leaves.
+## Curriculum (coach-reviewed)
 
-## Curriculum draft — levels 1 and 2 (for the owner's review)
+**Úroveň 1 — Úplný začátečník**
+1. Šachovnice a cíl hry — jména polí, „bílé pole vpravo dole“, cílem je mat, krále nikdo nebere
+2. Věž — rovně, nepřeskakuje (collect s překážkou)
+3. Střelec — šikmo, zůstává na své barvě (choose: dojde na hvězdu?)
+4. Dáma — věž + střelec, ne jezdec
+5. Král — o jedno pole; králové nikdy vedle sebe
+6. Jezdec — do L (2 + 1), přeskakuje, přistane na opačné barvě; přeskočením nebere
+7. Pěšec — rovně, bere šikmo, první tah o dvě, nikdy zpět, zablokovaný stojí
+8. Proměna pěšce — dáma, věž, střelec, jezdec; dvě dámy jsou v pořádku
+9. **Minihra: Pěšcová válka**
+10. Útok a obrana — napadená × krytá figurka, „co visí?“
+11. Kolik figury stojí — 1-3-3-5-9, výhodná a nevýhodná výměna; minihra Seber všechny pěšce
+12. Základní postavení a pravidla — dáma na své barvě, bílý začíná, „dotknuto – táhnuto“ (na skutečné šachovnici)
+13. Šach — uhnout, zakrýt, vzít; do šachu se táhnout nesmí
+14. Mat — šach a žádná pomoc; 5–6 vlastních matů 1. tahem
+15. Pat a remízy — pat; trojí opakování, 50 tahů, málo materiálu, dohoda (poslední tři pro zajímavost)
+16. Rošáda — po šachu (podmínky ho používají)
+17. Braní mimochodem — „zajímavost, klidně přeskoč“
+18. Zkouška úrovně 1 → odznak, diplom
 
-**1 · Úplný začátečník** (how the game works)
-1. Šachovnice — bílé pole vpravo dole, řady, sloupce, jména polí (a1…h8)
-2. Věž · 3. Střelec · 4. Dáma · 5. Král · 6. Jezdec · 7. Pěšec (`collect` in each)
-8. Braní — kdo koho může vzít, figury se neskáčou (kromě jezdce)
-9. Šach — co to je a tři způsoby, jak z něj ven (uhnout, zakrýt, vzít)
-10. Mat — konec hry; mat v jednom tahu (5 úloh)
-11. Pat — když nejde táhnout a není šach; proč je to remíza
-12. Rošáda — kdy smí a kdy ne
-13. Proměna pěšce · 14. Braní mimochodem
-15. Kolik figury stojí (1-3-3-5-9) a proč nedávat figuru zadarmo
+**Úroveň 2 — Začátečník**
+1. Šachový zápis — K D V S J, pěšec bez písmena, x, +, 0-0 / 0-0-0
+2. Co mi hrozí? — rutina před každým tahem: šachy, braní, hrozby
+3. Dvojný útok
+4. Vidlička (jezdec, pěšec) — až po dvojném útoku
+5. Vazba — k králi nesmí táhnout vůbec, k dámě smí, ale přijde o ni
+6. Odtažný útok, odtažný šach, dvojšach
+7. Mat na poslední řadě (+ „okénko“)
+8. Zahájení — střed, vývin, rošáda; ne brzy dámu, ne dvakrát stejnou figurou
+9. Pozor na ovčáka — útok na f7/f2 a obrana
+10. Mat dvěma věžemi (žebřík) → Koncovky
+11. Mat dámou a králem (krabice, pozor na pat) → Koncovky
+12. Mat věží a králem — „těžší, klidně přeskoč“ → Koncovky
+13. Rozbor vlastní partie — zahraj si proti Kůzleti a otevři Rozbor
+14. Zkouška úrovně 2 → odznak, diplom
 
-**2 · Začátečník** (first ideas)
-1. Nechráněná figura — než táhneš, podívej se, co visí
-2. Vidlička (jezdec, pěšec, dáma)
-3. Vazba · 4. Dvojitý útok · 5. Odtažný šach
-6. Mat na poslední řadě
-7. Mat dámou a králem → Koncovky
-8. Mat věží a králem → Koncovky
-9. Zahájení — tři pravidla: střed, vývin, rošáda (+ co nedělat: brzy dáma, stejná figura 2×)
-10. Šachový zápis — jak číst `Jf3`, `exd5`, `O-O` (so the move list and Rozbor make sense)
-11. Jak si rozebrat vlastní partii (Rozbor + hodnocení tahů)
+**Tests** (no hints, one attempt, ~10 tasks, pass 8/10): name a square; knight collect in
+N moves; squares the king may not enter; šach / mat / pat / nic in 3 positions; escape a
+check where only block/capture works; mate in 1 (L1) / mate in 2 (L2); the free piece /
+the best capture; „smí rošádovat?“ with a trap; promotion where a queen stalemates;
+L2: fork / pin / back-rank mate, play a move read from notation.
 
-Each lesson closes with a pointer to practice: puzzles of the right band, an endgame, or
-"zahraj si proti Kůzleti a zkus použít vidličku".
+**Exact phrasing for tricky rules** (from the coach review — use verbatim or close):
+- Rošáda: „Rošádu smíš udělat, když: král i ta věž se ještě ani jednou nepohnuli; mezi
+  nimi nic nestojí; král teď není v šachu, nepřejde přes pole, které soupeř napadá, a
+  neskončí v šachu. Král jde o dvě pole k věži a věž přeskočí vedle něj na druhou stranu.
+  Věž napadená být smí.“
+- Braní mimochodem: „Když soupeřův pěšec skočí o dvě pole a zastaví se hned vedle tvého
+  pěšce, můžeš ho vzít, jako by šel jen o jedno pole. Ale jen hned v dalším tahu.“
+- Mat × pat: „Mat: král JE v šachu a nic ho nezachrání → konec, vyhrál ten, kdo dal mat.
+  Pat: král NENÍ v šachu, ale hráč na tahu nemá žádný povolený tah → remíza.“
+- Proměna: „…v dámu, věž, střelce nebo jezdce své barvy – ne v krále ani v pěšce. Můžeš
+  mít dvě dámy. Skoro vždy chceš dámu.“
+
+## Reviewer checklist (typical AI-lesson mistakes)
+FEN errors (side to move, rights, rank-1/8 pawns, unreachable positions) · second
+solutions rejected · wrong rules (castling banned after an earlier check, „věž nesmí být
+napadená“, en passant later, pat = prohra, „musíš říct šach“) · anglicised terms
+(dvojitý → **dvojný** útok, O-O → 0-0, N/B/R → J/S/V, pěšák → pěšec) · concepts used
+before taught · more than one idea per step, long sentences, vykání · arrows that give the
+answer away · „špatně“ without why · unnatural pattern positions · animal names without
+chess names · a minigame engine too strong to beat · minigame rules mixed with real rules.
 
 ## Risks
-- **Teaching something wrong** is the costliest failure (R6 note). Mitigation: rules
-  lessons are checked mechanically (decision 4); every text is read by the owner before
-  it ships; from level 3 on, a strong player reviews the content before it is written into
-  code — AI drafts, a human signs off.
-- **Text for ten-year-olds:** short sentences, "ty", no jargon without an example. The
-  son is the test reader.
-- **Scope:** ~26 lessons × ~6 steps ≈ 150 positions. Split: 21a = engine (lesson runner,
-  step types, progress, course map) + the first 3 lessons end to end; 21b = the rest of
-  level 1; 21c = level 2.
+- **Teaching something wrong** — mitigated by decision 4, the checklist, the owner's read,
+  and the feedback loop; a coach before level 3.
+- **Scope:** ~32 lessons × ~6 steps ≈ 190 positions.
 
-## Open questions for the owner
-1. Who teaches? A fixed teacher character (e.g. the owl from the splash — not a piece set, a new drawing), or the animal the child plays?
-2. Who reviews the chess content from level 3 on (a coach, a club player)?
-3. Does the curriculum above match what you want the first two levels to cover?
-4. Should lessons count toward anything visible (a badge / a line in `Bilance`), or stay
-   plain ticks?
+## Split
+- **21a** — engine: step types (show/move/collect/choose; mini later), lesson runner on
+  the main board, progress, course map with the teacher picker, the puzzle theme filter,
+  `check-lessons.mjs`; content: L1 lessons 1–7 (board + all pieces) end to end.
+- **21b** — rest of level 1 incl. the pawn-war minigame, the level test, badge, diploma.
+- **21c** — level 2.
+- The owl teacher's drawing goes with B9 (images via ChatGPT); until then the owl is
+  represented by a placeholder („Sova“ text avatar) or the child's animal.
 
 ## Files (21a)
 ```
@@ -92,6 +139,7 @@ src/lessons/types.ts, src/lessons/level1.ts   NEW  step model, first lessons
 src/lessons/progress.ts                       NEW  skm.lessons
 src/ui/lesson-panel.ts, src/ui/course-map.ts  NEW
 src/game-controller.ts                        MOD  startLesson (position, allowed moves, no engine)
+src/puzzles.ts, src/ui/puzzle-panel.ts        MOD  theme filter
 src/main.ts, src/styles/app.css               MOD  button, wiring
 scripts/check-lessons.mjs                     NEW  mechanical checks (decision 4)
 README.md, docs/BACKLOG.md, docs/security-review.md  MOD

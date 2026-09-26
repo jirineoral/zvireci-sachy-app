@@ -69,7 +69,9 @@ export type Completeness =
   | { kind: 'lands'; square: Square; from?: Square }
   | { kind: 'captures'; from?: Square }
   | { kind: 'legal'; from?: Square }
-  | { kind: 'safe'; from: Square };
+  | { kind: 'safe'; from: Square }
+  /** The task names the promotion piece („proměň v dámu“): exactly that promotion is the answer. */
+  | { kind: 'promote'; from: Square; to: Square; piece: 'q' | 'r' | 'b' | 'n' };
 
 /**
  * Play the move. The board offers the movable pieces' *pseudo-legal* moves too, so a move

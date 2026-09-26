@@ -183,7 +183,7 @@ export const LEVEL5: readonly Lesson[] = [
         fen: LUCENA_PROMOTE,
         movable: ['b7'],
         accept: ['b7b8q'],
-        completeness: { kind: 'best' },
+        completeness: { kind: 'promote', from: 'b7', to: 'b8', piece: 'q' },
         text: 'Černý už šachovat nemůže. Proměň pěšce v dámu.',
         success: 'Vyhráno! Most postavený, pěšec je dáma.',
         wrong: {

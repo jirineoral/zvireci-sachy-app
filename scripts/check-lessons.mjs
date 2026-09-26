@@ -209,6 +209,9 @@ async function checkMoveStep(step) {
       x.move(m);
       return !x.moves({ verbose: true }).some((r) => r.to === m.to);
     }).map(uciOf);
+  } else if (c.kind === 'promote') {
+    const u = `${c.from}${c.to}${c.piece}`;
+    expected = legalUci.includes(u) ? [u] : [];
   } else if (c.kind === 'best') {
     const margin = c.marginCp ?? 50;
     const scores = await engineScores(step.fen, Math.min(legal.length, 100));

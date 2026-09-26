@@ -5,7 +5,7 @@
  */
 import { Chess, DEFAULT_POSITION } from 'chess.js';
 import { GLYPH_CLASS } from './feedback';
-import { STORE_GAMES as STORE, openDatabase, requestToPromise } from './db';
+import { STORE_GAMES as STORE, openDatabase, transact } from './db';
 import type { Glyph } from './feedback';
 
 export type GameResult = '1-0' | '0-1' | '1/2-1/2' | '*';
@@ -105,8 +105,8 @@ export function newGameId(): string {
 
 export async function openGameStore(): Promise<GameStore> {
   try {
-    const db = await openDatabase();
-    return new IdbGames(db);
+    await openDatabase(); // probe: a failure means memory for the session
+    return new IdbGames();
   } catch (err) {
     console.warn('IndexedDB unavailable; saved games will last only for this session', err);
     return new MemoryGames();
@@ -115,19 +115,15 @@ export async function openGameStore(): Promise<GameStore> {
 
 class IdbGames implements GameStore {
   readonly persistent = true;
-  constructor(private readonly db: IDBDatabase) {}
   async list(): Promise<GameRecord[]> {
-    const tx = this.db.transaction(STORE, 'readonly');
-    const all = await requestToPromise(tx.objectStore(STORE).getAll());
+    const all = await transact(STORE, 'readonly', (store) => store.getAll());
     return all.filter(isGameRecord).sort((a, b) => b.playedAt - a.playedAt);
   }
   async save(record: GameRecord): Promise<void> {
-    const tx = this.db.transaction(STORE, 'readwrite');
-    await requestToPromise(tx.objectStore(STORE).put(record));
+    await transact(STORE, 'readwrite', (store) => store.put(record));
   }
   async remove(id: string): Promise<void> {
-    const tx = this.db.transaction(STORE, 'readwrite');
-    await requestToPromise(tx.objectStore(STORE).delete(id));
+    await transact(STORE, 'readwrite', (store) => store.delete(id));
   }
 }
 

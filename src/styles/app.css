@@ -301,7 +301,7 @@ body {
 }
 
 .games-meta {
-  color: #8a8f98;
+  color: #9ea3ab;
   font-size: 0.75rem;
 }
 
@@ -651,7 +651,7 @@ body {
   margin-top: auto;
   font-size: 0.72rem;
   line-height: 1.4;
-  color: #8a8f98;
+  color: #9ea3ab;
 }
 
 .credits a {
@@ -682,7 +682,7 @@ body {
 
 .credits .build {
   margin-left: 8px;
-  color: #8a8f98;
+  color: #9ea3ab;
   font-size: 0.72rem;
 }
 
@@ -734,11 +734,11 @@ body {
 }
 
 .buttons .new-game {
-  background: #4caf50;
+  background: #2e7d32;
 }
 
 .buttons .new-game:hover {
-  background: #43a047;
+  background: #1b5e20;
 }
 
 .buttons .undo {
@@ -956,8 +956,8 @@ body {
 }
 
 .us-actions .us-save {
-  background: #4caf50;
-  border-color: #4caf50;
+  background: #2e7d32;
+  border-color: #2e7d32;
   color: #fff;
 }
 
@@ -1149,9 +1149,9 @@ body {
 .games-cc-row button {
   padding: 6px 12px;
   font: inherit;
-  border: 1px solid #4caf50;
+  border: 1px solid #2e7d32;
   border-radius: 6px;
-  background: #4caf50;
+  background: #2e7d32;
   color: #fff;
   cursor: pointer;
 }
@@ -1243,7 +1243,7 @@ body {
 .stats-table th {
   font-weight: 400;
   font-size: 0.75rem;
-  color: #8a8f98;
+  color: #9ea3ab;
   text-align: left;
   padding: 0 10px 2px 0;
 }
@@ -1296,8 +1296,8 @@ body {
 
 .friend-bar .friend-rematch,
 .campaign-bar .campaign-next {
-  background: #4caf50;
-  border-color: #4caf50;
+  background: #2e7d32;
+  border-color: #2e7d32;
   color: #fff;
   font-weight: 600;
 }

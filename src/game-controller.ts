@@ -93,6 +93,8 @@ export interface GameControllerOptions {
   /** Endgame training (Phase 13): a position was set up for the given human colour. */
   onTrainingStart: (humanColor: Color) => void;
   onPuzzleResult: (result: 'wrong' | 'correct' | 'solved') => void;
+  /** The engine became loading / ready / failed (the view offers `Zkusit znovu` while failed). */
+  onEngineState?: (state: EngineState) => void;
 }
 
 /** Puzzle mode state: Lichess semantics, `moves[0]` is the opponent's. */
@@ -105,7 +107,7 @@ interface PuzzleState {
   message: 'start' | 'correct' | 'wrong' | 'solved';
 }
 
-type EngineState = 'loading' | 'ready' | 'failed';
+export type EngineState = 'loading' | 'ready' | 'failed';
 
 /** Result of the pre-move analysis (A): what the engine thought before the human moved. */
 interface PreMoveInfo {
@@ -176,7 +178,8 @@ export class GameController {
 
   constructor(
     private readonly els: GameControllerElements,
-    private readonly engine: Engine,
+    /** Replaced only by `retryEngine` after a failure. */
+    private engine: Engine,
     private readonly options: GameControllerOptions,
   ) {
     this.feedbackEnabled = options.feedbackEnabled;
@@ -222,14 +225,7 @@ export class GameController {
       isActive: () => this.reviewPly !== null,
     });
 
-    engine.ready
-      .then(() => {
-        this.engineState = 'ready';
-        this.engine.setOptions(this.playOptions());
-        this.engineMode = 'play';
-        this.afterPositionChange(); // an engine turn that waited during loading starts now
-      })
-      .catch((err: unknown) => this.engineFailed(err));
+    this.watchEngine(engine);
 
     void this.newGame().catch((err) => console.error('newGame failed', err));
   }
@@ -751,13 +747,46 @@ export class GameController {
       .catch((err) => console.error('pre-move analysis failed', err));
   }
 
-  /** Engine load/worker/move failure → two-player fallback for the rest of the page load. */
-  engineFailed(err: unknown): void {
+  private watchEngine(engine: Engine): void {
+    engine.ready
+      .then(() => {
+        if (engine !== this.engine || this.engineState !== 'loading') return; // replaced / already failed
+        this.engineState = 'ready';
+        this.options.onEngineState?.('ready');
+        this.engine.setOptions(this.playOptions());
+        this.engineMode = 'play';
+        this.afterPositionChange(); // an engine turn that waited during loading starts now
+      })
+      .catch((err: unknown) => this.engineFailed(err, engine));
+  }
+
+  /**
+   * Engine load/worker/move failure → two-player fallback until `retryEngine`. `source`:
+   * the instance that reported; a failure of an already replaced one is ignored.
+   */
+  engineFailed(err: unknown, source: Engine = this.engine): void {
+    if (source !== this.engine) return;
     if (this.engineState === 'failed') return; // idempotent: ready-rejection and onError may both report
     console.error('Engine unavailable', err);
     this.engineState = 'failed';
+    this.engine.dispose(); // no-op when the engine already shut itself down
     void this.cancelSearch().catch((e) => console.error('cancelSearch failed', e));
+    this.options.onEngineState?.('failed');
     this.afterPositionChange(); // two-player fallback takes effect immediately
+  }
+
+  /** `Zkusit znovu`: swaps in a freshly created engine after a failure; the game on the board goes on. */
+  retryEngine(next: Engine): void {
+    if (this.engineState !== 'failed') {
+      next.dispose();
+      return;
+    }
+    this.engine = next;
+    this.engineState = 'loading';
+    this.engineMode = 'play';
+    this.options.onEngineState?.('loading');
+    this.watchEngine(next);
+    this.afterPositionChange();
   }
 
   private async handleUserMove(from: Square, to: Square): Promise<void> {

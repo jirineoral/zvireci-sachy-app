@@ -18,9 +18,12 @@
     <meta property="og:image:alt" content="Dítě hraje šachy s figurkami koziček a žabek, kolem fandí zvířata" />
     <meta property="og:locale" content="cs_CZ" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- Old-browser safety net (Array.prototype.at, a Czech message instead of a blank page); a file because the CSP forbids inline scripts. -->
+    <script src="/compat.js"></script>
   </head>
   <body>
     <div id="app"></div>
+    <noscript><p>Zvířecí šachy potřebují zapnutý JavaScript. Zapni ho v nastavení prohlížeče, nebo hru otevři v jiném prohlížeči.</p></noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -308,11 +308,6 @@ const friendPanel = buildFriendPanel({
   waiting: (on) => game.setRemoteWaiting(on),
   leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
 });
-{
-  const room = roomFromLocation(location.hash);
-  if (room) friendPanel.join(room);
-  else friendPanel.rejoin(); // a reload or a re-opened tab within 24 h of the last friend game
-}
 
 // Feedback (pilot): a Google Form, opened in a new tab with the build stamp and the device
 // prefilled — no address in the code, nothing sent from the app itself.
@@ -1012,3 +1007,11 @@ narrow.addEventListener('change', () => {
 });
 if (narrow.matches) movesPanel.open = false;
 syncPanels();
+
+// `#hra=` on load / rejoin: last, once every view and the controller exist (joining renders
+// the friend bar, which reaches into the controller and the status views).
+{
+  const room = roomFromLocation(location.hash);
+  if (room) friendPanel.join(room);
+  else friendPanel.rejoin(); // a reload or a re-opened tab within 24 h of the last friend game
+}

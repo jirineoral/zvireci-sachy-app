@@ -96,6 +96,7 @@ app.innerHTML = `
       s kamarádem projdou tahy přes náš server a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu
       otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
       <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
+      <p class="social-line">Sleduj nás: <a href="https://www.facebook.com/zvirecisachy" target="_blank" rel="noopener">Facebook</a> · <a href="https://www.youtube.com/@zvirecisachy" target="_blank" rel="noopener">YouTube</a></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·

@@ -19,6 +19,13 @@
  * with `marginCp: 0`: at depth 20 the project's engine found a second, nearly-as-fast mate
  * (Dxf7) about 2 cp behind; `npm run check:lessons` is the final authority on the accepted
  * set (it may need Dxf7 added if depth 18 ties them).
+ *
+ * Lessons 5–7 (izolovaný/zdvojený/opožděný pěšec, dobrý/špatný střelec, slabé pole a
+ * forpost): definitional `choose` tasks (docs/phase-22-plan.md, generation order 3). Every
+ * position is a hand-built, minimal pawn/piece skeleton chosen so the definition applies
+ * unambiguously (no `verify` fact fits these terms — file-count and square-colour geometry
+ * — so no new `check-lessons.mjs` verify kind was added; see the report). Per the plan,
+ * these three need a strong-player (~2000+) read before shipping to players.
  */
 import type { Lesson } from './types';
 
@@ -58,6 +65,29 @@ const IMMORTAL_BEFORE_SE7 = 'r1bk3r/p2p1pNp/n2B1n2/1p1NP2P/6P1/3P4/P1P1K3/q5b1 w
 const LASKER_BAUER_BEFORE_SXH7 = 'r4rk1/1b2bppp/ppq1p3/2ppB2n/5P2/1P1BP3/P1PPQ1PP/R4RK1 w - - 0 15';
 /** After 15.Sxh7+ Kxh7 16.Dxh5+ Kg8, ready for the second sacrifice. */
 const LASKER_BAUER_BEFORE_SXG7 = 'r4rk1/1b2bpp1/ppq1p3/2ppB2Q/5P2/1P2P3/P1PP2PP/R4RK1 w - - 1 17';
+
+// ---- Lesson 5: Izolovaný, zdvojený, opožděný pěšec -------------------------------------
+
+/** White's f4 pawn has no pawn on e or g file: izolovaný. b2/c2 cover each other. */
+const STRUCT_ISOLATED = '4k3/p6p/8/8/5P2/8/1PP5/4K3 w - - 0 1';
+/** Two white pawns on the same file (c2, c4): zdvojení. */
+const STRUCT_DOUBLED = '4k3/p6p/8/8/2P5/8/2P5/4K3 w - - 0 1';
+/** c2 lags behind b4 and d4; neither can ever go back to cover c3: opožděný. */
+const STRUCT_BACKWARD = '4k3/p6p/8/8/1P1P4/8/2P5/4K3 w - - 0 1';
+
+// ---- Lesson 6: Dobrý a špatný střelec ---------------------------------------------------
+
+/** Sc1 (tmavá pole) has two own pawns on dark squares (d4, e5); Sf1 (světlá pole) has none. */
+const BISHOPS_MAIN = '4k3/p7/8/4P3/3P4/8/8/2B1KB2 w - - 0 1';
+/** The same dark-squared bishop, now actively placed on h6 despite the closed centre. */
+const BISHOPS_ACTIVE = '4k3/p7/7B/4P3/3P4/8/8/4K1B1 w - - 0 1';
+
+// ---- Lesson 7: Slabé pole a forpost -----------------------------------------------------
+
+/** Black has no pawn left on c or e file: d5 can never be guarded by a black pawn. */
+const WEAK_SQUARE = '4k3/1p3p2/8/8/2P5/2N5/8/4K3 w - - 0 1';
+/** The knight sits on that weak square, defended by the pawn on c4: a forpost. */
+const OUTPOST = '4k3/1p3p2/8/3N4/2P5/8/8/4K3 w - - 0 1';
 
 export const LEVEL5: readonly Lesson[] = [
   {
@@ -353,5 +383,214 @@ export const LEVEL5: readonly Lesson[] = [
     ],
     outro: 'Oběť se vyplatí, když otevře cestu ke králi. Slavné partie to dokazují už přes sto let.',
     practice: [{ kind: 'puzzles', band: 'tezsi', theme: 'sacrifice', count: 5, label: 'Úlohy: oběť' }],
+  },
+
+  {
+    id: 'l5-struktura-pescu',
+    level: 5,
+    number: 5,
+    title: 'Izolovaný, zdvojený, opožděný pěšec',
+    steps: [
+      {
+        id: 'isolated-show',
+        kind: 'show',
+        fen: STRUCT_ISOLATED,
+        shapes: [{ from: 'f4', brush: 'red' }],
+        text: 'Pěšec f4 nemá pěšce na sloupci e ani g. Je izolovaný, nikdo ho pěšcem nekryje.',
+      },
+      {
+        id: 'isolated-find',
+        kind: 'choose',
+        fen: STRUCT_ISOLATED,
+        text: 'Který bílý pěšec je izolovaný?',
+        options: [
+          { id: 'f4', square: 'f4' },
+          { id: 'b2', square: 'b2' },
+          { id: 'c2', square: 'c2' },
+        ],
+        correct: ['f4'],
+        explain: 'Ano! Vedle f4 nestojí žádný bílý pěšec.',
+        wrongExplain: {
+          b2: 'Ten izolovaný není. Kryje ho soused na c2.',
+          c2: 'Ten izolovaný není. Kryje ho soused na b2.',
+        },
+        wrongDefault: 'Hledej pěšce, který nemá souseda na sloupci vedle.',
+      },
+      {
+        id: 'doubled-show',
+        kind: 'show',
+        fen: STRUCT_DOUBLED,
+        shapes: [
+          { from: 'c2', brush: 'red' },
+          { from: 'c4', brush: 'red' },
+        ],
+        text: 'Dva bílí pěšci stojí na stejném sloupci c. Tomu se říká zdvojení pěšci.',
+      },
+      {
+        id: 'doubled-check',
+        kind: 'choose',
+        fen: STRUCT_DOUBLED,
+        text: 'Kryje zadní pěšec c2 toho předního na c4?',
+        options: [
+          { id: 'ano', label: 'Ano' },
+          { id: 'ne', label: 'Ne' },
+        ],
+        correct: ['ne'],
+        explain: 'Správně, ne. Pěšec bere šikmo, ne po svém sloupci.',
+        wrongDefault: 'Pěšec kryje jen šikmo dopředu, nikdy po svém sloupci.',
+      },
+      {
+        id: 'backward-show',
+        kind: 'show',
+        fen: STRUCT_BACKWARD,
+        shapes: [{ from: 'c2', brush: 'red' }],
+        text: 'Pěšec c2 zůstal pozadu za sousedy b4 a d4. Tomu se říká opožděný pěšec.',
+      },
+      {
+        id: 'backward-find',
+        kind: 'choose',
+        fen: STRUCT_BACKWARD,
+        text: 'Který pěšec je opožděný?',
+        options: [
+          { id: 'c2', square: 'c2' },
+          { id: 'b4', square: 'b4' },
+          { id: 'd4', square: 'd4' },
+        ],
+        correct: ['c2'],
+        explain: 'Ano! Sousedé b4 a d4 už c2 nikdy pěšcem nekryjí, jsou moc vpředu.',
+        wrongExplain: {
+          b4: 'Ten opožděný není. Je nejvíc vpředu, spolu s d4.',
+          d4: 'Ten opožděný není. Je nejvíc vpředu, spolu s b4.',
+        },
+        wrongDefault: 'Hledej pěšce, který zůstal za oběma sousedy.',
+      },
+    ],
+    outro: 'Izolovaný, zdvojený i opožděný pěšec jsou slabiny. Soupeř na ně ráda zaútočí.',
+    practice: [{ kind: 'play', level: 5, label: 'Zahraj si partii a všímej si slabých pěšců' }],
+  },
+
+  {
+    id: 'l5-strelec',
+    level: 5,
+    number: 6,
+    title: 'Dobrý a špatný střelec',
+    steps: [
+      {
+        id: 'colour',
+        kind: 'show',
+        fen: BISHOPS_MAIN,
+        text: 'Střelec chodí jen po jedné barvě polí. Spočítej si vlastní pěšce na jeho barvě.',
+      },
+      {
+        id: 'count',
+        kind: 'choose',
+        fen: BISHOPS_MAIN,
+        text: 'Střelec c1 chodí po tmavých polích. Kolik bílých pěšců stojí na tmavém poli?',
+        options: [
+          { id: '0', label: '0' },
+          { id: '1', label: '1' },
+          { id: '2', label: '2' },
+        ],
+        correct: ['2'],
+        explain: 'Ano! Pěšci d4 i e5 stojí na tmavém poli, stejně jako střelec.',
+        wrongExplain: { '0': 'Podívej se pořádně, oba pěšci stojí na tmavém poli.', '1': 'Je jich víc. Podívej se na d4 i e5.' },
+        wrongDefault: 'Spočítej pěšce na d4 a e5. Jsou to tmavá pole?',
+      },
+      {
+        id: 'bad',
+        kind: 'show',
+        fen: BISHOPS_MAIN,
+        text: 'Hodně vlastních pěšců na jeho barvě: tomu se říká špatný střelec. Má zavřenou cestu.',
+      },
+      {
+        id: 'good',
+        kind: 'choose',
+        fen: BISHOPS_MAIN,
+        text: 'Který střelec je tady dobrý?',
+        options: [
+          { id: 'c1', square: 'c1' },
+          { id: 'f1', square: 'f1' },
+        ],
+        correct: ['f1'],
+        explain: 'Ano! Střelci f1 žádný vlastní pěšec na jeho barvě nepřekáží.',
+        wrongExplain: { c1: 'Ten je tu špatný. Vlastní pěšci mu stojí v cestě.' },
+        wrongDefault: 'Hledej střelce, kterému nepřekáží vlastní pěšci.',
+      },
+      {
+        id: 'not-useless',
+        kind: 'show',
+        fen: BISHOPS_ACTIVE,
+        text: 'Špatný střelec ale není k ničemu. I zavřený někdy najde aktivní pole.',
+      },
+    ],
+    outro: 'Dobrý střelec má volnou cestu, špatný ji má zavřenou vlastními pěšci. Ale i špatný umí zabrat.',
+    practice: [{ kind: 'play', level: 5, label: 'Zahraj si partii a všímej si, jakou barvu mají tvoji pěšci' }],
+  },
+
+  {
+    id: 'l5-slabe-pole',
+    level: 5,
+    number: 7,
+    title: 'Slabé pole a forpost',
+    steps: [
+      {
+        id: 'intro',
+        kind: 'show',
+        fen: WEAK_SQUARE,
+        shapes: [{ from: 'd5', brush: 'green' }],
+        text: 'Černý nemá pěšce na sloupci c ani e. Pole d5 už žádný jeho pěšec nikdy nehlídá.',
+      },
+      {
+        id: 'why',
+        kind: 'choose',
+        fen: WEAK_SQUARE,
+        text: 'Proč je pole d5 slabé?',
+        options: [
+          { id: 'zadny', label: 'Černý ho pěšcem nikdy nehlídá' },
+          { id: 'dva', label: 'Bílý ho hlídá dvěma pěšci' },
+          { id: 'stred', label: 'Je uprostřed šachovnice' },
+        ],
+        correct: ['zadny'],
+        explain: 'Ano! Bez pěšců na c a e sloupci ho černý nemůže pěšcem hlídat.',
+        wrongExplain: {
+          dva: 'Bílý ho tady hlídá jen jedním pěšcem.',
+          stred: 'Poloha uprostřed sama o sobě pole slabým nedělá.',
+        },
+        wrongDefault: 'Slabé je pole, na které soupeřův pěšec už nikdy nedosáhne.',
+      },
+      {
+        id: 'outpost-show',
+        kind: 'show',
+        fen: OUTPOST,
+        shapes: [{ from: 'c4', to: 'd5', brush: 'blue' }],
+        text: 'Jezdec stojí na slabém poli a kryje ho vlastní pěšec. Tomu se říká forpost.',
+      },
+      {
+        id: 'outpost-why',
+        kind: 'choose',
+        fen: OUTPOST,
+        text: 'Co dělá z jezdce na d5 forpost?',
+        options: [
+          { id: 'stoji', label: 'Stojí na slabém poli a kryje ho pěšec' },
+          { id: 'silny', label: 'Jezdec je nejsilnější figurka' },
+          { id: 'blizko', label: 'Stojí blízko soupeřova krále' },
+        ],
+        correct: ['stoji'],
+        explain: 'Ano! Pěšcem krytá figurka na slabém poli je forpost. Soupeř ji těžko vyžene.',
+        wrongExplain: {
+          silny: 'Síla figurky s forpostem nesouvisí, i pěšec může být forpost.',
+          blizko: 'Blízkost krále forpost nedělá. Rozhoduje slabé pole a krytí.',
+        },
+        wrongDefault: 'Forpost je figurka na slabém poli, kterou kryje vlastní pěšec.',
+      },
+      {
+        id: 'caveat',
+        kind: 'show',
+        fen: OUTPOST,
+        text: 'Slabé pole samo o sobě nic nevyhraje. Potřebuješ na něj dostat vlastní figurku.',
+      },
+    ],
+    outro: 'Slabé pole soupeř pěšcem nikdy nezažene. Forpost je figurka, která na něm bydlí natrvalo.',
+    practice: [{ kind: 'play', level: 5, label: 'Zahraj si partii a hledej slabá pole pro svého jezdce' }],
   },
 ];

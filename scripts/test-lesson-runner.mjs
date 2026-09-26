@@ -330,50 +330,48 @@ test('level 2: a piece left en prise in a tactic is explained', () => {
 });
 
 // Level 4 (phase 22): correct paths run through the generic loop above; one wrong answer each.
-test('level 4: l4-uvolneni — a useless knight retreat is explained', () => {
-  assert.equal(wrongMove('l4-uvolneni', 'clear-knight', 'd2', 'b1').feedback.text, 'Tam jezdec neuvolní nic užitečného. Najdi mu aktivnější pole.');
+test('level 4: l4-uvolneni — clearing the line without check is explained', () => {
+  assert.equal(wrongMove('l4-uvolneni', 'rook-clear', 'f5', 'f7').feedback.text, 'Úhlopříčka je volná, ale bez šachu. Černý dostal čas se bránit.');
 });
 
-test('level 4: l4-preruseni — a square the bishop cannot reach is explained', () => {
-  const lesson = byId('l4-preruseni');
-  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'find-square'));
-  const v = r.dispatch({ type: 'square', square: 'b8' });
-  assert.equal(v.phase, 'task');
-  assert.equal(v.feedback.text, 'Tam střelec nedosáhne. Hledej pole na jeho úhlopříčce.');
-  assert.equal(r.dispatch({ type: 'square', square: 'c8' }).phase, 'stepDone');
+test('level 4: l4-preruseni — taking the defended knight is explained', () => {
+  assert.equal(wrongMove('l4-preruseni', 'pawn-block', 'g3', 'h4').feedback.text, 'Jezdce kryje dáma f6. Po Dxh4 Dxh4 přijdeš o dámu.');
 });
 
 test('level 4: l4-mlyn — a move that ignores the windmill capture is explained', () => {
   assert.equal(wrongMove('l4-mlyn', 'check1', 'g3', 'g4').feedback.text, 'Zkus věží vzít pěšce g7 se šachem.');
 });
 
+test('level 4: l4-dvojsach — the other double check (no mate) is explained', () => {
+  assert.equal(wrongMove('l4-dvojsach', 'double-check', 'd2', 'a5').feedback.text, 'Taky dvojšach, ale král uteče na e7 nebo e8. Tam mat nedáš.');
+});
+
 test('level 4: l4-dvojsach — blocking only one of two checks is explained', () => {
   const lesson = byId('l4-dvojsach');
   const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'only-king'));
   const v = r.dispatch({ type: 'choose', id: 'zakryt' });
-  assert.equal(v.feedback.text, 'Zakryješ jen jeden šach. Ten druhý pořád platí.');
+  assert.equal(v.feedback.text, 'Černý zakryje jen jeden šach. Ten druhý pořád platí.');
   assert.equal(r.dispatch({ type: 'choose', id: 'kral' }).phase, 'stepDone');
 });
 
-test('level 4: l4-recky-dar — the defended-square question explains a wrong guess', () => {
+test('level 4: l4-recky-dar — "it works" where the bishop guards g5 is explained', () => {
   const lesson = byId('l4-recky-dar');
-  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'defender-check1'));
-  const v = r.dispatch({ type: 'choose', id: 'ne' });
-  assert.equal(v.feedback.text, 'Podívej se, kam všude jezdec f6 dosáhne.');
-  assert.equal(r.dispatch({ type: 'choose', id: 'ano' }).phase, 'stepDone');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'fails-bishop'));
+  const v = r.dispatch({ type: 'choose', id: 'ano' });
+  assert.equal(v.feedback.text, 'Podívej se na černého střelce e7. Které pole hlídá?');
+  assert.equal(r.dispatch({ type: 'choose', id: 'ne' }).phase, 'stepDone');
 });
 
-test('level 4: l4-tichy-tah — checking before covering the escape square is explained', () => {
-  assert.equal(wrongMove('l4-tichy-tah', 'quiet', 'd1', 'd8').feedback.text, 'To je šach, ale král uteče na h7. Nejdřív mu tam zavři cestu.');
+test('level 4: l4-tichy-tah — a rook check instead of the quiet move is explained', () => {
+  assert.equal(wrongMove('l4-tichy-tah', 'quiet', 'f7', 'f8').feedback.text, 'Šach, ale černý vezme věž: Vxf8.');
 });
 
-test('level 4: l4-mat3 — a rook move that gives no check is explained', () => {
-  assert.equal(wrongMove('l4-mat3', 'move1', 'h1', 'h2').feedback.text, 'Zkus dát šach věží na poli h6.');
+test('level 4: l4-mat3 — a check that does not mate is explained', () => {
+  assert.equal(wrongMove('l4-mat3', 'move1', 'd1', 'd5').feedback.text, 'Po Dd5+ vezme jezdec e7 dámu.');
 });
 
-test('level 4: l4-vez-dama-pesec — attacking the pawn from the wrong square is explained', () => {
-  // d3 is next to the black king — the rook would just be captured there.
-  assert.equal(wrongMove('l4-vez-dama-pesec', 'rook-attack', 'd1', 'd3').feedback.text, 'Tady by ti král vzal věž.');
+test('level 4: l4-vez-dama-pesec — a quiet rook move instead of the check is explained', () => {
+  assert.equal(wrongMove('l4-vez-dama-pesec', 'rook-check', 'h1', 'h2').feedback.text, 'Tohle není šach. Zkus šach po třetí řadě, daleko od krále.');
 });
 
 // 3. Texts.

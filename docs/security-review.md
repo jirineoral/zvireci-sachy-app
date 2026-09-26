@@ -577,3 +577,58 @@ counting as visits. No new host, CSP unchanged (the script and POST hosts are th
 Verified on `vite preview` of a `--mode pages` build with the token swapped for zeros:
 beacon injected by default, absent after `#bezmereni` (also typed into an open tab), back
 after `#mereni`; no CSP violations.
+
+### 2026-09-26 — friend game: reliability and protocol hardening (branch `fix-friend`)
+Reviewer findings (confirmed) and what changed. **Deploy the Worker first, then the site**
+(the new client pings; an old relay would close a ping with `policy`).
+- **Relay validates moves with chess.js.** A regex-valid but illegal SAN (`zz`, `Ke5`…)
+  used to be stored and broke the room for both players. The DO now plays every move on
+  a chess.js position (cached in memory, rebuilt from `sans` after hibernation); an
+  illegal move gets `{t:'error', msg:'illegal move'}` to the sender only, nothing is
+  stored or forwarded. The stored/forwarded SAN is chess.js's own spelling. chess.js
+  comes from the app's root dependencies (same 1.4.0 as the browsers; the bundler finds
+  it walking up from `worker/`). Bundle 96 KiB / 21 KiB gzip.
+- **Relay message shape.** `JSON.parse` results that are not a plain object (`null`,
+  numbers, arrays) used to throw in the DO (`msg.t` of null); now closed with 1008
+  `policy`. Field types are checked before use (`hello.token` string, `hello.pref` one of
+  w/b/random, `move.san` string, `move.ply` number → otherwise `error`/`policy`).
+- **Close reasons split.** 1008 `rate` = the 10 msg/s flood guard (transient: the client
+  reconnects after ≥ 3 s and keeps its seat); 1008 `policy` = not the protocol. The
+  client no longer wipes the stored seat on `policy` (it is not a ban; a reload rejoins)
+  and says `Server spojení ukončil. Načti stránku znovu — hra na tebe počká.`
+- **Keep-alive without waking the DO.** `setWebSocketAutoResponse('{"t":"ping"}' →
+  '{"t":"pong"}')`; the client pings every 25 s and reconnects when no message arrives
+  within 10 s (4 s after the page becomes visible again); `online` reconnects at once.
+  Half-open sockets (iOS background, Wi-Fi → LTE) are now detected. A ping with other
+  spacing reaches the DO and is answered there (no close).
+- **No lost moves.** A move of ours is *pending* (kept in the stored session, so it
+  survives a reload) until the room is known to have it: the friend answers it, or a
+  `state` contains it. A `state` one ply short gets the move sent again (the room checks
+  turn, ply and legality as for any move); a refused or superseded one is dropped and the
+  board follows the room. While a pending move waits the bar says `…připojuju…`. A mate
+  played on a dead socket now reaches the room instead of existing only in the local
+  record.
+- **Rematch state.** `leave` (and a seat reclaimed by a new token) drops that seat's
+  rematch offer, so a newcomer is never pulled into a rematch they did not ask for.
+  `state` gains `rematch: Seat[]` (who has asked for this game) so an offer made while the
+  peer was away is shown when they come back. Additive field: the deployed client's shape
+  check ignores unknown fields; the new client accepts `state` with or without it.
+- **Storage.** The seat token falls back to `sessionStorage` when `localStorage` is
+  blocked or throws (rejoin after a reload in the same tab still works). Same content,
+  same 24 h / 2 h rules; still no name, no cookie.
+- **UX.** `Kamarád` no longer ends the game at once: it shows `Pošli kamarádovi odkaz. Kdo
+  ho má, může si sednout ke stolu.` with `Vytvořit odkaz` (asks first when a game is under
+  way), which creates the room and copies the link; the status line says `Čekám na
+  kamaráda…` until the friend first arrives. `Odejít` is two-step (`Opravdu odejít?`,
+  resets after 4 s).
+- **Compatibility of the new Worker with the deployed client:** yes — extra `state` field
+  ignored; `pong` only answers pings the old client never sends; `rate` is an unknown
+  reason to the old client, which therefore reconnects (better than the old wipe);
+  `error` for an illegal move triggers the old client's resync. Rooms that already hold
+  an illegal SAN stay broken (they were before), and expire in 24 h.
+- Tested against `wrangler dev --local` with node WebSocket clients (protocol level) and
+  with the real `friend.ts` + `friend-panel.ts` under a DOM shim (two players): normal game
+  to mate; null/number/array/illegal/typed-wrong messages; half-open socket → pong timeout
+  → reconnect → pending resent; pending across a reload; `online`; rate close → rejoin with
+  the seat; policy close → note, reload rejoins; rematch offered while the peer is away,
+  cleared by `leave`, newcomer not auto-rematched; two-step `Odejít`.

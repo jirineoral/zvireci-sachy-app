@@ -1308,6 +1308,12 @@ body {
   flex: 1 1 100%;
 }
 
+.friend-bar .friend-leave.armed {
+  border-color: #e57373;
+  color: #ffcdd2;
+}
+
+.friend-bar .friend-create,
 .friend-bar .friend-rematch,
 .campaign-bar .campaign-next {
   background: #2e7d32;

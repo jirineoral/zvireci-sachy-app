@@ -4,13 +4,21 @@
  * One Durable Object per game ("room"). Two seats, white and black; a player is known
  * only by a random token their browser made up (so a reload reconnects to the same
  * seat). The room stores the move list (SAN) and the seat tokens, forwards moves, and
- * deletes itself 24 h after the last message. It validates turn order and message
- * shape, not chess rules — both browsers run chess.js and reject an illegal SAN.
+ * deletes itself 24 h after the last message. It validates message shape, turn order and
+ * — since 2026-09-26 — the move itself with chess.js: an illegal SAN is refused to its
+ * sender and never stored, so one bad message cannot break the room for both players.
+ *
+ * Keep-alive: the client sends the exact text `{"t":"ping"}` every ~25 s and the runtime
+ * answers `{"t":"pong"}` itself (setWebSocketAutoResponse), so the DO stays hibernated and
+ * a client that misses pongs knows its socket is half-open and reconnects.
  *
  * Nothing about the players is kept: no names, no cookies, no logs (observability is
  * off in wrangler.toml). The edge sees the two IP addresses while a socket is open.
  */
 import { DurableObject } from 'cloudflare:workers';
+// chess.js comes from the app's own dependencies (the repo root's node_modules, found by the
+// bundler walking up from worker/): the same version as the browsers, so all agree on SAN.
+import { Chess } from 'chess.js';
 
 export interface Env {
   ROOMS: DurableObjectNamespace<Room>;
@@ -19,22 +27,25 @@ export interface Env {
 type Seat = 'w' | 'b';
 type Pref = 'w' | 'b' | 'random';
 
-/** Client → room. */
-type ClientMessage =
-  | { t: 'hello'; token: string; pref?: Pref }
-  | { t: 'move'; san: string; ply: number }
-  | { t: 'rematch' }
-  | { t: 'leave' };
+/*
+ * Client → room (every field is type-checked in webSocketMessage before use):
+ *   { t: 'hello'; token: string; pref?: Pref }
+ *   { t: 'move'; san: string; ply: number }
+ *   { t: 'rematch' } | { t: 'leave' }
+ *   {"t":"ping"} (exact text; answered by the runtime)
+ */
 
 /** Room → client. */
 type ServerMessage =
-  | { t: 'state'; seat: Seat; sans: string[]; game: number; peer: boolean }
+  /** `rematch` (added 2026-09-26): the seats that asked for a rematch of this game, so an offer made while the peer was away is not lost. Older clients ignore the field. */
+  | { t: 'state'; seat: Seat; sans: string[]; game: number; peer: boolean; rematch: Seat[] }
   | { t: 'move'; san: string; ply: number }
   | { t: 'peer'; online: boolean }
   | { t: 'rematch'; from: Seat }
   /** No seat for this token; `taken` = it had one and another link-holder took it meanwhile. */
   | { t: 'full'; taken: boolean }
-  | { t: 'error'; msg: string };
+  | { t: 'error'; msg: string }
+  | { t: 'pong' };
 
 interface Attachment {
   token: string;
@@ -54,6 +65,17 @@ const IDLE_MS = 24 * 60 * 60 * 1000;
  * message; only a second link-holder can take the seat, and the displaced player is told.
  */
 const SEAT_RECLAIM_MS = 10 * 60 * 1000;
+/** Keep-alive, answered by the runtime without waking the DO (exact string match). */
+const PING = '{"t":"ping"}';
+const PONG = '{"t":"pong"}';
+/**
+ * Close reasons with code 1008: `rate` = too many messages, a transient flood guard (the
+ * client reconnects and keeps its seat); `policy` = something that is not the protocol
+ * (binary, oversize, not a JSON object, a bad `hello`) — a bug or a hostile client.
+ */
+const RATE = 'rate';
+const POLICY = 'policy';
+const PREFS: readonly unknown[] = ['w', 'b', 'random'];
 /** Only the app's own origins may open a socket: an embedding filter, not authentication (Origin is spoofable by non-browsers; the localhost entries serve the dev server). */
 const ORIGINS = new Set(['https://zvirecisachy.cz', 'https://www.zvirecisachy.cz', 'https://dev.zvirecisachy.cz', 'http://localhost:5173', 'http://127.0.0.1:5173']);
 
@@ -83,6 +105,13 @@ export default {
 export class Room extends DurableObject<Env> {
   /** Per-socket rate limit window; lost on hibernation, which is fine. */
   private rate = new WeakMap<WebSocket, { second: number; n: number }>();
+  /** The current position, so a move is checked without replaying the game; lost on hibernation (rebuilt from `sans`). */
+  private board: { game: number; ply: number; chess: Chess } | null = null;
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING, PONG));
+  }
 
   async fetch(_request: Request): Promise<Response> {
     const pair = new WebSocketPair();
@@ -92,28 +121,54 @@ export class Room extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
-    if (typeof raw !== 'string' || raw.length > MAX_MESSAGE_CHARS || this.overRate(ws)) {
-      ws.close(1008, 'policy');
+    if (this.overRate(ws)) {
+      ws.close(1008, RATE);
       return;
     }
-    let msg: ClientMessage;
+    if (typeof raw !== 'string' || raw.length > MAX_MESSAGE_CHARS) {
+      ws.close(1008, POLICY);
+      return;
+    }
+    let parsed: unknown;
     try {
-      msg = JSON.parse(raw) as ClientMessage;
+      parsed = JSON.parse(raw);
     } catch {
-      ws.close(1008, 'policy');
+      ws.close(1008, POLICY);
+      return;
+    }
+    // `null`, a number, an array… are valid JSON but not a message.
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      ws.close(1008, POLICY);
+      return;
+    }
+    const msg = parsed as Record<string, unknown>;
+    if (msg.t === 'ping') {
+      this.send(ws, { t: 'pong' }); // not the exact auto-response text (other spacing): answer anyway
       return;
     }
     const att = this.attachment(ws);
-    if (msg.t === 'hello') return this.hello(ws, att, msg);
+    if (msg.t === 'hello') {
+      if (typeof msg.token !== 'string' || (msg.pref !== undefined && msg.pref !== null && !PREFS.includes(msg.pref))) {
+        ws.close(1008, POLICY);
+        return;
+      }
+      return this.hello(ws, att, { token: msg.token, pref: (msg.pref ?? undefined) as Pref | undefined });
+    }
     if (!att) {
       ws.close(1008, 'hello first');
       return;
     }
     await this.touch();
-    if (msg.t === 'move') return this.move(ws, att, msg);
+    if (msg.t === 'move') {
+      if (typeof msg.san !== 'string' || typeof msg.ply !== 'number') {
+        this.send(ws, { t: 'error', msg: 'move refused' });
+        return;
+      }
+      return this.move(ws, att, { san: msg.san, ply: msg.ply });
+    }
     if (msg.t === 'rematch') return this.rematch(ws, att);
     if (msg.t === 'leave') return this.leave(ws, att);
-    ws.close(1008, 'policy');
+    ws.close(1008, POLICY);
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
@@ -141,12 +196,13 @@ export class Room extends DurableObject<Env> {
   /** 24 h after the last message: the game is gone. */
   async alarm(): Promise<void> {
     for (const ws of this.ctx.getWebSockets()) ws.close(1001, 'expired');
+    this.board = null;
     await this.ctx.storage.deleteAll();
   }
 
   private async hello(ws: WebSocket, current: Attachment | null, msg: { token: string; pref?: Pref }): Promise<void> {
-    if (typeof msg.token !== 'string' || !TOKEN.test(msg.token) || (current !== null && current.token !== msg.token)) {
-      ws.close(1008, 'policy'); // one browser, one seat
+    if (!TOKEN.test(msg.token) || (current !== null && current.token !== msg.token)) {
+      ws.close(1008, POLICY); // one browser, one seat
       return;
     }
     const seats = (await this.ctx.storage.get<Seats>('seats')) ?? {};
@@ -175,6 +231,7 @@ export class Room extends DurableObject<Env> {
       const previous = seats[seat];
       if (previous) seats.displaced = [...(seats.displaced ?? []).filter((t) => t !== previous).slice(-3), previous];
       seats[seat] = msg.token;
+      await this.dropRematch(seat); // a new player at this seat did not ask for a rematch
     }
     delete seats[`${seat}Closed`];
     await this.ctx.storage.put('seats', seats);
@@ -186,21 +243,33 @@ export class Room extends DurableObject<Env> {
     ws.serializeAttachment({ token: msg.token, seat } satisfies Attachment);
     const sans = (await this.ctx.storage.get<string[]>('sans')) ?? [];
     const game = (await this.ctx.storage.get<number>('game')) ?? 1;
-    this.send(ws, { t: 'state', seat, sans, game, peer: this.peerOnline(ws, seat) });
+    const rematch = (await this.ctx.storage.get<Seat[]>('rematch')) ?? [];
+    this.send(ws, { t: 'state', seat, sans, game, peer: this.peerOnline(ws, seat), rematch });
     this.sendToOthers(ws, seat, { t: 'peer', online: true });
   }
 
   private async move(ws: WebSocket, att: Attachment, msg: { san: string; ply: number }): Promise<void> {
     const sans = (await this.ctx.storage.get<string[]>('sans')) ?? [];
     const turn: Seat = sans.length % 2 === 0 ? 'w' : 'b';
-    if (typeof msg.san !== 'string' || !SAN.test(msg.san) || !Number.isInteger(msg.ply) || msg.ply !== sans.length || turn !== att.seat || sans.length >= MAX_PLIES) {
+    if (!SAN.test(msg.san) || !Number.isInteger(msg.ply) || msg.ply !== sans.length || turn !== att.seat || sans.length >= MAX_PLIES) {
       this.send(ws, { t: 'error', msg: 'move refused' });
       return;
     }
-    sans.push(msg.san);
+    const game = (await this.ctx.storage.get<number>('game')) ?? 1;
+    const chess = this.position(game, sans);
+    let san: string;
+    try {
+      if (!chess) throw new Error('the room holds an illegal move'); // stored before moves were checked
+      san = chess.move(msg.san).san; // chess.js's own spelling, the one both browsers use
+    } catch {
+      this.send(ws, { t: 'error', msg: 'illegal move' }); // to the sender only; nothing stored
+      return;
+    }
+    sans.push(san);
+    this.board = { game, ply: sans.length, chess };
     await this.ctx.storage.put('sans', sans);
     await this.ctx.storage.delete('rematch');
-    this.sendToOthers(ws, att.seat, { t: 'move', san: msg.san, ply: msg.ply });
+    this.sendToOthers(ws, att.seat, { t: 'move', san, ply: msg.ply });
   }
 
   /** Both players ask → the move list is cleared and the colours swap. */
@@ -217,6 +286,7 @@ export class Room extends DurableObject<Env> {
     const game = ((await this.ctx.storage.get<number>('game')) ?? 1) + 1;
     await this.ctx.storage.put({ seats: swapped, sans: [], game });
     await this.ctx.storage.delete('rematch');
+    this.board = null;
     const swappedSeats: [WebSocket, Seat][] = [];
     for (const sock of this.ctx.getWebSockets()) {
       const a = this.attachment(sock);
@@ -226,20 +296,43 @@ export class Room extends DurableObject<Env> {
       swappedSeats.push([sock, seat]);
     }
     // All seats swapped first, then told — `peer` looks at the other socket's new seat.
-    for (const [sock, seat] of swappedSeats) this.send(sock, { t: 'state', seat, sans: [], game, peer: this.peerOnline(sock, seat) });
+    for (const [sock, seat] of swappedSeats) this.send(sock, { t: 'state', seat, sans: [], game, peer: this.peerOnline(sock, seat), rematch: [] });
   }
 
-  /** `Odejít`: the seat is free at once for whoever opens the link next. */
+  /** `Odejít`: the seat is free at once for whoever opens the link next, and the leaver's rematch offer goes with them. */
   private async leave(ws: WebSocket, att: Attachment): Promise<void> {
     const seats = (await this.ctx.storage.get<Seats>('seats')) ?? {};
     if (seats[att.seat] === att.token) {
       delete seats[att.seat];
       delete seats[`${att.seat}Closed`];
       await this.ctx.storage.put('seats', seats);
+      await this.dropRematch(att.seat);
     }
     ws.serializeAttachment(null);
     this.sendToOthers(ws, att.seat, { t: 'peer', online: false });
     ws.close(1000, 'leave');
+  }
+
+  /** The position after `sans`, from the cache or replayed; null when the stored list is not a legal game. */
+  private position(game: number, sans: string[]): Chess | null {
+    if (this.board && this.board.game === game && this.board.ply === sans.length) return this.board.chess;
+    this.board = null;
+    const chess = new Chess();
+    try {
+      for (const s of sans) chess.move(s);
+    } catch {
+      return null;
+    }
+    this.board = { game, ply: sans.length, chess };
+    return chess;
+  }
+
+  private async dropRematch(seat: Seat): Promise<void> {
+    const wanted = (await this.ctx.storage.get<Seat[]>('rematch')) ?? [];
+    if (!wanted.includes(seat)) return;
+    const left = wanted.filter((s) => s !== seat);
+    if (left.length === 0) await this.ctx.storage.delete('rematch');
+    else await this.ctx.storage.put('rematch', left);
   }
 
   /** Another open socket (not `except`) holds this seat. */

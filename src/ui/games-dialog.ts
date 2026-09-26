@@ -4,6 +4,7 @@
  */
 import { PgnError, RESULT_LABEL, recordFromPgn, statsFrom, type GameRecord, type GameStore, type Tally } from '../games';
 import { count } from '../czech';
+import { pgnFromCzech } from '../notation';
 import { ChesscomError, fetchArchives, fetchMonth, isValidUsername, readChesscomUsername, writeChesscomUsername, type ChesscomGame, type ChesscomMonth } from '../chesscom';
 
 export interface GamesDialogDeps {
@@ -46,7 +47,10 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
   pgnArea.spellcheck = false;
   const pgnOpen = button('Otevřít PGN', 'us-save');
   const pgnSave = button('Uložit do partií', 'games-save');
-  pgnSection.append(el('h3', 'Vložit PGN'), el('p', 'Partie z turnaje nebo z chess.com: vlož PGN (hlavičky nejsou nutné) a otevři ji v rozboru.', 'us-note'), pgnArea, pgnOpen, pgnSave);
+  // The PGN's own messages sit right under the text box (not above the chess.com section).
+  const pgnMsg = el('p', '', 'us-msg');
+  pgnMsg.setAttribute('role', 'status');
+  pgnSection.append(el('h3', 'Vložit PGN'), el('p', 'Partie z turnaje nebo z chess.com: vlož PGN (hlavičky nejsou nutné) a otevři ji v rozboru.', 'us-note'), pgnArea, pgnMsg, pgnOpen, pgnSave);
 
   // chess.com (Phase 15)
   const ccSection = document.createElement('section');
@@ -151,34 +155,43 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
     empty.hidden = games.length > 0;
   };
 
+  const setPgnMessage = (text: string, isError = false): void => {
+    pgnMsg.textContent = text;
+    pgnMsg.classList.toggle('us-error', isError);
+  };
+  // Czech piece letters (J, S, V, D) are accepted too: the child writes what they learnt.
+  const pastedRecord = (): GameRecord => recordFromPgn(pgnFromCzech(pgnArea.value));
+  pgnArea.addEventListener('input', () => setPgnMessage(''));
   pgnOpen.addEventListener('click', () => {
     try {
-      lastPgnRecord = recordFromPgn(pgnArea.value);
+      lastPgnRecord = pastedRecord();
     } catch (err) {
-      setMessage(err instanceof PgnError ? err.message : 'PGN se nepodařilo přečíst.', true);
+      setPgnMessage(err instanceof PgnError ? err.message : 'PGN se nepodařilo přečíst.', true);
       return;
     }
+    setPgnMessage('');
     const record = lastPgnRecord;
     void deps.open(record).then((ok) => {
       if (ok) dialog.close();
-      else setMessage('PGN se nepodařilo přehrát.', true);
+      else setPgnMessage('PGN se nepodařilo přehrát.', true);
     });
   });
   pgnSave.addEventListener('click', () => {
     let record: GameRecord;
     try {
-      record = lastPgnRecord && lastPgnRecord.sans.join(' ') === recordFromPgn(pgnArea.value).sans.join(' ') ? lastPgnRecord : recordFromPgn(pgnArea.value);
+      const pasted = pastedRecord();
+      record = lastPgnRecord && lastPgnRecord.sans.join(' ') === pasted.sans.join(' ') ? lastPgnRecord : pasted;
     } catch (err) {
-      setMessage(err instanceof PgnError ? err.message : 'PGN se nepodařilo přečíst.', true);
+      setPgnMessage(err instanceof PgnError ? err.message : 'PGN se nepodařilo přečíst.', true);
       return;
     }
     void store
       .save(record)
       .then(render)
-      .then(() => setMessage(`Partie ${record.white} × ${record.black} uložená.`))
+      .then(() => setPgnMessage(`Partie ${record.white} × ${record.black} uložená.`))
       .catch((err) => {
         console.warn('Saving the game failed', err);
-        setMessage('Partii se nepodařilo uložit (plné nebo blokované úložiště).', true);
+        setPgnMessage('Partii se nepodařilo uložit (plné nebo blokované úložiště).', true);
       });
   });
   closeBtn.addEventListener('click', () => dialog.close());
@@ -279,6 +292,7 @@ export function buildGamesDialog(deps: GamesDialogDeps): { open: () => void } {
   return {
     open(): void {
       setMessage('');
+      setPgnMessage('');
       void render().then(() => dialog.showModal());
     },
   };

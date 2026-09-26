@@ -54,6 +54,8 @@ export interface GameControllerElements {
   /** Phase 9: whole-game analysis button (in the review) and the eval bar beside the board. */
   analyseButton: HTMLButtonElement;
   evalBar: HTMLElement;
+  /** `Vzdát`: shown during a game against the computer; two clicks end it as a loss. */
+  resignButton: HTMLButtonElement;
 }
 
 export interface GameControllerOptions {
@@ -95,7 +97,17 @@ export interface GameControllerOptions {
   onPuzzleResult: (result: 'wrong' | 'correct' | 'solved') => void;
   /** The engine became loading / ready / failed (the view offers `Zkusit znovu` while failed). */
   onEngineState?: (state: EngineState) => void;
+  /** The level selected at start (persisted by the caller via onDifficultyChange). */
+  difficulty: DifficultyLevel;
+  onDifficultyChange: (level: DifficultyLevel) => void;
+  /** `Nová hra` would throw away a game in progress: the view asks first; false = keep playing. */
+  confirmDiscard: () => Promise<boolean>;
 }
+
+/** Glyphs the child's king comments on during play (the review comments on all of them). */
+const SPOKEN_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['!!', '!', '?!', '?', '??']);
+/** How long `Vzdát` waits for the confirming second click. */
+const RESIGN_CONFIRM_MS = 4000;
 
 /** Puzzle mode state: Lichess semantics, `moves[0]` is the opponent's. */
 interface PuzzleState {
@@ -132,7 +144,7 @@ export class GameController {
   private readonly chess: Chess;
   private readonly board: BoardBridge;
   private humanColor: Color = 'w';
-  private difficultyLevel: DifficultyLevel = DEFAULT_DIFFICULTY;
+  private difficultyLevel: DifficultyLevel;
   /** Phase 11: the campaign's interpolated strength, replacing the selected level while set. */
   private difficultyOverride: Difficulty | null = null;
   private engineState: EngineState = 'loading';
@@ -175,6 +187,12 @@ export class GameController {
   private remote = false;
   /** Phase 12: the piece drop in progress (board locked, engine waiting), or null. */
   private starting: { done: Promise<void>; cancel: () => void } | null = null;
+  /** The human resigned this game (it is over, lost, and saved like any finished game). */
+  private resigned = false;
+  /** Endgame training (Phase 13) is on the board: no `Vzdát` (the panel has its own flow). */
+  private training = false;
+  /** `Vzdát` was clicked once; a second click within RESIGN_CONFIRM_MS resigns. */
+  private resignArmed: number | null = null;
 
   constructor(
     private readonly els: GameControllerElements,
@@ -183,6 +201,7 @@ export class GameController {
     private readonly options: GameControllerOptions,
   ) {
     this.feedbackEnabled = options.feedbackEnabled;
+    this.difficultyLevel = isDifficultyLevel(options.difficulty) ? options.difficulty : DEFAULT_DIFFICULTY;
     this.undoBudget = options.undoLimit;
     this.undosLeft = options.undoLimit;
     this.chess = new Chess();
@@ -191,8 +210,14 @@ export class GameController {
     populateControls(this.controlsElements());
     els.newGameButton.addEventListener('click', () => {
       if (!this.started) this.startPlaying();
-      else void this.newGame().catch((err) => console.error('newGame failed', err));
+      else if (this.gameInProgress) {
+        void this.options
+          .confirmDiscard()
+          .then((ok) => (ok ? this.newGame() : undefined))
+          .catch((err) => console.error('newGame failed', err));
+      } else void this.newGame().catch((err) => console.error('newGame failed', err));
     });
+    els.resignButton.addEventListener('click', () => this.resignClicked());
     els.undoButton.addEventListener('click', () => {
       void this.undo().catch((err) => console.error('undo failed', err));
     });
@@ -242,6 +267,8 @@ export class GameController {
     this.reviewPly = null;
     this.record = null;
     this.clearPuzzle();
+    this.resigned = false;
+    this.training = false;
     this.undosLeft = this.undoBudget;
     this.started = false; // wait for `Hrát` (or the human's first move)
     if (this.engineState === 'ready') this.engine.newGame();
@@ -264,6 +291,8 @@ export class GameController {
     this.reviewPly = null;
     this.clearPuzzle();
     this.leaveRemote();
+    this.resigned = false;
+    this.training = true;
     this.twoPlayer = false;
     this.humanColor = humanColor;
     this.started = true;
@@ -293,6 +322,8 @@ export class GameController {
     this.preMove = null;
     this.reviewPly = null;
     this.clearPuzzle();
+    this.resigned = false;
+    this.training = false;
     this.twoPlayer = false;
     this.remote = true;
     this.humanColor = humanColor;
@@ -318,6 +349,78 @@ export class GameController {
     this.plies.push(null);
     this.afterPositionChange();
     return true;
+  }
+
+  /**
+   * A game the child is playing and has not finished: `Nová hra`, a colour change or a
+   * reload would throw it away. A game over a link is not counted (it lives in the room).
+   */
+  get gameInProgress(): boolean {
+    return this.started && this.chess.history().length > 0 && !this.status().over && this.reviewPly === null && this.puzzle === null && !this.remote && this.record === null;
+  }
+
+  /** `Vzdát` is offered: a game against the computer in progress (not training, not two players). */
+  private canResign(status: GameStatus): boolean {
+    return (
+      this.started &&
+      this.starting === null &&
+      !this.promotionOpen &&
+      this.chess.history().length > 0 &&
+      !status.over &&
+      this.reviewPly === null &&
+      this.puzzle === null &&
+      !this.remote &&
+      !this.twoPlayer &&
+      !this.training &&
+      this.engineState !== 'failed' &&
+      this.record === null
+    );
+  }
+
+  /** First click arms the button ("Opravdu vzdát?"), the second within a few seconds resigns. */
+  private resignClicked(): void {
+    if (!this.canResign(this.status())) return;
+    if (this.resignArmed === null) {
+      this.resignArmed = window.setTimeout(() => {
+        this.resignArmed = null;
+        this.renderResign(this.status());
+      }, RESIGN_CONFIRM_MS);
+      this.renderResign(this.status());
+      return;
+    }
+    this.disarmResign();
+    void this.resign().catch((err) => console.error('resign failed', err));
+  }
+
+  private disarmResign(): void {
+    if (this.resignArmed !== null) window.clearTimeout(this.resignArmed);
+    this.resignArmed = null;
+  }
+
+  /** The human gives up: the game ends as their loss and is saved like any finished game. */
+  async resign(): Promise<void> {
+    if (!this.canResign(this.status())) return;
+    const t = await this.beginTransition(); // stops the engine's search / the analysis
+    if (t !== this.transition || !this.canResign(this.status())) return;
+    this.resigned = true;
+    this.preMove = null;
+    this.afterPositionChange(); // over now: the record is built and handed on
+  }
+
+  private renderResign(status: GameStatus): void {
+    const btn = this.els.resignButton;
+    const offered = this.canResign(status);
+    if (!offered) this.disarmResign();
+    btn.hidden = !offered;
+    const armed = this.resignArmed !== null;
+    btn.textContent = armed ? 'Opravdu vzdát?' : 'Vzdát';
+    btn.classList.toggle('armed', armed);
+  }
+
+  /** chess.js's status, or the resignation (which chess.js knows nothing about). */
+  private status(): GameStatus {
+    if (!this.resigned) return gameStatus(this.chess);
+    return { over: true, text: `Vzdáno — vyhrává ${this.humanColor === 'w' ? 'černý' : 'bílý'}` };
   }
 
   get isRemote(): boolean {
@@ -346,6 +449,8 @@ export class GameController {
     this.reviewPly = null;
     this.clearPuzzle();
     this.puzzle = { moves, index: 0, hint: 0, attempts: 0, message: 'start' };
+    this.resigned = false;
+    this.training = false;
     this.leaveRemote();
     this.twoPlayer = false;
     this.humanColor = this.chess.turn() === 'w' ? 'b' : 'w';
@@ -461,6 +566,8 @@ export class GameController {
     for (const san of record.sans) this.chess.move(san);
     this.plies = record.plies.map((p) => (p ? { ...p } : null));
     this.record = record;
+    this.resigned = false;
+    this.training = false;
     this.preMove = null;
     this.humanColor = record.humanColor ?? 'w';
     this.started = true;
@@ -511,7 +618,7 @@ export class GameController {
       playedAt: this.record?.playedAt ?? Date.now(),
       startFen: this.startFen(),
       sans: this.chess.history(),
-      result: resultOf(this.chess),
+      result: this.resigned ? (this.humanColor === 'w' ? '0-1' : '1-0') : resultOf(this.chess),
       humanColor: this.humanColor,
       white: names.white,
       black: names.black,
@@ -551,6 +658,7 @@ export class GameController {
   async undo(): Promise<void> {
     if (this.chess.history().length === 0 || this.reviewPly !== null) return;
     if (this.remote) return; // no take-backs against a friend over a link (a rematch instead)
+    if (this.resigned) return; // a resigned game is over and saved
     if (this.undosLeft !== null && this.undosLeft <= 0 && !this.twoPlayer) return;
     // Evaluated before the await: the position cannot change during it (board locked or idle).
     const wasEngineTurn = this.chess.turn() !== this.humanColor;
@@ -578,6 +686,7 @@ export class GameController {
 
   async setDifficulty(level: DifficultyLevel): Promise<void> {
     this.difficultyLevel = level;
+    this.options.onDifficultyChange(level);
     await this.applyDifficulty();
   }
 
@@ -610,7 +719,7 @@ export class GameController {
 
   /** Enters the review of the finished game at the start position. */
   startReview(): void {
-    if (this.reviewPly !== null || this.chess.history().length === 0 || !gameStatus(this.chess).over) return;
+    if (this.reviewPly !== null || this.chess.history().length === 0 || !this.status().over) return;
     this.reviewPly = 0;
     this.refreshView();
   }
@@ -982,7 +1091,7 @@ export class GameController {
 
   /** Sync + render + (maybe) start the engine. */
   private afterPositionChange(): void {
-    const status = gameStatus(this.chess);
+    const status = this.status();
     this.syncBoard(status);
     this.render(status);
     if (status.over && this.reviewPly === null && this.puzzle === null && this.chess.history().length > 0 && this.record === null) {
@@ -999,7 +1108,7 @@ export class GameController {
 
   /** Sync + render only — used while thinking or while the dialog is open. */
   private refreshView(): void {
-    const status = gameStatus(this.chess);
+    const status = this.status();
     this.syncBoard(status);
     this.render(status);
   }
@@ -1034,7 +1143,7 @@ export class GameController {
   private render(status: GameStatus): void {
     const sans = this.chess.history();
     const glyphs = this.plies.map((p) => p?.glyph ?? null);
-    renderMoveList(this.els.moveList, sans, glyphs, this.reviewPly);
+    renderMoveList(this.els.moveList, sans, glyphs, this.reviewPly, new Chess(this.startFen()).turn() === 'b');
     renderStatus(this.els.status, {
       status,
       engine: this.engineIndicator(),
@@ -1046,6 +1155,7 @@ export class GameController {
     const preGame = !this.started;
     this.els.newGameButton.textContent = preGame ? 'Hrát!' : 'Nová hra';
     this.els.newGameButton.classList.toggle('start', preGame);
+    this.renderResign(status);
     this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null && this.puzzle === null);
     renderReviewControls(this.els.reviewControls, {
       active: this.reviewPly !== null,
@@ -1067,6 +1177,8 @@ export class GameController {
       for (const b of [main, reaction]) if (b) bubbles[b.speaker === 'w' ? 'white' : 'black'] = b.text;
     } else if (this.puzzle) {
       bubbles[this.humanColor === 'w' ? 'white' : 'black'] = this.puzzleBubble();
+    } else {
+      bubbles[this.humanColor === 'w' ? 'white' : 'black'] = this.glyphBubble(sans);
     }
     const outcome = this.outcome(status);
     if (outcome) {
@@ -1079,10 +1191,25 @@ export class GameController {
     renderSpectators(this.els.spectators, { humanColor: this.humanColor, bubbles, outcome, material });
   }
 
+  /**
+   * During play: the child's king says a word about the child's latest move when it earned
+   * a glyph (the review's lines, so the child learns what `?!` or `!` means). It stays until
+   * the child's next move; null when that move has no spoken glyph.
+   */
+  private glyphBubble(sans: readonly string[]): string | null {
+    const history = this.chess.history({ verbose: true });
+    let ply = history.length - 1;
+    while (ply >= 0 && history[ply].color !== this.humanColor) ply--;
+    const glyph = ply >= 0 ? (this.plies[ply]?.glyph ?? null) : null;
+    if (!glyph || !SPOKEN_GLYPHS.has(glyph)) return null;
+    return commentaryFor(this.startFen(), sans, ply + 1, this.plies, this.options.voiceOf).main?.text ?? null;
+  }
+
   /** Phase 17: how a game the child just played ended for them (null outside that case). */
   private outcome(status: GameStatus): Outcome | null {
     if (!status.over || !this.started || this.reviewPly !== null || this.puzzle !== null || this.chess.history().length === 0) return null;
     if (this.record?.source === 'pgn' || (this.record && this.record.humanColor === null)) return null; // a loaded game
+    if (this.resigned) return 'loss';
     if (!this.chess.isCheckmate()) return 'draw';
     if (this.twoPlayer) return null; // two people: the status line names the winner, nobody is sent off
     return this.chess.turn() === this.humanColor ? 'loss' : 'win';
@@ -1094,15 +1221,17 @@ export class GameController {
     return this.engineState;
   }
 
-  /** Glyph badge for the most recent human move, if it has one. */
+  /**
+   * Glyph badge for the human's move while it is the last one on the board. Once the
+   * opponent replies (a recapture may now stand on that square) the badge goes: the move
+   * list and the king's bubble keep the verdict.
+   */
   private lastHumanAnnotation(): { square: Square; glyph: Glyph } | null {
     const history = this.chess.history({ verbose: true });
-    for (let ply = history.length - 1; ply >= 0; ply--) {
-      if (history[ply].color !== this.humanColor) continue;
-      const glyph = this.plies[ply]?.glyph ?? null;
-      return glyph ? { square: history[ply].to, glyph } : null;
-    }
-    return null;
+    const last = history.at(-1);
+    if (!last || last.color !== this.humanColor) return null;
+    const glyph = this.plies[history.length - 1]?.glyph ?? null;
+    return glyph ? { square: last.to, glyph } : null;
   }
 
   /** Where the game's move list starts: the initial position unless a FEN was loaded. */
@@ -1124,7 +1253,7 @@ export class GameController {
       difficultyLocked: this.difficultyOverride !== null,
       feedbackEnabled: this.feedbackEnabled,
       undoEnabled:
-        this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && this.puzzle === null && !this.remote && (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
+        this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && !this.resigned && this.puzzle === null && !this.remote && (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
       undosLeft: this.twoPlayer ? null : this.undosLeft,
       undoLimit: this.undoBudget,
       disabled: this.promotionOpen,

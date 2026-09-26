@@ -19,7 +19,7 @@ import { DEFAULT_POSITION } from 'chess.js';
 import { buildCampaignDialog } from './ui/campaign-dialog';
 import { dropPieces, readPieceDropSetting, writePieceDropSetting, type Announcement } from './ui/piece-drop';
 import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
-import { interpolateDifficulty, type Difficulty } from './difficulty';
+import { DEFAULT_DIFFICULTY, interpolateDifficulty, isDifficultyLevel, type Difficulty, type DifficultyLevel } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
 import { guardDialog, requireElement } from './ui/dom';
@@ -84,6 +84,7 @@ app.innerHTML = `
     <div class="buttons">
       <button type="button" class="new-game">Nová hra</button>
       <button type="button" class="undo">Zpět</button>
+      <button type="button" class="resign" hidden>Vzdát</button>
       <button type="button" class="review" hidden>Rozbor</button>
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
@@ -129,6 +130,9 @@ const ENGINE_WASM_BYTES = 7_295_411;
 // the catch returns the default, and the stored setting is silently ignored).
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
 const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
+const DIFFICULTY_STORAGE_KEY = 'skm.difficulty';
+/** What the board holds, for the matchup line (a puzzle or an ending is never "two players"). */
+let boardMode: 'play' | 'puzzle' | 'training' = 'play';
 
 // The controller owns engine-failure handling (before and after the handshake). It is
 // constructed after the engine, hence the late binding. `Zkusit znovu` creates a new one.
@@ -175,6 +179,7 @@ controller = new GameController(
     },
     analyseButton: requireElement<HTMLButtonElement>(app, '.analyse'),
     evalBar: requireElement<HTMLElement>(app, '.eval-bar'),
+    resignButton: requireElement<HTMLButtonElement>(app, '.resign'),
   },
   engine,
   {
@@ -182,12 +187,16 @@ controller = new GameController(
     onFeedbackChange: writeFeedbackSetting,
     undoLimit: readUndoLimitSetting(),
     onUndoLimitChange: writeUndoLimitSetting,
+    difficulty: readDifficultySetting(),
+    onDifficultyChange: writeDifficultySetting,
+    confirmDiscard: () => confirmDiscard(requireElement<HTMLElement>(app, '.buttons')),
     // Voices, colour preference and the drawn pair live in the piece-set manager, which
     // loads after the controller exists (hence the late lookups).
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
     nextColor: () => pieceSets?.drawColor() ?? 'w',
     twoPlayer: () => pieceSets?.colorPreference === 'two',
     onRemoteStart: (color) => {
+      boardMode = 'play';
       endgamePanel.close();
       pieceSets?.startGame(color);
       renderMatchup();
@@ -198,6 +207,7 @@ controller = new GameController(
       renderMatchup();
     },
     onNewGame: (color) => {
+      boardMode = 'play';
       endgamePanel.close();
       campaignHooks?.beforeNewGame();
       pieceSets?.startGame(color);
@@ -225,11 +235,13 @@ controller = new GameController(
       return dropPieces(boardEl, announceEl, announcement());
     },
     onPuzzleStart: (color) => {
+      boardMode = 'puzzle';
       pieceSets?.startGame(color);
       renderMatchup();
     },
     onPuzzleResult: (result) => puzzlePanel.onResult(result),
     onTrainingStart: (color) => {
+      boardMode = 'training';
       pieceSets?.startGame(color);
       renderMatchup();
     },
@@ -252,6 +264,17 @@ const endgamePanel = buildEndgamePanel({
     void game.newGame().catch((err) => console.error('newGame failed', err));
   },
 });
+// The endgame panel has its own `Hrát` / `Zpět do hry`: the green `Nová hra` beside them
+// would only confuse, so it steps aside while the panel is open.
+{
+  const container = requireElement<HTMLElement>(app, '.endgame-panel');
+  const newGameBtn = requireElement<HTMLButtonElement>(app, '.new-game');
+  const sync = (): void => {
+    newGameBtn.hidden = !container.hidden;
+  };
+  new MutationObserver(sync).observe(container, { attributes: true, attributeFilter: ['hidden'] });
+  sync();
+}
 requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', () => {
   requireElement<HTMLElement>(app, '.puzzle-panel').hidden = true;
   endgamePanel.open();
@@ -466,7 +489,7 @@ function renderMatchup(): void {
     matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Kamarád (${COLOR_NAME[other]})`;
     return;
   }
-  if (manager.colorPreference === 'two') {
+  if (manager.colorPreference === 'two' && boardMode === 'play') {
     matchupEl.textContent = `Dva hráči · ${COLOR_NAME[manager.humanColor]}: ${me?.name ?? '?'} · ${COLOR_NAME[other]}: ${them?.name ?? '?'}`;
     return;
   }
@@ -524,8 +547,14 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
     render();
   });
   // Colour is a preference; changing it means a new game (the controller draws via nextColor).
-  sideSelect.addEventListener('change', () => {
-    manager.setColorPreference(sideSelect.value as ColorPreference);
+  sideSelect.addEventListener('change', async () => {
+    const wanted = sideSelect.value as ColorPreference;
+    if (!game.isRemote && game.gameInProgress) {
+      sideSelect.value = manager.colorPreference; // unchanged until the player confirms
+      if (!(await confirmDiscard(sideSelect.closest('label') ?? sideSelect))) return;
+      sideSelect.value = wanted;
+    }
+    manager.setColorPreference(wanted);
     if (!game.isRemote) void game.newGame().catch((err) => console.error('newGame failed', err)); // a friend game keeps its colours
     render();
   });
@@ -722,6 +751,63 @@ function writeUndoLimitSetting(limit: number | null): void {
   }
 }
 
+/** The selected level (1–7); anything else stored reads as the default. */
+function readDifficultySetting(): DifficultyLevel {
+  try {
+    const v = Number(window.localStorage.getItem(DIFFICULTY_STORAGE_KEY));
+    return isDifficultyLevel(v) ? v : DEFAULT_DIFFICULTY;
+  } catch {
+    return DEFAULT_DIFFICULTY;
+  }
+}
+
+function writeDifficultySetting(level: DifficultyLevel): void {
+  try {
+    window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, String(level));
+  } catch (err) {
+    console.warn('Could not persist the difficulty setting', err);
+  }
+}
+
+// A game in progress is not thrown away unasked (Nová hra, a colour change): a small
+// question under `anchor`, answered in the page (no window.confirm). One at a time.
+let pendingConfirm: ((ok: boolean) => void) | null = null;
+function confirmDiscard(anchor: Element): Promise<boolean> {
+  pendingConfirm?.(false);
+  return new Promise((resolve) => {
+    const bar = document.createElement('div');
+    bar.className = 'confirm-bar';
+    bar.setAttribute('role', 'alertdialog');
+    const text = document.createElement('p');
+    text.textContent = 'Opravdu ukončit rozehranou partii?';
+    const yes = document.createElement('button');
+    yes.type = 'button';
+    yes.className = 'confirm-yes';
+    yes.textContent = 'Ano, ukončit';
+    const no = document.createElement('button');
+    no.type = 'button';
+    no.className = 'confirm-no';
+    no.textContent = 'Ne, hrát dál';
+    bar.append(text, yes, no);
+    const done = (ok: boolean): void => {
+      if (pendingConfirm !== done) return;
+      pendingConfirm = null;
+      bar.remove();
+      resolve(ok);
+    };
+    pendingConfirm = done;
+    yes.addEventListener('click', () => done(true));
+    no.addEventListener('click', () => done(false));
+    anchor.after(bar);
+    bar.scrollIntoView({ block: 'nearest' });
+    no.focus({ preventScroll: true });
+  });
+}
+// A reload or a closed tab would lose the game too: let the browser ask.
+window.addEventListener('beforeunload', (e) => {
+  if (game.gameInProgress) e.preventDefault();
+});
+
 function writeFeedbackSetting(enabled: boolean): void {
   try {
     window.localStorage.setItem(FEEDBACK_STORAGE_KEY, enabled ? 'on' : 'off');
@@ -746,9 +832,10 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
-// Compact panel on narrow screens: once the first move is played, fold the settings and
-// the move list away; a new game unfolds the settings again. Pure view logic driven by
-// the rendered move list, so the controller stays unaware of it.
+// Compact panel: once the first move is played, fold the settings away (on every width —
+// the move list needs the room beside the board) and, on narrow screens, the move list
+// too; a new game unfolds the settings again. Pure view logic driven by the rendered move
+// list, so the controller stays unaware of it.
 const settingsPanel = requireElement<HTMLDetailsElement>(app, '.settings');
 const movesPanel = requireElement<HTMLDetailsElement>(app, '.moves');
 const movesSummary = requireElement<HTMLElement>(app, '.moves-summary');
@@ -757,18 +844,19 @@ const narrow = window.matchMedia('(max-width: 899px)');
 let lastPlies = -1;
 
 function syncPanels(): void {
-  const sans = Array.from(moveListEl.querySelectorAll('li span:not(.move-number)'))
-    .map((el) => el.textContent ?? '')
+  // Only the moves themselves (their glyph is a nested span), read without the glyph.
+  const sans = Array.from(moveListEl.querySelectorAll<HTMLElement>('li > span.san'))
+    .map((el) => el.dataset.san ?? '')
     .filter((t) => t.length > 0);
   const plies = sans.length;
   movesSummary.textContent = plies === 0 ? '' : `(${plies}) … ${sans[plies - 1]}`;
-  if (narrow.matches && plies !== lastPlies) {
+  if (plies !== lastPlies) {
     if (lastPlies <= 0 && plies > 0) {
-      settingsPanel.open = false; // game started: make room for the board
-      movesPanel.open = false;
+      settingsPanel.open = false; // game started: make room for the board / the move list
+      if (narrow.matches) movesPanel.open = false;
     } else if (plies === 0) {
       settingsPanel.open = true; // new game: settings matter again
-      movesPanel.open = false;
+      if (narrow.matches) movesPanel.open = false;
     }
   }
   lastPlies = plies;
@@ -777,8 +865,8 @@ function syncPanels(): void {
 new MutationObserver(syncPanels).observe(moveListEl, { childList: true, subtree: true, characterData: true });
 narrow.addEventListener('change', () => {
   if (!narrow.matches) {
-    settingsPanel.open = true; // wide layout has room for everything
-    movesPanel.open = true;
+    settingsPanel.open = lastPlies <= 0;
+    movesPanel.open = true; // the wide layout always shows the moves
   } else {
     settingsPanel.open = lastPlies === 0;
     movesPanel.open = false;

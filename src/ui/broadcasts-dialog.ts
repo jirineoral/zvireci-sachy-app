@@ -201,9 +201,9 @@ export function buildBroadcastsDialog(deps: BroadcastsDialogDeps): { open: () =>
   return {
     open(): void {
       if (view.kind !== 'search') show({ kind: 'search' });
+      // Nothing is asked of Lichess until the player presses `Hledat` (see the privacy note).
       if (query.value.trim() === '') query.value = 'Czech';
       dialog.showModal();
-      if (list.childElementCount === 0) search();
     },
   };
 }

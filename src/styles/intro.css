@@ -389,3 +389,47 @@
     transition: none;
   }
 }
+
+/* ---- preload ------------------------------------------------------------------------- */
+/* While the intro's pictures load (a second or two on a first visit) the overlay is not
+   just an empty colour: the name and a quiet "loading" pulse, drawn in CSS only. */
+.intro.intro-preload::before {
+  content: 'Zvířecí šachy';
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  width: 92vw;
+  font-family: 'Segoe UI Black', system-ui, 'Trebuchet MS', sans-serif;
+  font-weight: 900;
+  font-size: clamp(2rem, 8vmin, 4.5rem);
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  color: #ffd84a;
+  text-shadow: 0 0.06em 0 #3a2208, 0 0.1em 0.3em rgba(0, 0, 0, 0.5);
+}
+
+.intro.intro-preload::after {
+  content: '• • •';
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  letter-spacing: 0.3em;
+  color: #fff;
+  animation: intro-preload-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes intro-preload-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro.intro-preload::after {
+    animation: none;
+  }
+}

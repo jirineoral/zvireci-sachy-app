@@ -1,7 +1,8 @@
 # Security and vulnerability review
 
 First run: 2026-09-13, at source commit `df7f45c` (Phase 4 shipped, Phase 5 planned).
-Last full run: **2026-09-17** (Phase 20, colleague review round 1). Recurring: the
+Last full run: **2026-09-27** (pre-release review of `origin/main..main`: lessons, relay
+hardening, analytics opt-out, e-mail exposure). Recurring: the
 checklist at the end is re-run at the end of every phase and this date line is updated;
 findings that change get a new dated entry, everything else stays. The sections C1–C8
 below describe the state at their own date; the **threat model** is kept current.
@@ -12,7 +13,9 @@ A static site on GitHub Pages (`zvirecisachy.cz`, DNS on Cloudflare, DNS-only) w
 - **no accounts, no payments, no cookies, no profile of anyone**; the player's data lives
   in the browser — `localStorage` `skm.*` keys (piece family/animal/opponent/colour,
   difficulty, move feedback, undo limit, intro, piece drop, campaign, endgames, puzzles,
-  chess.com username, the friend-game seat token), `sessionStorage` `skm.introShown`,
+  chess.com username, the friend-game seat token, lesson progress `skm.lessons`, the
+  diploma name `skm.diplomaName` only while „Zapamatuj si moje jméno“ is ticked, the
+  analytics opt-out `skm.noAnalytics`), `sessionStorage` `skm.introShown`,
   IndexedDB `skm` (own piece sets, saved games);
 - **one third-party script**: Cloudflare Web Analytics on the public build (page views
   and visits per day; no cookie, no visitor id; the beacon strips `#` and `?` before it
@@ -666,3 +669,96 @@ Reviewer findings (confirmed) and what changed. **Deploy the Worker first, then 
   emoji. No new host, CSP unchanged.
 - **Progress** gains `tests.l1` / `badges.l1` (same id pattern and key cap as before).
 - **Mini-games** run a local move picker (no worker, no engine); nothing new is loaded.
+
+### 2026-09-27 — pre-release review of `origin/main..main` (at `f3bb3d3`)
+Scope: the 48 local commits since the last public release (review fixes, relay chess.js
+validation / ping / rematch-in-state / close reasons, friend client, analytics opt-out,
+Czech notation + PGN mapping, `compat.js`, the lessons feature with course map, lesson
+board, diploma and puzzle theme filter), plus the owner's new Cloudflare Email Routing
+address and "can a stranger reach a child". Method: code read of every new sink and input,
+the checklist-3 grep widened to `outerHTML`, `document.write`, `eval`, `new Function`,
+`on…` attributes, `href =`, `window.open`, `target`; `npm audit --omit=dev` (app and
+`worker/`); both builds inspected (`dist/` and a `--mode pages` build); history grepped for
+secrets and e-mail addresses; the dev-site Pages working copy grepped for the contact address.
+
+**Findings**
+- **Medium — the Email Routing address is in the public source repository.** `docs/BACKLOG.md`
+  named it (pushed in `00c9aa6`, 2026-09-26), and the two local commits `6b186d8` / `cc0edb8`
+  (added to and reverted from `soukromi.html`) carry it in their diff *and* subject line.
+  Never on the live site or the dev site (both builds and the dev Pages repo's history:
+  0 hits). Fixed in HEAD (`6c6cbec`, the BACKLOG line no longer names it); the history is
+  the owner's call — see *owner items*.
+- **Low — owner's personal Gmail hard-coded** in `scripts/push-pages.mjs` (public repo).
+  Fixed (`6c6cbec`): the script commits with the machine's git identity. The same address
+  is the author e-mail of every commit in the public repo (GitHub serves it in `.patch`
+  views) — see *owner items*.
+- **Low — chessground renders shape `label.text` with `innerHTML`** (`svg.js`, `renderLabel`),
+  while `src/ui/lesson-board.ts` said "SVG text (no HTML)". Labels are lesson constants, so
+  nothing was reachable; escaped anyway (`18a7ed3`) to keep "no data string becomes markup".
+- **Low — the privacy page did not list lesson progress and the diploma name** among the
+  data kept in the browser. Fixed (`d892859`).
+- **Low (not fixed)** — `pgnFromCzech` runs on the pasted text before the 200 kB cap in
+  `recordFromPgn`; its split regex can go quadratic on a multi-MB paste of unbalanced `[`.
+  Self-inflicted only (the child's own paste, own tab).
+- **Info — the relay** (`worker/src/index.ts`): Origin allowlist, room id 60 bits and seat
+  token 100 bits from `crypto.getRandomValues` (unbiased: 256 % 32 = 0), 200-char / 10 msg/s
+  / 1000-ply limits, non-object JSON and wrongly typed fields closed with `policy`, every
+  move played on chess.js before it is stored or forwarded, storage wiped 24 h after the
+  last valid message, nothing stored for a socket that never sends a valid `hello`,
+  observability off. Stored per room: two seat tokens, up to 4 displaced tokens, the SAN
+  list, the game number, rematch seats — nothing about a person. **There is no text
+  channel**: the only peer-originated data a child's browser shows is a SAN (regex +
+  chess.js) and booleans/seat letters; `error.msg` goes to the console only. A stranger can
+  reach a child only by holding the link (60 bits, never listed) and can then only play
+  chess — unchanged from the 2026-09-17 analysis. Idle sockets that never `hello` are
+  bounded by the Cloudflare per-IP rate limit rule.
+- **Info — DOM sinks**: `innerHTML` only in the constant panel template (`src/main.ts`, no
+  interpolation) and chessground's `customSvg` (validated glyphs, the constant star); every
+  new lesson / course-map / diploma node is `createElement` + `textContent`; the diploma
+  name is cleaned (controls, zero-width, bidi overrides stripped, 40 chars) and never sent;
+  printing is a DOM clone. `compat.js` builds its message with text nodes and CSSOM styles.
+  No `eval`, `new Function`, `document.write`, `on…` attributes or data-built `href`s (the
+  feedback link is a constant plus `encodeURIComponent`).
+- **Info — CSP** unchanged and without `'unsafe-inline'` in the app: `script-src 'self'
+  'wasm-unsafe-eval'` (+ `static.cloudflareinsights.com` on the public build), `connect-src`
+  as recorded, `base-uri`/`form-action 'none'`. `soukromi.html` has its own static policy with
+  `style-src 'unsafe-inline'` and **no script source at all** (`default-src 'none'`) —
+  acceptable for a script-free page. The beacon loads without SRI (Cloudflare updates it);
+  it is the one third-party script with page access — accepted since 2026-09-17.
+- **Info — outbound / leaks**: `no-referrer` on both pages; the friend room id only in the
+  fragment and removed on read; `#bezmereni`/`#mereni` removed on read; `og:*` static;
+  footer links `noopener`. `dist/`: no source maps, no debug hooks, only the expected files;
+  the only e-mail in it is the chess.js copyright line in `THIRD-PARTY-NOTICES.txt`
+  (required by its licence).
+- **Info — dependencies/secrets**: `npm audit --omit=dev` 0 (app) / 0 (worker); no new
+  dependency; no token/key patterns in the new commits; `worker/.gitignore` covers
+  `.wrangler/` and `.dev.vars`.
+
+**Owner items (nothing changed online from here)**
+1. *Before pushing `main`*: drop the two net-zero commits whose subject and diff carry the
+   address (`6b186d8`, `cc0edb8`): `git rebase --onto 2f0981e cc0edb8 main`, then
+   `git log -G "[a-z]+@zvirecisachy[.]cz" origin/main..main` must list only `6c6cbec` (its diff removes the line that `00c9aa6` already pushed). Optional: remove it from the pushed
+   history as in D7 (`git filter-repo --replace-text`, force-push). Caveat: the routed local part is the
+   first address spammers guess on any domain, so keeping it out of the repo only stops
+   scraping; if spam arrives, route a non-guessable local part instead and drop the current one.
+2. Commit identity: `git config --global user.email <id>+jirineoral@users.noreply.github.com`
+   and GitHub → Settings → Emails → "Keep my email addresses private" + "Block command line
+   pushes that expose my email". Past commits keep the Gmail (rewrite only if it matters).
+3. DNS (Cloudflare, `zvirecisachy.cz`) — anti-spoofing for a domain that never sends mail:
+   - keep the Email Routing MX records and its SPF TXT at `@`
+     (`v=spf1 include:_spf.mx.cloudflare.net ~all` — Cloudflare's forwarding relies on it);
+   - add TXT `_dmarc` = `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s` (no `rua` with a
+     personal address; Cloudflare's DMARC Management can supply one if reports are wanted).
+     Receivers then reject mail *claiming to be from* `@zvirecisachy.cz` or any subdomain;
+     forwarding to the owner is unaffected (forwarded mail keeps the original From domain).
+   - `zvireci-sachy.cz` (Forpsi; sends and receives nothing): MX `0 .` (null MX, RFC 7505),
+     TXT `@` = `v=spf1 -all`, TXT `_dmarc` = `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s`.
+4. Carried: deploy order Worker first, then the site (2026-09-26 entry).
+
+Checklist: 1 `npm audit` 0/0 · 2 grep empty at HEAD, bundle clean · 3 sinks as above (one
+hardened) · 4 new keys `skm.lessons`, `skm.diplomaName`, `skm.noAnalytics` validated/cleaned
+on read · 5–6 not re-run in a browser in this review (no network or CSP change since the
+2026-09-26 verification; re-run on the Pages URL after the deploy) · 7 `dist/` holds only
+the expected files · 8 GPL text ships. `npx tsc --noEmit`, `npm run build`,
+`npm run test:lessons` (141 passed) green after the fixes. Verdict: **safe to release** once
+owner item 1 is done (or consciously skipped); items 2–3 are hardening that can follow.

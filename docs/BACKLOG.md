@@ -152,12 +152,13 @@ real option in the side selector is roughly a select entry plus a branch in
 `movableColor()`. Deferred: expected to be used rarely.
 
 ## B8 — `history()` cost
+*Owner, 2026-09-26: no known bug behind it — stays a performance note, fix only when something feels slow.*
 `chess.history({verbose:true})` replays the whole game; it is called in `sync()` for
 `lastMove` and again in `render()`. Two full replays per move. Invisible in a 40-move
 game, potentially not in B3 (chess.com import). Fix when something feels slow: keep the
 `Move` object returned by `chess.move()` and pass it into `sync()`.
 
-## B9 — Victory animation (Phase 5 input) — behaviour SHIPPED in Phase 17 as CSS on the spectator kings (jump / slump / nod); the storyboard panels remain content work
+## B9 — Victory animation (Phase 5 input) — NEXT after R6 (owner, 2026-09-26) — behaviour SHIPPED in Phase 17 as CSS on the spectator kings (jump / slump / nod); the storyboard panels remain content work
 A storyboard exists for both sides (goat headbutt / frog tongue), 6 panels, ~2.5 s each,
 produced as a single reference image.
 
@@ -182,6 +183,7 @@ the existing sheet is the safe option.
 ---
 
 ## Later-phase candidates recorded from the Phase 2 review
+*Parked by the owner 2026-09-26; bring up when he asks what is left.*
 - Undo as black at move 1: disable the button when the resulting position would be the
   engine's turn at ply 0 (R6).
 - Promotion dialog: keep the pawn on the destination square while choosing, as Lichess
@@ -200,6 +202,7 @@ legitimate loads. Right-sized corrupt files still fall through to the 30 s timeo
 accepted.
 
 ## B11 — vendor the two engine files
+*2026-09-26: affects only installing the project (developer machine / a future CI), never the players. Do it together with R12's PWA step.*
 `npm i stockfish` installs ~250 MB to ship 7 MB (`stockfish-18-lite-single.js` +
 `.wasm`). Before Phase 6 (PWA), consider committing the two files into the repo, dropping
 the `stockfish` dependency and the `postinstall` copy step, and keeping the licence text
@@ -312,6 +315,8 @@ light, black side always dark — so a chosen pair is readable by construction a
 no lightness value or swap offer exists yet. That requirement becomes relevant
 only if the child may pick *which* variant plays which colour; open until decided.
 
+*CLOSED 2026-09-26 (owner): what exists is enough — the child picks the animal with the colour, and with a random colour can switch animals; no separate light/dark choice.*
+
 ## B18 — Win and loss animations under free mix — RULE SHIPPED in Phase 17 (after a win or a loss the opponent's king is not on the screen; `Rozbor` brings it back by the child's choice)
 
 **Loss shows nothing about the opponent at all.** Not a milder version, not a
@@ -408,7 +413,7 @@ Cheaper than it looks. A list of FENs, the existing engine as the opponent, and
 a goal check on the result (win required / draw sufficient). Roughly a day. No
 server.
 
-### R6 — Lessons, graded: absolute beginner → beginner → lightly advanced →
+### R6 — Lessons, graded (STARTED 2026-09-26: owner wants a teaching platform; plan in `docs/phase-21-plan.md`): absolute beginner → beginner → lightly advanced →
 intermediate → advanced → expert → master
 This is B13; merge. The most expensive item on the list and the one where a
 mistake teaches many children something wrong. The work is content, not code,
@@ -431,6 +436,11 @@ CORS-friendly, but only carries events somebody chooses to broadcast there —
 which will usually not include his regional tournaments. Investigate whether
 that is true before assuming; if it is, this item is honestly limited and I
 will tell him so rather than leaving it open.
+
+*2026-09-26:* the proxy no longer means new infrastructure — the Cloudflare Worker account of
+Phase 20 can host a second small Worker that fetches a chess-results.com page and returns
+it with CORS (free tier). The real costs are elsewhere: parsing ASPX HTML that can change
+without notice, and chess-results.com's terms (scraping, load). Parked until asked.
 
 ### Suggested build order (mine, not his)
 R4 → R2 → R5 → R1 → the two server-free parts of R3 → R6 → R7.
@@ -558,7 +568,19 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 - Positive: "super iniciativa, předávám synátorovi", "super roztomilé". People used the
   Slack thread, not the form — remind them of the form once (done in the thread).
 
+## Owner decisions 2026-09-26 (from the operations notes)
+- **Contact:** always the feedback form, never a personal address. Option on the table:
+  `info@zvirecisachy.cz` via Cloudflare Email Routing (free, forwards to the owner's
+  Gmail) — not set up, awaiting the owner's go.
+- **`člověk` set:** the same (owner's) face on both sides is intended; nothing to change.
+- **Share sheet on a real phone:** the owner tests with his son (PC + phone).
+- **Cloudflare SSL "Full (strict)":** irrelevant while the DNS records are DNS-only (the
+  traffic never passes Cloudflare); becomes a must only if the proxy is ever switched on.
+  Dropped from the open list.
+
 ## Analytics — Cloudflare Web Analytics (DONE 2026-09-17)
+
+*2026-09-26: owner opt-out `#bezmereni` / `#mereni` in production (deploy 59671d4); days before it include the owner's own testing.*
 
 DNS for `zvirecisachy.cz` is on Cloudflare (Free, DNS only — GitHub Pages still
 terminates TLS); the public build carries the Web Analytics beacon (`--mode pages`).
@@ -631,6 +653,9 @@ používají." Parked as a task, not a feature. Notes for when it starts:
   bare text — and a small "Sdílet" button (Web Share API on phones, copy link elsewhere).
   Both are a one-hour change; the metadata can be done before any account exists.
 - Nothing here touches the GATE or the no-account principle.
+- *2026-09-26 (owner):* Instagram being set up by the owner. TikTok only if the content
+  needs no filming by him — screen recordings of the app (scripted in the browser) +
+  captions are feasible; posting stays manual. Not started.
 - **Why now (owner):** marketing, and to claim the name before someone else does —
   register the handles (`zvirecisachy` / `zvireci.sachy`) on Facebook, Instagram, TikTok,
   YouTube and X even before posting anything; a taken handle is the cheapest thing to
@@ -643,6 +668,7 @@ shared `#hra=` link previews as Zvířecí šachy in WhatsApp/SMS/Messenger, and
 friend bar's waiting state. Analysis: `docs/security-review.md`, 2026-09-17.
 
 ## R12 — Native apps (Android, iOS) — long road, decision pending
+*2026-09-26: still after the web.*
 
 Owner (2026-09-14): counted on, but far off; pros and cons to be weighed, above all the
 legal frame. Notes to make that weighing cheaper when it comes:

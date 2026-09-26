@@ -58,14 +58,18 @@ export interface ShowStep extends StepBase {
  *  - `best`: Stockfish finds no other move within `marginCp` (default 50) of the best.
  *  - `lands`: every legal move of the movable pieces (or of `from`) ending on `square`.
  *  - `captures`: every legal capture of the movable pieces (or of `from`).
- *  - `legal`: every legal move of the piece on `from` (e.g. „kam smí král?“).
+ *  - `legal`: every legal move of the piece on `from` (e.g. „kam smí král?“), or of all
+ *    movable pieces without `from` (e.g. „zachraň krále z šachu“: every legal move does).
+ *  - `safe`: every legal move of the piece on `from` to a square the opponent cannot take
+ *    it on („uhni s jezdcem do bezpečí“).
  */
 export type Completeness =
   | { kind: 'mate' }
   | { kind: 'best'; marginCp?: number }
   | { kind: 'lands'; square: Square; from?: Square }
   | { kind: 'captures'; from?: Square }
-  | { kind: 'legal'; from: Square };
+  | { kind: 'legal'; from?: Square }
+  | { kind: 'safe'; from: Square };
 
 /**
  * Play the move. The board offers the movable pieces' *pseudo-legal* moves too, so a move
@@ -103,6 +107,15 @@ export interface CollectStep extends StepBase {
 /** A text answer (a button) or a square answer (circled on the board, clicked there). */
 export type ChooseOption = { id: string; label: string; square?: undefined } | { id: string; square: Square; label?: undefined };
 
+/**
+ * A fact the checker can verify mechanically for a choose step (so the marked answer is
+ * the one true answer):
+ *  - `state`: option ids among 'sach' | 'mat' | 'pat' | 'nic' — the side to move's state.
+ *  - `castle`: option ids 'ano' | 'ne' — may the side to move castle on that side now?
+ *  - `reachable`: square options — correct = those the piece on `from` may legally go to.
+ */
+export type ChooseFact = { kind: 'state' } | { kind: 'castle'; side: 'k' | 'q' } | { kind: 'reachable'; from: Square };
+
 /** Pick one of 2–4 answers. */
 export interface ChooseStep extends StepBase {
   kind: 'choose';
@@ -115,14 +128,26 @@ export interface ChooseStep extends StepBase {
   wrongExplain?: Record<string, string>;
   /** Why a wrong answer is wrong when `wrongExplain` has no entry. */
   wrongDefault: string;
+  /** Lets the checker verify the correct option (see `ChooseFact`). */
+  verify?: ChooseFact;
 }
 
-/** Declared for 21b (pěšcová válka, seber všechny pěšce); the runner does not run it yet. */
+/**
+ * A mini-game against a deliberately weak local move picker (src/lessons/mini.ts), with
+ * its own win condition — not a chess game: no kings, no check. Always a `diagram`; the
+ * child plays the side to move in the FEN.
+ *  - `promote-first` (pěšcová válka): pawns only; the first pawn on the last rank wins,
+ *    and so does taking all the opponent's pawns. Nobody able to move → a draw.
+ *  - `capture-all-pawns` (seber všechny pěšce): the child's one piece against pawns; win
+ *    by taking them all; lose when a pawn takes the piece or reaches the last rank.
+ */
 export interface MiniStep extends StepBase {
   kind: 'mini';
   goal: 'promote-first' | 'capture-all-pawns';
-  /** The engine's strength must stay beatable for a child. */
+  /** 1 = random-ish (always beatable), 2 = a bit greedier. Never a real engine. */
   engineLevel: 1 | 2;
+  /** Shown when the child wins. */
+  success?: string;
 }
 
 export type LessonStep = ShowStep | MoveStep | CollectStep | ChooseStep | MiniStep;
@@ -146,6 +171,21 @@ export interface Lesson {
   /** Shown at the end of the lesson. */
   outro: string;
   practice?: PracticePointer[];
+  /**
+   * A level test (lesson „Zkouška“): no hints, one attempt per task, the score at the end.
+   * Every step but an optional first `show` is a task. Passing earns the badge `badge`
+   * (also the id in progress `tests`) and the printable diploma.
+   */
+  test?: LevelTest;
+}
+
+export interface LevelTest {
+  /** Tasks needed to pass. */
+  passScore: number;
+  /** Badge / test id stored in progress ('l1'). */
+  badge: string;
+  /** Shown at the end when the test was not passed (the outro is for a pass). */
+  failOutro: string;
 }
 
 export interface CourseLevel {

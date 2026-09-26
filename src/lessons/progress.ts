@@ -92,3 +92,20 @@ export function setTeacher(storage: Storage | null, progress: LessonProgress, te
 export function nextLesson(progress: LessonProgress, lessons: readonly Lesson[] = allLessons()): Lesson | null {
   return lessons.find((l) => !progress.done[l.id]) ?? null;
 }
+
+/**
+ * A passed level test (Phase 21b): the test lesson is done, the test passed and its badge
+ * earned (the badge id doubles as the test id, e.g. 'l1'). A failed test records nothing.
+ */
+export function markTestPassed(storage: Storage | null, progress: LessonProgress, lesson: Lesson): LessonProgress {
+  if (!lesson.test) return progress;
+  const id = lesson.test.badge;
+  const next: LessonProgress = {
+    ...progress,
+    done: { ...progress.done, [lesson.id]: true },
+    tests: { ...progress.tests, [id]: true },
+    badges: { ...progress.badges, [id]: true },
+  };
+  writeLessonProgress(storage, next);
+  return next;
+}

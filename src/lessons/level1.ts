@@ -1218,7 +1218,7 @@ export const LEVEL1: readonly Lesson[] = [
         id: 'not-loss',
         kind: 'show',
         fen: '7k/5Q2/8/8/8/8/8/K7 b - - 0 1',
-        text: 'Pozor, pat není prohra. Je to remíza a nikdo nevyhrál. Bílý tady byl skoro vítěz, a přišel o to.',
+        text: 'Pozor, pat není prohra. Je to remíza a nikdo nevyhrál. Bílý tady měl skoro vyhráno. Patem o výhru přišel.',
       },
       {
         id: 'which-mate',
@@ -1259,6 +1259,13 @@ export const LEVEL1: readonly Lesson[] = [
         wrongDefault: 'To není mat. Dej králi šach, ze kterého neuteče.',
       },
       {
+        id: 'promote-pat',
+        kind: 'show',
+        fen: '8/k1P5/8/2K5/8/8/8/8 w - - 0 1',
+        shapes: [{ from: 'c7', to: 'c8', brush: 'green' }],
+        text: 'Pozor na pat i při proměně. Kdyby tu pěšec udělal dámu, byl by to pat. S věží vyhraješ.',
+      },
+      {
         id: 'material',
         kind: 'show',
         fen: '8/8/8/3k4/8/3K4/8/8 w - - 0 1',
@@ -1268,7 +1275,7 @@ export const LEVEL1: readonly Lesson[] = [
         id: 'more',
         kind: 'show',
         fen: '8/8/8/3k4/8/3K4/8/8 w - - 0 1',
-        text: 'Pro zajímavost ještě tři remízy. Stejná pozice se objeví potřetí. Padesát tahů nikdo nic nevezme a netáhne pěšcem. Nebo se hráči dohodnou.',
+        text: 'Pro zajímavost ještě tři remízy. Stejná pozice se objeví potřetí. Každý hráč udělá padesát tahů, nikdo nic nevezme a nikdo netáhne pěšcem. Nebo se hráči dohodnou.',
       },
     ],
     outro: 'Mat vyhrává, pat je remíza. Když vyhráváš, hlídej, ať soupeřův král má kam jít.',

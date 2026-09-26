@@ -25,6 +25,7 @@ import { buildIntroPool } from './intro/pool';
 import { requireElement } from './ui/dom';
 import { buildFriendPanel } from './ui/friend-panel';
 import { roomFromLocation } from './friend';
+import { startAnalytics } from './analytics';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 
@@ -265,7 +266,10 @@ const friendPanel = buildFriendPanel({
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLScsfUJLrihM81ZTS9ATcvgc_MJAj5LKcHpbEIItWcw7swCu5A/viewform';
 const FEEDBACK_VERSION_FIELD = 'entry.449486042';
 const feedbackLink = requireElement<HTMLAnchorElement>(app, 'a.feedback-link');
-requireElement<HTMLElement>(app, '.build').textContent = `verze ${__BUILD_STAMP__}${__DEV_SITE__ ? ' · TESTOVACÍ VERZE (dev)' : ''}`;
+// Visit counting (public build); `#bezmereni` / `#mereni` switch it off / on for this browser.
+const counted = startAnalytics(__CF_BEACON_TOKEN__, safeLocalStorage());
+requireElement<HTMLElement>(app, '.build').textContent =
+  `verze ${__BUILD_STAMP__}${__DEV_SITE__ ? ' · TESTOVACÍ VERZE (dev)' : ''}${__CF_BEACON_TOKEN__ && !counted ? ' · bez měření' : ''}`;
 if (__DEV_SITE__) {
   feedbackLink.hidden = true; // the pilot's form is for the public build only
   document.title = `[DEV] ${document.title}`;

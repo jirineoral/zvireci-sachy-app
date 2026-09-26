@@ -564,3 +564,16 @@ the real site's branding, and one sentence ("odkaz posílej jen tomu, s kým chc
 in the bar or on the privacy page. *Done the same evening:* `og:*` tags + `public/og.jpg`
 (a static image, same origin, no script) and the sentence in the friend bar.
 
+
+### 2026-09-26 — owner opt-out from Web Analytics (`#bezmereni`)
+The beacon is no longer a `<script>` tag in the HTML; `src/analytics.ts` (our own bundle)
+appends the same tag at start-up, public build only (`__CF_BEACON_TOKEN__` is empty
+elsewhere). Opening the site with `#bezmereni` stores `skm.noAnalytics = 1` and the beacon
+is not loaded in that browser (footer shows "bez měření"); `#mereni` removes the key. Both
+fragments are handled on load and on `hashchange`, then stripped from the address bar with
+`replaceState`, so a copied link cannot carry them. Purpose: the owner's testing stops
+counting as visits. No new host, CSP unchanged (the script and POST hosts are the same);
+`script-src` still has no `'unsafe-inline'` because the tag is created from the bundle.
+Verified on `vite preview` of a `--mode pages` build with the token swapped for zeros:
+beacon injected by default, absent after `#bezmereni` (also typed into an open tab), back
+after `#mereni`; no CSP violations.

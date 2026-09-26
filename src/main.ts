@@ -64,8 +64,9 @@ app.innerHTML = `
       Když se v nich ztrácíš, přepni <i>Figurky</i> na <i>Klasické</i>.</p>
     </details>
     <div class="campaign-bar" hidden><span class="campaign-text"></span><button type="button" class="campaign-next" hidden></button><button type="button" class="campaign-open">Kampaň…</button></div>
-    <div class="status"></div>
+    <div class="status" role="status" aria-live="polite"></div>
     <button type="button" class="engine-retry" hidden>Zkusit znovu</button>
+    <p class="save-error" role="alert" hidden></p>
     <div class="friend-bar" hidden></div>
     <div class="review-controls" hidden>
       <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
@@ -340,7 +341,21 @@ function saveGame(record: GameRecord): Promise<void> {
     pendingRecords.push(record);
     return Promise.resolve();
   }
-  return gameStore.save(record).catch((err) => console.warn('Saving the game failed', err));
+  return gameStore.save(record).catch((err) => {
+    console.warn('Saving the game failed', err);
+    showSaveError('Partii se nepodařilo uložit — v prohlížeči je asi málo místa.');
+  });
+}
+const saveErrorEl = requireElement<HTMLElement>(app, '.save-error');
+let saveErrorTimer: number | undefined;
+/** A short note under the status line for the child; hides itself after a while. */
+function showSaveError(text: string): void {
+  saveErrorEl.textContent = text;
+  saveErrorEl.hidden = false;
+  window.clearTimeout(saveErrorTimer);
+  saveErrorTimer = window.setTimeout(() => {
+    saveErrorEl.hidden = true;
+  }, 10_000);
 }
 void openGameStore().then((store) => {
   gameStore = store;

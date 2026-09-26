@@ -2,6 +2,9 @@
  * The app's one IndexedDB database (`skm`). Stores: `userSets` (Phase 7) and `games`
  * (Phase 9). Opening never throws to callers: a rejected promise is the signal to fall
  * back to session-only memory (private windows, blocked or full storage).
+ *
+ * The connection is not held forever: another tab's upgrade (`versionchange`) or the
+ * browser (`close`, e.g. storage cleared) ends it, and the next `transact` reopens.
  */
 
 export const DB_NAME = 'skm';
@@ -44,8 +47,22 @@ export function openDatabase(): Promise<IDBDatabase> {
       }, OPEN_TIMEOUT_MS);
       request.onsuccess = () => {
         window.clearTimeout(timer);
-        if (settled) request.result.close(); // too late: the caller already fell back
-        else resolve(request.result);
+        const db = request.result;
+        if (settled) {
+          db.close(); // too late: the caller already fell back
+          return;
+        }
+        const current = opening;
+        const forget = (): void => {
+          if (opening === current) opening = null; // the next caller opens a fresh connection
+        };
+        // Another tab wants a newer version: step aside instead of blocking it.
+        db.onversionchange = () => {
+          db.close();
+          forget();
+        };
+        db.onclose = forget;
+        resolve(db);
       };
       request.onerror = () => {
         window.clearTimeout(timer);
@@ -63,9 +80,48 @@ export function openDatabase(): Promise<IDBDatabase> {
   return opening;
 }
 
-export function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
+/** Closes a connection the browser already considers unusable and forgets it. */
+async function discardConnection(): Promise<void> {
+  const current = opening;
+  opening = null;
+  try {
+    (await current)?.close();
+  } catch {
+    // it never opened: nothing to close
+  }
+}
+
+/**
+ * One request in its own transaction. Resolves with the request's result only once the
+ * transaction has committed (a write can succeed as a request and still be aborted — e.g.
+ * QuotaExceededError arrives as an abort afterwards); rejects on abort / error. A
+ * connection closed under us (InvalidStateError) is reopened once.
+ */
+export async function transact<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  op: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  try {
+    return await transactOnce(await openDatabase(), storeName, mode, op);
+  } catch (err) {
+    if (!(err instanceof DOMException && err.name === 'InvalidStateError')) throw err;
+    await discardConnection();
+    return transactOnce(await openDatabase(), storeName, mode, op);
+  }
+}
+
+function transactOnce<T>(
+  db: IDBDatabase,
+  storeName: string,
+  mode: IDBTransactionMode,
+  op: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const tx = db.transaction(storeName, mode); // throws InvalidStateError on a closed connection
+    const request = op(tx.objectStore(storeName));
+    tx.oncomplete = () => resolve(request.result);
+    tx.onabort = () => reject(tx.error ?? request.error ?? new Error('IndexedDB transaction aborted'));
+    tx.onerror = () => reject(tx.error ?? request.error ?? new Error('IndexedDB transaction failed'));
   });
 }

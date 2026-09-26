@@ -4,6 +4,7 @@
  */
 import { LEVEL1 } from './level1';
 import { LEVEL2 } from './level2';
+import { LEVEL3 } from './level3';
 import { LEVEL4 } from './level4';
 import { LEVEL5 } from './level5';
 import type { CourseLevel, Lesson } from './types';
@@ -11,6 +12,7 @@ import type { CourseLevel, Lesson } from './types';
 export const COURSE: readonly CourseLevel[] = [
   { level: 1, title: 'Úplný začátečník', lessons: LEVEL1 },
   { level: 2, title: 'Začátečník', lessons: LEVEL2 },
+  { level: 3, title: 'Mírně pokročilý', lessons: LEVEL3 },
   // Levels 4 and 5 are partial sets (docs/phase-22-plan.md, generation order), no level test yet.
   { level: 4, title: 'Středně pokročilý', lessons: LEVEL4 },
   { level: 5, title: 'Pokročilý', lessons: LEVEL5 },

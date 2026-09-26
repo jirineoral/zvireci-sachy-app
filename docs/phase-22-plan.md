@@ -35,10 +35,10 @@ Play levels: 4 Skokan, 5 Ropucha, 6 Žabí král, 7 Velmistr (names vary by char
 **Úroveň 3 — Mírně pokročilý** (practice mostly band lehké)
 1. Odstranění obránce — take the only guard · `capturingDefender`
 2. Přetížení — one defender, two jobs · `deflection`
-3. Odlákání — force the defender away (back rank, blocker of a passer) · `deflection`
-4. Vlákání — lure king/queen onto a bad square (Légal, Morphy's Opera game 16.Db8+!) · `attraction`
+3. Odlákání — force the defender away (back rank, blocker of a passer; Morphy's Opera game 16.Db8+! deflects the Jd7 blocker — moved here from Vlákání in the coach review) · `deflection`
+4. Vlákání — lure king/queen onto a bad square (Légal; king lured onto a fork square) · `attraction`
 5. Rentgen (skewer) — attack a piece standing in front of a more/less valuable one · `skewer`
-6. Chycená figurka — no escape squares (Sa7 trap, Noemova archa) · střední `trappedPiece`
+6. Chycená figurka — no escape squares (knight on the rim, Noemova archa; the Sa7 trap was dropped: a sound child-level position did not hold up) · střední `trappedPiece`
 7. Mezitah — insert a stronger move before recapturing (Elephant trap) · `intermezzo`
 8. Matové obrazce I — dušený, Anastáziin, arabský · `anastasiaMate` / `arabianMate`
 9. Matové obrazce II — Bodenův, epoletový, poslední řada s obětí · `mateIn2`
@@ -82,7 +82,7 @@ přes figuru“) · odtažný útok/šach · dvojšach · mlýn · přetížení
 odstranění obránce ⚑ · uvolnění pole/linie · přerušení · zablokování · mezitah · tichý tah ·
 oběť, oběť kvality · chycená figura · podproměna · desperádo · věčný šach · kandidátní tahy ·
 propočet. Avoid „zamezení“ as a title (use profylaxe).
-Mates: dušený · Anastáziin ⚑ · arabský · Bodenův · epoletový · na poslední řadě · Légalův ·
+Mates: dušený · Anastáziin (chosen spelling, linted: „Anastáziin mat“) · arabský · Bodenův · epoletový · na poslední řadě · Légalův ·
 řecký dar ⚑.
 Endings: opozice (přímá, vzdálená, diagonální) · klíčová pole ⚑ · trojúhelník/triangulace ·
 nevýhoda tahu ⚑ (teach „zugzwang“ too) · vzájemná nevýhoda tahu · pravidlo čtverce ·

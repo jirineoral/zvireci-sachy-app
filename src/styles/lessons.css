@@ -1,0 +1,364 @@
+/* Lessons (Phase 21a): the lesson panel under the status line and the course map dialog.
+   Imported by src/ui/lesson-panel.ts and src/ui/course-map.ts; same palette as the
+   puzzle/endgame panels and the campaign dialog in app.css. */
+
+.lesson-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #242424;
+  font-size: 0.9rem;
+}
+
+.lesson-panel[hidden] {
+  display: none;
+}
+
+.lesson-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.lesson-title {
+  font-weight: 600;
+}
+
+.lesson-step {
+  color: #b8bec8;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.lesson-teacher {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.lesson-who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  width: 64px;
+}
+
+.lesson-teacher-name {
+  color: #b8bec8;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* The owl has no drawing yet (B9): an emoji in a circle; an animal teacher shows its king. */
+.lesson-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f3ead7;
+  border: 2px solid #c9a86a;
+  font-size: 2rem;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.lesson-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lesson-avatar-small {
+  width: 32px;
+  height: 32px;
+  font-size: 1.15rem;
+  border-width: 1px;
+}
+
+.lesson-bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f7f4ec;
+  color: #222;
+}
+
+.lesson-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 18px;
+  border-width: 7px 7px 7px 0;
+  border-style: solid;
+  border-color: transparent #f7f4ec transparent transparent;
+}
+
+.lesson-text {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.lesson-feedback {
+  margin: 6px 0 0;
+  min-height: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.lesson-feedback:empty {
+  display: none;
+}
+
+.lesson-feedback.is-good {
+  color: #2e7d32;
+}
+
+.lesson-feedback.is-bad {
+  color: #b3501b;
+}
+
+.lesson-feedback.is-info {
+  color: #455a78;
+}
+
+.lesson-counter {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.lesson-choices,
+.lesson-practice,
+.lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.lesson-choices[hidden],
+.lesson-practice[hidden],
+.lesson-counter[hidden] {
+  display: none;
+}
+
+.lesson-panel button {
+  padding: 6px 12px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.lesson-panel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lesson-panel button[hidden] {
+  display: none;
+}
+
+.lesson-panel .lesson-choice {
+  min-width: 64px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lesson-panel .lesson-choice.is-wrong {
+  border-color: #ffa459;
+  color: #ffa459;
+}
+
+.lesson-panel .lesson-choice.is-correct {
+  border-color: #4caf50;
+  background: #22301f;
+}
+
+.lesson-panel .lesson-next,
+.lesson-panel .lesson-next-lesson {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: #fff;
+  font-weight: 600;
+}
+
+.lesson-panel .lesson-next:disabled {
+  background: transparent;
+  color: #eee;
+}
+
+.lesson-actions-secondary button {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
+
+/* Course map dialog. */
+.course-map {
+  width: min(94vw, 640px);
+  max-height: 92vh;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #eee;
+}
+
+.course-map::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.course-map h2 {
+  margin: 0 0 8px;
+}
+
+.course-map h3 {
+  margin: 12px 0 6px;
+  font-size: 1rem;
+}
+
+.course-map .us-note {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: #b8bec8;
+}
+
+.course-count {
+  color: #b8bec8;
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.course-teacher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid #444;
+  border-radius: 6px;
+}
+
+.course-teacher legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.course-teacher-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.course-teacher-option:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.course-teacher-note {
+  flex-basis: 100%;
+  color: #b8bec8;
+  font-size: 0.8rem;
+}
+
+.course-teacher-note:empty {
+  display: none;
+}
+
+.course-lessons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.course-lesson {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-bottom-color: #3a3a3a;
+  border-radius: 6px;
+}
+
+.course-lesson.is-done .course-name {
+  color: #b8e0b5;
+}
+
+.course-lesson.is-next {
+  border-color: #ffd84a;
+  box-shadow: 0 0 0 2px rgba(255, 216, 74, 0.25);
+}
+
+.course-lesson.is-current {
+  background: #333;
+}
+
+.course-mark {
+  width: 1.2em;
+  flex: none;
+  color: #7fd17a;
+  font-weight: 700;
+  text-align: center;
+}
+
+.course-name {
+  flex: 1;
+}
+
+.course-lesson button {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.course-lesson.is-next .course-start {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: #fff;
+}
+
+.course-lesson .course-know {
+  font-size: 0.75rem;
+  color: #b8bec8;
+}
+
+.course-map .us-actions {
+  margin: 14px 0 0;
+}
+
+@media (max-width: 480px) {
+  .lesson-who {
+    width: 44px;
+  }
+
+  .lesson-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1.4rem;
+  }
+
+  .course-lesson {
+    flex-wrap: wrap;
+  }
+}

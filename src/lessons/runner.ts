@@ -195,8 +195,8 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
       shapes: [...(step.shapes ?? []), ...state.feedbackShapes],
       stars: state.stars,
       text: t(step.text),
-      feedback: state.feedback ? { tone: state.feedback.tone, text: t(state.feedback.text) } : null,
-      choices,
+      feedback: !finished && state.feedback ? { tone: state.feedback.tone, text: t(state.feedback.text) } : null,
+      choices: finished ? [] : choices,
       movesUsed: state.movesUsed,
       maxMoves: step.kind === 'collect' ? (step.maxMoves ?? null) : null,
       canNext: !finished && canNext,
@@ -209,8 +209,10 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
 
   let view = build();
 
+  /** Returns the same view object when the input changed nothing (the UI can skip a redraw). */
   const dispatch = (input: LessonInput): LessonView => {
     const step = lesson.steps[index];
+    const before = { index, state, finished };
     switch (input.type) {
       case 'next':
         if (!view.canNext) break;
@@ -247,6 +249,7 @@ export function createLessonRunner(lesson: Lesson, ctx: TextContext, startStep =
         state = onChoose(step, state, input.id);
         break;
     }
+    if (before.index === index && before.state === state && before.finished === finished) return view;
     view = build();
     return view;
   };

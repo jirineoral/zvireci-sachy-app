@@ -472,9 +472,11 @@ body {
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 280px;
-  height: 560px;
+  /* At least level with the board; grows (the page scrolls) rather than squeezing the
+     move list to nothing when the settings are open. */
+  min-height: 560px;
   margin-top: 70px; /* level with the board: spectator height + stage gap */
 }
 
@@ -523,8 +525,10 @@ body {
 }
 
 .move-list {
-  flex: 1;
-  min-height: 0;
+  /* Takes the panel's spare height, never less than a few rows (not its content height:
+     a long game scrolls inside the list instead of pushing the buttons away). */
+  flex: 1 1 0;
+  min-height: 8em;
   overflow-y: auto;
   margin: 0;
   padding: 8px;
@@ -625,6 +629,11 @@ body {
 
 .moves:not([open]) {
   flex: none;
+}
+
+/* Before the first move there is nothing to list: no empty box between the status and `Hrát!`. */
+.moves:has(.move-list:empty) {
+  display: none;
 }
 
 /* Chromium wraps the children of <details> in ::details-content; let the list fill it. */
@@ -1012,6 +1021,11 @@ body {
   .board-row .board {
     flex: 1;
     min-width: 0;
+  }
+
+  /* The hidden eval bar kept its 14 px + gap on the left and pushed the board off centre. */
+  .eval-bar[hidden] {
+    display: none;
   }
 
   .spectator {
@@ -1452,4 +1466,120 @@ html.dev-site body::before {
   font-weight: 700;
   text-align: center;
   pointer-events: none;
+}
+
+/* `Vzdát`: a quiet button that turns into a question on the first click. */
+.buttons .resign.armed {
+  border-color: #ffa459;
+  color: #ffa459;
+}
+
+/* "Opravdu ukončit rozehranou partii?" — asked in the page, next to what was clicked. */
+.confirm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px;
+  border: 1px solid #ffa459;
+  border-radius: 6px;
+  background: #242424;
+  font-size: 0.9rem;
+}
+
+.confirm-bar p {
+  flex: 1 1 100%;
+  margin: 0;
+  font-weight: 600;
+}
+
+.confirm-bar button {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 6px 12px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.confirm-bar .confirm-yes {
+  border-color: #ffa459;
+}
+
+/* Vlastní figurky: the native file input (English "Choose File") is visually hidden; its
+   label shows a Czech button and still opens the picker, the input keeps keyboard focus. */
+.us-slot input[type='file'].us-file-hidden,
+.us-sheet input[type='file'].us-file-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.us-slot,
+.us-sheet-label {
+  position: relative;
+}
+
+.us-file-button {
+  display: inline-block;
+  padding: 5px 10px;
+  border: 1px solid #666;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #eee;
+  cursor: pointer;
+}
+
+.us-slot .us-file-button {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.us-sheet-label .us-file-button {
+  margin-left: 6px;
+}
+
+.us-slot:focus-within .us-file-button,
+.us-sheet-label:focus-within .us-file-button {
+  outline: 2px solid #7fd17a;
+  outline-offset: 1px;
+}
+
+/* Touch targets (≥ 44 px) for the small buttons on narrow screens. */
+@media (max-width: 899px) {
+  .review-controls button,
+  .campaign-bar button,
+  .puzzle-row button,
+  .puzzle-row select,
+  .analyse,
+  .us-file-button,
+  .confirm-bar button {
+    min-height: 44px;
+  }
+
+  .campaign-tile-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .campaign-tile-controls button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 0.85rem;
+  }
+
+  .campaign-grid {
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  }
 }

@@ -7,6 +7,7 @@
 import { Chess, type Color } from 'chess.js';
 import { CAPTURED_ACCUSATIVE, DEFAULT_VOICE, OPENING, REACTIONS, TEMPLATES, type Situation } from './commentary';
 import type { Glyph } from './feedback';
+import { czechSan } from './notation';
 
 /** What the app remembers about one ply: play-time feedback (human plies) and, after a
  *  whole-game analysis, both sides' glyphs plus evals (see games.ts PlyData). */
@@ -125,8 +126,9 @@ export function commentaryFor(
   const situation = situationOf(before, move.flags, move.captured, ply, record);
   const seed = `${ply}:${move.san}`;
   const values = {
-    san: move.san,
-    better: record?.betterSan ?? '',
+    // Shown to the child: Czech piece letters (the records keep English SAN).
+    san: czechSan(move.san),
+    better: record?.betterSan ? czechSan(record.betterSan) : '',
     captured: move.captured ? CAPTURED_ACCUSATIVE[move.captured] ?? 'figuru' : 'figuru',
     ...voice(voiceOf(speaker)),
   };

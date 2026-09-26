@@ -27,9 +27,10 @@ import { buildFriendPanel } from './ui/friend-panel';
 import { roomFromLocation } from './friend';
 import { startAnalytics } from './analytics';
 import { COURSE } from './lessons/course';
-import { markLessonDone, readLessonProgress, setTeacher, type LessonProgress } from './lessons/progress';
+import { markLessonDone, markTestPassed, readLessonProgress, setTeacher, type LessonProgress } from './lessons/progress';
 import type { Lesson, PracticePointer } from './lessons/types';
 import { buildCourseMap } from './ui/course-map';
+import { buildDiplomaDialog } from './ui/diploma';
 import { createChessgroundLessonBoard, type ChessgroundLessonBoard } from './ui/lesson-board';
 import { buildLessonPanel, OWL, teacherInfo } from './ui/lesson-panel';
 import { promptPromotion } from './ui/promotion-dialog';
@@ -127,6 +128,7 @@ app.innerHTML = `
   <dialog class="campaign-dialog"></dialog>
   <dialog class="broadcasts-dialog"></dialog>
   <dialog class="course-map"></dialog>
+  <dialog class="diploma-dialog"></dialog>
 `;
 // Old browsers without <dialog> support get an inline fallback instead of a throwing button.
 for (const dialog of app.querySelectorAll('dialog')) guardDialog(dialog);
@@ -390,11 +392,26 @@ function markDone(lesson: Lesson): void {
   lessonProgress = markLessonDone(safeLocalStorage(), lessonProgress, lesson.id);
 }
 
+// Phase 21b: a passed level test earns the badge and the printable diploma.
+const diplomaDialog = buildDiplomaDialog({
+  dialog: requireElement<HTMLDialogElement>(app, '.diploma-dialog'),
+  storage: safeLocalStorage,
+  teacher: () => teacherInfo(lessonProgress.teacher, lessonAnimalId(), lessonTeacherImage),
+});
+function openDiploma(level: number): void {
+  const title = COURSE.find((l) => l.level === level)?.title ?? '';
+  diplomaDialog.open(level, title);
+}
+
 const lessonPanel = buildLessonPanel({
   container: requireElement<HTMLElement>(app, '.lesson-panel'),
   teacher: () => teacherInfo(lessonProgress.teacher, lessonAnimalId(), lessonTeacherImage),
   askPromotion: (color) => promptPromotion(requireElement<HTMLDialogElement>(app, '.promotion-dialog'), color),
-  onLessonDone: markDone,
+  onLessonDone: (lesson, result) => {
+    if (!lesson.test) markDone(lesson);
+    else if (result?.passed) lessonProgress = markTestPassed(safeLocalStorage(), lessonProgress, lesson);
+  },
+  onDiploma: openDiploma,
   onKnowIt: markDone,
   onBackToMap: () => courseMap.open(),
   onLeave: () => {
@@ -415,6 +432,7 @@ const courseMap = buildCourseMap({
   currentLesson: () => lessonPanel.current,
   start: (lesson) => void openLesson(lesson),
   markDone,
+  openDiploma,
   setTeacher: (teacher) => {
     lessonProgress = setTeacher(safeLocalStorage(), lessonProgress, teacher);
     if (lessonPanel.current) lessonPanel.refreshTeacher();

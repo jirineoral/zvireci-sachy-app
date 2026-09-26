@@ -1,0 +1,269 @@
+/* The printable diploma (Phase 21b), src/ui/diploma.ts. The sheet is laid out in `em`
+   relative to its own font-size: on screen the preview scales it with the dialog width
+   (container units), in print it is exactly one A4 landscape page. */
+
+.diploma-dialog {
+  width: min(96vw, 860px);
+  max-height: 94vh;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #eee;
+}
+
+.diploma-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.diploma-dialog h2 {
+  margin: 0 0 10px;
+}
+
+.diploma-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.diploma-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+}
+
+.diploma-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 1.05rem;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: #1e1e1e;
+  color: #eee;
+}
+
+.diploma-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.diploma-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: #b8bec8;
+  font-size: 0.8rem;
+}
+
+.diploma-actions {
+  display: flex;
+  gap: 8px;
+  flex-basis: 100%;
+}
+
+.diploma-actions button {
+  padding: 6px 14px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.diploma-actions .diploma-print-btn {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---- the sheet ------------------------------------------------------------------- */
+
+.diploma-preview {
+  container-type: inline-size;
+  width: 100%;
+}
+
+.diploma-sheet {
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 297 / 210;
+  font-size: 2.4cqw; /* = 7.1 mm on a 297 mm page, see the print rules */
+  padding: 1.1em;
+  background: #fffaf0;
+  color: #2a2418;
+  font-family: Georgia, 'Times New Roman', serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.diploma-inner {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1em 2em 0.9em;
+  border: 0.28em double #b8862b;
+  border-radius: 0.6em;
+  outline: 0.08em solid #d9b56a;
+  outline-offset: -0.6em;
+  text-align: center;
+}
+
+.diploma-app {
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  color: #7a5c1c;
+}
+
+.diploma-title {
+  font-size: 3.2em;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a5a00;
+}
+
+.diploma-gets {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.diploma-name {
+  min-width: 60%;
+  min-height: 1.3em;
+  padding: 0 0.4em 0.05em;
+  font-size: 2.1em;
+  font-weight: 700;
+  line-height: 1.25;
+  border-bottom: 0.04em solid #b8862b;
+  overflow-wrap: anywhere;
+}
+
+/* No name yet: a dotted line to write it by hand. */
+.diploma-name.is-empty {
+  border-bottom: 0.06em dotted #7a5c1c;
+}
+
+.diploma-for {
+  font-size: 0.9em;
+}
+
+.diploma-level {
+  font-size: 1.35em;
+  font-weight: 700;
+}
+
+.diploma-footer {
+  display: flex;
+  width: 100%;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+.diploma-teacher,
+.diploma-date {
+  flex: 1 1 0;
+  font-size: 0.8em;
+}
+
+.diploma-teacher {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  text-align: left;
+}
+
+.diploma-date {
+  text-align: right;
+}
+
+.diploma-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 3.4em;
+  height: 3.4em;
+  border-radius: 50%;
+  background: #f3ead7;
+  border: 0.12em solid #c9a86a;
+  font-size: 1em;
+  overflow: hidden;
+}
+
+.diploma-avatar:not(:has(img)) {
+  font-size: 2.2em;
+  width: 1.55em;
+  height: 1.55em;
+}
+
+.diploma-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.diploma-badge {
+  font-size: 2.6em;
+  line-height: 1;
+}
+
+/* ---- printing ---------------------------------------------------------------------- */
+
+@media screen {
+  .diploma-print {
+    display: none;
+  }
+}
+
+@page diploma {
+  size: A4 landscape;
+  margin: 0;
+}
+
+@media print {
+  html.printing-diploma,
+  html.printing-diploma body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  html.printing-diploma body > :not(.diploma-print),
+  html.printing-diploma dialog {
+    display: none !important;
+  }
+
+  .diploma-print {
+    display: block;
+    page: diploma;
+  }
+
+  .diploma-print .diploma-sheet {
+    width: 297mm;
+    height: 209mm; /* a hair under A4, so rounding never spills onto a second page */
+    aspect-ratio: auto;
+    font-size: 7.1mm;
+    overflow: hidden;
+    break-inside: avoid;
+  }
+}
+
+@media (max-width: 480px) {
+  .diploma-dialog {
+    padding: 12px;
+  }
+}

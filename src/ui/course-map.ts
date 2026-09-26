@@ -2,6 +2,8 @@
  * Course map (Phase 21a): the `Lekce` dialog. Levels → lessons with ticks, the next
  * lesson highlighted, nothing locked; „Vyber si trenéra“ (Sova by default, or the animal
  * the child plays). Renders the state it is handed; the caller owns progress and storage.
+ * Phase 21b: a passed level test shows the level's badge and a „Diplom“ button; the test
+ * itself has no „Tohle umím“ (the badge is earned, not claimed).
  * All text via textContent.
  */
 import '../styles/lessons.css';
@@ -21,6 +23,8 @@ export interface CourseMapDeps {
   /** „Tohle umím“ from the map. */
   markDone: (lesson: Lesson) => void;
   setTeacher: (teacher: Teacher) => void;
+  /** „Diplom“ next to an earned badge. */
+  openDiploma?: (level: number) => void;
 }
 
 export interface CourseMap {
@@ -116,6 +120,20 @@ export function buildCourseMap(deps: CourseMapDeps): CourseMap {
         const count = el('span', level.lessons.length ? ` · ${done} z ${level.lessons.length}` : '', 'course-count');
         h3.append(count);
         section.append(h3);
+        const test = level.lessons.find((l) => l.test);
+        if (test?.test && progress.badges[test.test.badge]) {
+          const badge = el('div', '', 'course-badge');
+          badge.append(el('span', '🏅', 'course-badge-icon'), el('span', `Odznak: ${level.title}`, 'course-badge-name'));
+          if (deps.openDiploma) {
+            const diploma = button('Diplom 🖨', 'course-diploma');
+            diploma.addEventListener('click', () => {
+              dialog.close();
+              deps.openDiploma?.(level.level);
+            });
+            badge.append(diploma);
+          }
+          section.append(badge);
+        }
         if (level.lessons.length === 0) {
           section.append(el('p', 'Připravujeme.', 'us-note'));
           return section;
@@ -128,7 +146,7 @@ export function buildCourseMap(deps: CourseMapDeps): CourseMap {
           if (isDone) li.classList.add('is-done');
           if (next?.id === lesson.id) li.classList.add('is-next');
           if (current?.id === lesson.id) li.classList.add('is-current');
-          const mark = el('span', isDone ? '✓' : '', 'course-mark');
+          const mark = el('span', isDone ? (lesson.test ? '🏅' : '✓') : '', 'course-mark');
           mark.setAttribute('aria-label', isDone ? 'hotovo' : '');
           const name = el('span', `${lesson.number}. ${lesson.title}`, 'course-name');
           const go = button(isDone ? 'Znovu' : next?.id === lesson.id ? 'Začít ▶' : 'Začít', 'course-start');
@@ -138,7 +156,7 @@ export function buildCourseMap(deps: CourseMapDeps): CourseMap {
             deps.start(lesson);
           });
           li.append(mark, name, go);
-          if (!isDone) {
+          if (!isDone && !lesson.test) {
             const know = button('Tohle umím', 'course-know');
             know.setAttribute('aria-label', `Tohle umím: ${lesson.title}`);
             know.addEventListener('click', () => {

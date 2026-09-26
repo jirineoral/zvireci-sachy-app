@@ -206,6 +206,55 @@
   padding: 4px 10px;
 }
 
+/* Level test result (Phase 21b). */
+.lesson-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #555;
+}
+
+.lesson-result[hidden] {
+  display: none;
+}
+
+.lesson-result.is-passed {
+  border-color: #c9a86a;
+  background: #3a3322;
+}
+
+.lesson-score {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.lesson-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #ffd84a;
+}
+
+.lesson-badge-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.lesson-score-note {
+  color: #b8bec8;
+  font-size: 0.85rem;
+}
+
+.lesson-panel .lesson-diploma {
+  background: #c9a86a;
+  border-color: #c9a86a;
+  color: #222;
+  font-weight: 600;
+}
+
 /* Course map dialog. */
 .course-map {
   width: min(94vw, 640px);
@@ -341,6 +390,40 @@
 .course-lesson .course-know {
   font-size: 0.75rem;
   color: #b8bec8;
+}
+
+.course-badge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid #c9a86a;
+  border-radius: 6px;
+  background: #3a3322;
+  color: #ffd84a;
+  font-weight: 600;
+}
+
+.course-badge-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.course-badge-name {
+  flex: 1;
+}
+
+.course-badge .course-diploma {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid #c9a86a;
+  border-radius: 6px;
+  background: #c9a86a;
+  color: #222;
+  cursor: pointer;
 }
 
 .course-map .us-actions {

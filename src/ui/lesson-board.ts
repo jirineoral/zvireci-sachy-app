@@ -64,8 +64,8 @@ export function createChessgroundLessonBoard(api: Api, handlers: LessonBoardHand
   const redraw = (): void => api.setAutoShapes([...shapes, ...stars]);
 
   return {
-    setPosition(fen: string, orientation: BoardColor, turnColor: BoardColor, lastMove: [Square, Square] | null): void {
-      api.set({ fen, orientation, turnColor, check: false, lastMove: lastMove ?? undefined, selected: undefined });
+    setPosition(fen: string, orientation: BoardColor, turnColor: BoardColor, lastMove: [Square, Square] | null, check: BoardColor | null = null): void {
+      api.set({ fen, orientation, turnColor, check: check ?? false, lastMove: lastMove ?? undefined, selected: undefined });
       if (!lastMove) api.state.lastMove = undefined;
     },
     setMovable(movable): void {

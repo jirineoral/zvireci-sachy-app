@@ -144,3 +144,20 @@ src/main.ts, src/styles/app.css               MOD  button, wiring
 scripts/check-lessons.mjs                     NEW  mechanical checks (decision 4)
 README.md, docs/BACKLOG.md, docs/security-review.md  MOD
 ```
+
+## 21a — DoD results (2026-09-26, branch `phase-21a`)
+
+| Item | Result |
+| --- | --- |
+| Step model show / move / collect / choose (mini declared) | Done — `src/lessons/types.ts`; runner `src/lessons/runner.ts` is pure (node-tested) |
+| Every correct answer accepted; wrong move explained | Done — completeness kinds `mate`/`best`/`lands`/`captures`/`legal` checked; explanations: illegal (king in check, kings side by side, guarded square), piece left en prise, step texts, `wrongDefault` (never a bare „špatně“) |
+| Lesson runs on the main board, panel under the status | Done — controller lesson mode (`startLesson`/`leaveLesson`, no sync, no engine, no bubbles, status „Lekce 3/7: Střelec“); confirm before discarding a game in progress |
+| Course map, ticks, next highlighted, nothing locked, `Tohle umím` | Done — `src/ui/course-map.ts` |
+| Teacher picker (owl default / child's animal) | Done — owl = 🦉 placeholder until B9 |
+| Progress `skm.lessons`, garbage → defaults | Done — `src/lessons/progress.ts`, tested |
+| Puzzle theme filter | Done — theme select in `Úlohy`, Czech labels, pointer band+theme |
+| Practice pointers | Done — play at a level / puzzles band+theme / ending by id |
+| `check-lessons.mjs` (decision 4) | Done — 7 lessons, 49 steps, 0 errors, 0 warnings; seeded mistakes are caught |
+| Node test of the runner | Done — 24 tests (all lessons end to end + wrong answers, progress) |
+| Content L1 lessons 1–7 | Done — owner/son review pending (iterative) |
+| Browser check | Fresh profile, teacher picked, lessons 1, 3, 6, 7 fully + 2 („Tohle umím“) + 5 (wrong king move), wrong-move explanations, `Zpět do hry` → game with engine reply, pointer → Úlohy začátečník + „nechráněná figurka“; 1024×768 and 375×812 |

@@ -37,6 +37,11 @@ npm run dev
 npm run build
 ```
 
+```powershell
+npm run check:lessons   # mechanical checks of the lesson data (FENs, answers, stars, text lint)
+npm run test:lessons    # the lesson runner driven through every lesson in node
+```
+
 ## Engine
 
 The opponent is [Stockfish 18](https://github.com/official-stockfish/Stockfish) in the
@@ -87,13 +92,32 @@ PGN can also be pasted. Any game opens in the review; `Analyzovat partii` evalua
 position with the local engine and shows an eval bar, the engine's best move as an arrow
 and feedback glyphs for both sides — all client-side.
 
+## Lessons
+
+`Lekce` (the first mode button) opens the course map: levels, lessons with ticks, the next
+lesson highlighted, nothing locked (`Tohle umím` marks a lesson done). The child picks a
+teacher: the owl (default; an emoji placeholder until the drawing exists) or the animal
+they play. A lesson runs on the main board in 4–8 short steps — look (`show`), play the
+move (`move`: every correct answer is accepted, a wrong one is explained: „tvůj král by
+byl v šachu“, „tady by ti věž vzala jezdce“), eat all the stars with one piece (`collect`)
+or pick an answer (`choose`). Pieces are named with their chess name and how they look in
+the child's set („věž (u tebe kůzle s hradem na hlavě)“). The last step points to practice:
+a game at a level, puzzles of a band and theme, or an ending.
+
+Lessons are data in `src/lessons/*.ts`, reviewed in git; `npm run check:lessons` must pass
+before shipping (legal and consistent FENs, complete lists of accepted moves — incl.
+Stockfish for "best move" tasks — collect limits solvable, Czech text lint). Progress lives
+in the browser (`skm.lessons`). 21a ships level 1, lessons 1–7 (the board and all pieces);
+plan and curriculum in `docs/phase-21-plan.md`.
+
 ## Puzzles
 
 `Úlohy` offers 3 200 tactics puzzles in four bands (začátečník 400–999 … těžší 1800–2300),
 a subset of the [Lichess puzzle database](https://database.lichess.org/#puzzles) (CC0),
 selected and shipped as one static file by `scripts/build-puzzles.py`. Lichess semantics:
 the opponent's move plays itself, then you find the solution; the two kings comment.
-Progress lives in the browser (`skm.puzzles`).
+A theme select (Czech names of the Lichess tags, default „všechna témata“) narrows the band,
+e.g. začátečník + „mat 1. tahem“. Progress lives in the browser (`skm.puzzles`).
 
 ## Play with a friend over a link
 

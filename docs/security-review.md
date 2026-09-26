@@ -632,3 +632,24 @@ Reviewer findings (confirmed) and what changed. **Deploy the Worker first, then 
   → reconnect → pending resent; pending across a reload; `online`; rate close → rejoin with
   the seat; policy close → note, reload rejoins; rematch offered while the peer is away,
   cleared by `leave`, newcomer not auto-rematched; two-step `Odejít`.
+
+### 2026-09-26 — Phase 21a (lessons)
+- **New localStorage key `skm.lessons`**: `{done, tests, badges}` (id → `true`) and
+  `teacher` (`owl` | `animal`). Read defensively like `skm.puzzles`/`skm.endgames`: any
+  unparsable or wrongly shaped value → defaults; `done` keeps only ids of shipped lessons,
+  `tests`/`badges` only `[a-z0-9-]{1,40}`, at most 200 keys each; storage errors are
+  caught. `skm.puzzles` gains `theme` (kept only when it is a known tag of the Czech map).
+- **No network.** Lessons are code in the bundle; no fetch, no new host, CSP unchanged.
+  The course map's teacher picture is the same-origin character image already used by the
+  campaign.
+- **DOM: textContent only.** Lesson panel and course map build every node with
+  `createElement` + `textContent`; no `innerHTML`. The only markup string that reaches
+  chessground is the constant star SVG in `src/ui/lesson-board.ts` (never built from
+  data), like the glyph badge in `board-bridge.ts`; shape labels go through chessground's
+  own SVG text. `check:lessons` also rejects `<`/`>` in lesson texts.
+- **Board ownership.** `board-bridge.ts` now exposes the chessground `Api`; only the lesson
+  board uses it, while the controller is in lesson mode (no board sync, no engine). The
+  lesson board takes over chessground's `after`/`select` handlers and restores them on
+  leaving; any other mode (`Nová hra`, puzzle, ending, friend link, loaded game) ends
+  lesson mode through `onLessonEnd` before the board is synced again.
+- **Nothing is sent**: no names, no progress; the diploma name (21b) will stay local.

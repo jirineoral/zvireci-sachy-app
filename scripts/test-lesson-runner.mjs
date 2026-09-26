@@ -648,4 +648,60 @@ test('diploma name: stored only when remembered, cleaned', () => {
   assert.equal(diploma.czechDate(new Date(2026, 8, 26)), '26. 9. 2026');
 });
 
+// Level 5, first batch (lucena/philidor/bb/kombinace): a few targeted checks beyond the
+// generic correct-path loop above.
+const chooseAt = (lessonId, stepId, id) => {
+  const lesson = byId(lessonId);
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, stepId));
+  return r.dispatch({ type: 'choose', id });
+};
+const squareAt = (lessonId, stepId, square) => {
+  const lesson = byId(lessonId);
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, stepId));
+  return r.dispatch({ type: 'square', square });
+};
+
+test('l5-lucena: a passive rook square is explained, then the bridge square', () => {
+  const v = chooseAt('l5-lucena', 'plan', 'h1');
+  assert.equal(v.phase, 'task');
+  assert.match(v.feedback.text, /moc daleko/);
+  assert.equal(chooseAt('l5-lucena', 'plan', 'c4').phase, 'stepDone');
+});
+
+test('l5-lucena: the promotion offers a choice and accepts a non-queen piece', () => {
+  const lesson = byId('l5-lucena');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'promote'));
+  assert.ok(needsPromotion(r.view, 'b7', 'b8'));
+  const v = r.dispatch({ type: 'move', from: 'b7', to: 'b8', promotion: 'r' });
+  assert.equal(v.phase, 'stepDone');
+});
+
+test('l5-philidor: switching the rook off the sixth rank too early is explained', () => {
+  const v = chooseAt('l5-philidor', 'switch', 'a5');
+  assert.equal(v.phase, 'task');
+  assert.match(v.feedback.text, /dál/);
+  assert.equal(chooseAt('l5-philidor', 'switch', 'a1').phase, 'stepDone');
+});
+
+test('l5-dva-strelci: reachable verify — a square the bishop wall guards is refused', () => {
+  const v = squareAt('l5-dva-strelci', 'reach', 'e5');
+  assert.equal(v.phase, 'task');
+  assert.match(v.feedback.text, /hlídá střelec d4/);
+  assert.equal(squareAt('l5-dva-strelci', 'reach', 'e7').phase, 'stepDone');
+});
+
+test('l5-dva-strelci: the final mate is Sh6-g7#', () => {
+  const lesson = byId('l5-dva-strelci');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'mate'));
+  const v = r.dispatch({ type: 'move', from: 'h6', to: 'g7' });
+  assert.equal(v.phase, 'stepDone');
+});
+
+test('l5-kombinace: the historical Df6+ is accepted (marginCp 0 at the checker\'s depth)', () => {
+  const lesson = byId('l5-kombinace');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'qf6'));
+  const v = r.dispatch({ type: 'move', from: 'f3', to: 'f6' });
+  assert.equal(v.phase, 'stepDone');
+});
+
 console.log(`test-lesson-runner: ${passed} passed${process.exitCode ? ', FAILURES above' : ''}`);

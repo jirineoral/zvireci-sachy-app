@@ -4,11 +4,13 @@
  */
 import { LEVEL1 } from './level1';
 import { LEVEL2 } from './level2';
+import { LEVEL5 } from './level5';
 import type { CourseLevel, Lesson } from './types';
 
 export const COURSE: readonly CourseLevel[] = [
   { level: 1, title: 'Úplný začátečník', lessons: LEVEL1 },
   { level: 2, title: 'Začátečník', lessons: LEVEL2 },
+  { level: 5, title: 'Pokročilý', lessons: LEVEL5 },
 ];
 
 export function allLessons(): Lesson[] {

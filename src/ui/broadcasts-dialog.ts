@@ -5,6 +5,7 @@
  */
 import { LichessError, fetchRoundGames, fetchRounds, searchBroadcasts, type BroadcastGame, type BroadcastRound, type BroadcastTour } from '../lichess';
 import type { GameRecord } from '../games';
+import { count } from '../czech';
 
 export interface BroadcastsDialogDeps {
   dialog: HTMLDialogElement;
@@ -154,7 +155,7 @@ export function buildBroadcastsDialog(deps: BroadcastsDialogDeps): { open: () =>
     try {
       const games = await fetchRoundGames(round.id);
       if (gen !== generation) return;
-      setMessage(games.length > 0 ? `${games.length} partií${round.ongoing ? ' · obnovuje se každých 30 s' : ''}.` : '');
+      setMessage(games.length > 0 ? `${count(games.length, 'partie', 'partie', 'partií')}${round.ongoing ? ' · obnovuje se každých 30 s' : ''}.` : '');
       renderGames(games, round);
       if (round.ongoing || (!round.finished && games.some((g) => g.result === '*'))) {
         refreshTimer = window.setTimeout(() => void loadGames(tour, round, true), REFRESH_MS);
@@ -172,7 +173,7 @@ export function buildBroadcastsDialog(deps: BroadcastsDialogDeps): { open: () =>
     searchBroadcasts(query.value)
       .then((tours) => {
         if (gen !== generation) return;
-        setMessage(tours.length > 0 ? `${tours.length} turnajů.` : '');
+        setMessage(tours.length > 0 ? `${count(tours.length, 'turnaj', 'turnaje', 'turnajů')}.` : '');
         renderTours(tours);
       })
       .catch((err) => {
@@ -200,9 +201,9 @@ export function buildBroadcastsDialog(deps: BroadcastsDialogDeps): { open: () =>
   return {
     open(): void {
       if (view.kind !== 'search') show({ kind: 'search' });
+      // Nothing is asked of Lichess until the player presses `Hledat` (see the privacy note).
       if (query.value.trim() === '') query.value = 'Czech';
       dialog.showModal();
-      if (list.childElementCount === 0) search();
     },
   };
 }

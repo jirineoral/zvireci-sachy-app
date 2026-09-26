@@ -53,4 +53,14 @@ cg-board {
 .board.cg-wrap coords.files {
   bottom: -2px;
   height: 18px;
+  /* chessground shifts the file row 24 px right at full width: the "H" stuck out past the
+     board (and widened a phone's page). Keep the row on the board, letters at each
+     square's right edge. */
+  left: 0;
+  width: 100%;
+}
+
+.board.cg-wrap coords.files coord {
+  padding-right: 4px;
+  text-align: right;
 }

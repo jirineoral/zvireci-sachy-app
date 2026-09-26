@@ -55,7 +55,7 @@ export const ENDGAMES: readonly Endgame[] = [
   // těžké
   { id: 'kbn', group: 'těžké', title: 'Střelec a jezdec (těžké)', hint: 'Mat jde jen v rohu barvy střelce. Nejdřív krále na kraj, pak ho tlač po kraji do správného rohu.', fen: '4k3/8/8/8/8/8/8/4KBN1 w - - 0 1', human: 'w', goal: 'win' },
   { id: 'qvp', group: 'těžké', title: 'Dáma proti pěšci na d2', hint: 'Šach, šach, až král musí stoupnout před pěšce — v tu chvíli přiskoč králem o krok blíž. Opakuj.', fen: 'Q7/8/8/8/8/8/3pk3/7K w - - 0 1', human: 'w', goal: 'win' },
-  { id: 'rvp2', group: 'těžké', title: 'Věž proti pěšci II', hint: 'Věž nejdřív za pěšce (šach ze zadu), potom se král přiblíží.', fen: '8/8/8/8/8/2k5/1p6/1K1R4 w - - 0 1', human: 'w', goal: 'win' },
+  { id: 'rvp2', group: 'těžké', title: 'Věž proti pěšci II', hint: 'Věž nejdřív za pěšce (šach zezadu), potom se král přiblíží.', fen: '8/8/8/8/8/2k5/1p6/1K1R4 w - - 0 1', human: 'w', goal: 'win' },
   { id: 'qvap', group: 'těžké', title: 'Krajní pěšec drží remízu', hint: 'Král do rohu před pěšce — když tě dáma nutí, nech se zahnat do a1: pat.', fen: '8/8/8/8/8/k7/p7/6QK b - - 0 1', human: 'b', goal: 'draw' },
 ];
 

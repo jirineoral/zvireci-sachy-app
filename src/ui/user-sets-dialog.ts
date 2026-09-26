@@ -8,6 +8,7 @@ import { IMPORT_MESSAGES, ImportError, importPieceImage } from '../image-import'
 import type { PieceSetManager } from '../piece-sets';
 import { copyText, piecePrompt } from '../prompts';
 import { cutSheet } from '../sheet-cutter';
+import { count as countOf } from '../czech';
 import { decodeImageData, imageDataToPng } from '../image-import';
 import { PIECE_CODES, PIECE_LABELS, newSetId, type PieceCode, type UserSet, type UserSetStore } from '../user-sets';
 
@@ -55,10 +56,12 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
   const sheetInput = document.createElement('input');
   sheetInput.type = 'file';
   sheetInput.accept = 'image/png,image/jpeg';
-  sheetInput.className = 'us-sheet-input';
+  // The native input says "Choose File / No file chosen" in the browser's language: it is
+  // visually hidden and the label shows a Czech button instead (a click on it opens the picker).
+  sheetInput.className = 'us-sheet-input us-file-hidden';
   const sheetLabel = document.createElement('label');
   sheetLabel.className = 'us-sheet-label';
-  sheetLabel.append('Nahrát celý list (2 řady × 6 figurek) ', sheetInput);
+  sheetLabel.append('Nahrát celý list (2 řady × 6 figurek) ', sheetInput, el('span', 'Vybrat obrázek…', 'us-file-button'));
   const swapRowsBtn = button('Prohodit řady', 'us-swap-rows');
   swapRowsBtn.hidden = true;
   sheetSection.append(
@@ -81,6 +84,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/png,image/jpeg';
+    input.className = 'us-file-hidden';
     input.addEventListener('change', () => void onFile(code, input));
     // Click on a filled thumbnail = pick it for a swap (the file input stays reachable via the label text).
     thumb.addEventListener('click', (e) => {
@@ -88,7 +92,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
       e.preventDefault();
       onSwapPick(code);
     });
-    slot.append(thumb, label, status, input);
+    slot.append(thumb, label, status, input, el('span', 'Vybrat obrázek…', 'us-file-button'));
     grid.appendChild(slot);
     slots.set(code, { thumb, input, status });
   }
@@ -211,7 +215,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
     if (swapFirst === null) {
       swapFirst = code;
       renderSlots();
-      setMessage(`Vybráno: ${PIECE_LABELS[code]}. Klikni na figurku, se kterou ji prohodit.`);
+      setMessage(`Vybráno: ${PIECE_LABELS[code]}. Klikni na figurku, se kterou ji chceš prohodit.`);
       return;
     }
     if (swapFirst !== code) {
@@ -264,7 +268,7 @@ export function buildUserSetsDialog(deps: UserSetsDialogDeps): { open: () => voi
       swapFirst = null;
       renderSlots();
       if (count === 12) setMessage('Našel jsem 12 figurek — zkontroluj, jestli sedí role, a ulož.');
-      else setMessage(`Našel jsem ${count} figurek (nahoře ${rowCounts[0]}, dole ${rowCounts[1]}). Zkontroluj mezery mezi figurkami, nebo chybějící nahraj po jedné.`, true);
+      else setMessage(`Našel jsem ${countOf(count, 'figurku', 'figurky', 'figurek')} (nahoře ${rowCounts[0]}, dole ${rowCounts[1]}). Zkontroluj mezery mezi figurkami, nebo chybějící nahraj po jedné.`, true);
     } catch (err) {
       setMessage(err instanceof ImportError ? err.message : IMPORT_MESSAGES.encode, true);
     } finally {

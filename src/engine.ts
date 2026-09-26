@@ -9,6 +9,10 @@
  *    arrives, so a stale reply can never be mistaken for a fresh one.
  *  - `stop()` returns a promise that resolves once every outstanding search has been
  *    consumed, so callers can sequence `setoption` / `ucinewgame` / a new `go` after it.
+ *  - Any failure (worker error, handshake timeout, a search the engine never answers) is
+ *    final for this instance: the worker is terminated, every outstanding search resolves
+ *    `null` and pending `stop()`s resolve, so no caller waits on a dead worker. Recovery is
+ *    a new instance (the status line's `Zkusit znovu`).
  */
 
 export type UciMove = string; // "e2e4", "e7e8q"
@@ -83,6 +87,8 @@ interface SearchRecord {
   resolveLines?: (lines: PvLine[] | null) => void;
   lines: Map<number, PvLine>;
   multiPv: number;
+  /** Set once `go` was posted (the silent-engine watchdog only times searches the engine has). */
+  movetimeMs: number | null;
 }
 
 /** Parses one `info … multipv N score cp|mate X … pv …` line; undefined for lines without a pv/score. */
@@ -108,10 +114,14 @@ export interface EngineCreateOptions {
   expectedWasmBytes: number;
 }
 
-// 30 s: a legitimate 7 MB load on a slow mobile link must not disable a working engine.
-// The pre-check below covers the fast-fail cases (missing / wrong-size file); corruption
-// with the right size still falls through to this timeout — accepted.
-const HANDSHAKE_TIMEOUT_MS = 30_000;
+// 90 s: a legitimate 7.3 MB load on slow 3G (while the intro images load too) must not
+// disable a working engine; the clock starts only after the pre-check passed. The pre-check
+// covers the fast-fail cases (missing / wrong-size file); corruption with the right size
+// still falls through to this timeout — accepted (and `Zkusit znovu` recovers).
+const HANDSHAKE_TIMEOUT_MS = 90_000;
+// A search the engine has not answered this long after its movetime is treated as a dead
+// engine (a hung worker fires no error event).
+const SEARCH_GRACE_MS = 10_000;
 const PRECHECK_TIMEOUT_MS = 5_000;
 const WASM_SIZE_TOLERANCE = 0.05;
 
@@ -160,6 +170,7 @@ export function createEngine(
   const wasmUrl = workerUrl.replace(/\.js$/, '.wasm');
   let worker: Worker | null = null;
   let handshakeTimer: ReturnType<typeof setTimeout> | null = null;
+  let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   const outstanding: SearchRecord[] = [];
   const drainWaiters: Array<() => void> = [];
   let disposed = false;
@@ -177,9 +188,30 @@ export function createEngine(
   let readyGate: Promise<void> = Promise.resolve();
   let resolveReadyGate: (() => void) | null = null;
 
+  /** Terminates the worker and settles everything still waiting on it. */
+  const shutDown = (): void => {
+    if (disposed) return;
+    disposed = true;
+    if (handshakeTimer !== null) clearTimeout(handshakeTimer);
+    if (watchdogTimer !== null) clearTimeout(watchdogTimer);
+    handshakeTimer = watchdogTimer = null;
+    worker?.terminate();
+    worker = null;
+    for (const record of outstanding.splice(0)) {
+      record.resolveMove?.(null);
+      record.resolveLines?.(null);
+    }
+    if (resolveReadyGate) {
+      resolveReadyGate(); // a ucinewgame round-trip in flight will never get its readyok
+      resolveReadyGate = null;
+    }
+    settleOutstandingIfDrained();
+  };
+
   const fail = (err: Error): void => {
     if (disposed) return;
     rejectReady(err);
+    shutDown();
     onError(err);
   };
 
@@ -191,6 +223,16 @@ export function createEngine(
   const settleOutstandingIfDrained = (): void => {
     if (outstanding.length > 0) return;
     for (const waiter of drainWaiters.splice(0)) waiter();
+  };
+
+  /** Times the search at the head of the FIFO (the one the engine is working on). */
+  const armWatchdog = (): void => {
+    if (watchdogTimer !== null) clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+    const head = outstanding[0];
+    if (disposed || !head || head.movetimeMs === null) return;
+    const limit = head.movetimeMs + SEARCH_GRACE_MS;
+    watchdogTimer = setTimeout(() => fail(new Error(`Engine silent: no bestmove ${limit} ms after go`)), limit);
   };
 
   const onMessage = (event: MessageEvent<unknown>): void => {
@@ -239,6 +281,7 @@ export function createEngine(
         record.resolveMove?.(move);
         record.resolveLines?.(Array.from(record.lines.values()).sort((a, b) => a.multipv - b.multipv));
       }
+      armWatchdog();
       settleOutstandingIfDrained();
     }
     // Everything else (`id`, `option`, `info string` …) is ignored.
@@ -266,17 +309,20 @@ export function createEngine(
   const awaitGates = (): Promise<void> => ready.then(() => readyGate);
 
   const settleRecord = (record: SearchRecord, dropFromQueue: boolean): void => {
+    let wasHead = false;
     if (dropFromQueue) {
       const index = outstanding.indexOf(record);
       if (index >= 0) outstanding.splice(index, 1);
+      wasHead = index === 0;
     }
     record.resolveMove?.(null);
     record.resolveLines?.(null);
+    if (wasHead) armWatchdog(); // the next search (if already sent) is now the engine's
     settleOutstandingIfDrained();
   };
 
   /** Queues a record and posts `position` + the go command once the gates are open. */
-  const startJob = (record: SearchRecord, goCommand: string): void => {
+  const startJob = (record: SearchRecord, movetimeMs: number, goCommand: string): void => {
     outstanding.push(record);
     awaitGates()
       .then(() => {
@@ -286,6 +332,8 @@ export function createEngine(
         }
         post(`position fen ${record.fen}`);
         post(goCommand);
+        record.movetimeMs = movetimeMs;
+        if (outstanding[0] === record) armWatchdog();
       })
       .catch((err) => {
         console.error('search failed to start', err);
@@ -309,6 +357,7 @@ export function createEngine(
     },
 
     newGame(): void {
+      if (disposed) return;
       if (outstanding.length > 0) {
         console.error('ucinewgame while a search is outstanding — controller sequencing bug');
       }
@@ -333,8 +382,8 @@ export function createEngine(
       const result = new Promise<UciMove | null>((r) => {
         resolve = r;
       });
-      const record: SearchRecord = { fen, cancelled: false, resolveMove: resolve, lines: new Map(), multiPv: 1 };
-      startJob(record, `go depth ${limits.depth} movetime ${limits.movetimeMs}`);
+      const record: SearchRecord = { fen, cancelled: false, resolveMove: resolve, lines: new Map(), multiPv: 1, movetimeMs: null };
+      startJob(record, limits.movetimeMs, `go depth ${limits.depth} movetime ${limits.movetimeMs}`);
       return { fen, result };
     },
 
@@ -343,8 +392,8 @@ export function createEngine(
       const result = new Promise<PvLine[] | null>((r) => {
         resolve = r;
       });
-      const record: SearchRecord = { fen, cancelled: false, resolveLines: resolve, lines: new Map(), multiPv: limits.multiPv };
-      startJob(record, `go depth ${limits.depth} movetime ${limits.movetimeMs}`);
+      const record: SearchRecord = { fen, cancelled: false, resolveLines: resolve, lines: new Map(), multiPv: limits.multiPv, movetimeMs: null };
+      startJob(record, limits.movetimeMs, `go depth ${limits.depth} movetime ${limits.movetimeMs}`);
       return { fen, result };
     },
 
@@ -356,15 +405,7 @@ export function createEngine(
     },
 
     dispose(): void {
-      if (disposed) return;
-      disposed = true;
-      if (handshakeTimer !== null) clearTimeout(handshakeTimer);
-      worker?.terminate();
-      for (const record of outstanding.splice(0)) {
-        record.resolveMove?.(null);
-        record.resolveLines?.(null);
-      }
-      settleOutstandingIfDrained();
+      shutDown();
     },
   };
 }

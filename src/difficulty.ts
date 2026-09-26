@@ -9,6 +9,7 @@
  * release, 2026-09-13, docs/phase-7-plan.md M5). The numbers are an estimate to be tuned
  * by playing; this table is the single place to change them.
  */
+import { decimal } from './czech';
 import type { EngineOptions, SearchLimits } from './engine';
 
 export type DifficultyLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -68,7 +69,7 @@ export function interpolateDifficulty(x: number): Difficulty {
   if (topMoves > 1) options.multiPv = topMoves;
   return {
     level: Math.round(clamped) as DifficultyLevel,
-    label: `Kampaň (${clamped.toFixed(1)})`,
+    label: `Kampaň (${decimal(clamped, 1)})`,
     options,
     limits: { depth: lerp(lo.limits.depth, hi.limits.depth), movetimeMs: lerp(lo.limits.movetimeMs, hi.limits.movetimeMs) },
     topMoves,

@@ -4,7 +4,7 @@
  * When IndexedDB cannot be opened (private window, blocked or full storage) the store
  * degrades to an in-memory map for the session and says so through `persistent === false`.
  */
-import { STORE_USER_SETS as STORE, openDatabase, requestToPromise } from './db';
+import { STORE_USER_SETS as STORE, openDatabase, transact } from './db';
 
 export const PIECE_CODES = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'] as const;
 export type PieceCode = (typeof PIECE_CODES)[number];
@@ -47,8 +47,8 @@ export function newSetId(): string {
 /** Opens the store; never throws — falls back to memory with a console.warn. */
 export async function openUserSetStore(): Promise<UserSetStore> {
   try {
-    const db = await openDatabase();
-    return new IdbStore(db);
+    await openDatabase(); // probe: a failure means memory for the session
+    return new IdbStore();
   } catch (err) {
     console.warn('IndexedDB unavailable; user piece sets will last only for this session', err);
     return new MemoryStore();
@@ -57,22 +57,18 @@ export async function openUserSetStore(): Promise<UserSetStore> {
 
 class IdbStore implements UserSetStore {
   readonly persistent = true;
-  constructor(private readonly db: IDBDatabase) {}
 
   async list(): Promise<UserSet[]> {
-    const tx = this.db.transaction(STORE, 'readonly');
-    const all = await requestToPromise(tx.objectStore(STORE).getAll());
+    const all = await transact(STORE, 'readonly', (store) => store.getAll());
     return all.filter(isUserSet).sort((a, b) => a.createdAt - b.createdAt);
   }
 
   async save(set: UserSet): Promise<void> {
-    const tx = this.db.transaction(STORE, 'readwrite');
-    await requestToPromise(tx.objectStore(STORE).put(set));
+    await transact(STORE, 'readwrite', (store) => store.put(set));
   }
 
   async remove(id: string): Promise<void> {
-    const tx = this.db.transaction(STORE, 'readwrite');
-    await requestToPromise(tx.objectStore(STORE).delete(id));
+    await transact(STORE, 'readwrite', (store) => store.delete(id));
   }
 }
 

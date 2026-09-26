@@ -13,5 +13,8 @@
     "@cloudflare/workers-types": "^5.20260916.1",
     "typescript": "^5.9.0",
     "wrangler": "^4.133.0"
+  },
+  "dependencies": {
+    "chess.js": "1.4.0"
   }
 }

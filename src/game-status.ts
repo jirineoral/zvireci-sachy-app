@@ -17,7 +17,7 @@ export function gameStatus(chess: Chess): GameStatus {
   const sideToMove = chess.turn() === 'w' ? 'bílý' : 'černý';
   const winner = chess.turn() === 'w' ? 'černý' : 'bílý';
 
-  if (chess.isCheckmate()) return { over, text: `Šach mat — vyhrává ${winner}` };
+  if (chess.isCheckmate()) return { over, text: `Mat — vyhrává ${winner}` };
   if (chess.isStalemate()) return { over, text: 'Remíza — pat' };
   if (chess.isInsufficientMaterial()) return { over, text: 'Remíza — nedostatečný materiál' };
   if (chess.isThreefoldRepetition()) return { over, text: 'Remíza — trojí opakování' };

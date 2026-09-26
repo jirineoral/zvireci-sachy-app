@@ -3,7 +3,7 @@ import './styles/pieces.css';
 import './styles/app.css';
 import './styles/intro.css';
 
-import { createEngine } from './engine';
+import { createEngine, type Engine } from './engine';
 import { GameController } from './game-controller';
 import { initPieceSets, type ColorPreference, type PieceSetManager } from './piece-sets';
 import { setDifficultyLabels } from './ui/controls';
@@ -19,10 +19,10 @@ import { DEFAULT_POSITION } from 'chess.js';
 import { buildCampaignDialog } from './ui/campaign-dialog';
 import { dropPieces, readPieceDropSetting, writePieceDropSetting, type Announcement } from './ui/piece-drop';
 import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
-import { interpolateDifficulty, type Difficulty } from './difficulty';
+import { DEFAULT_DIFFICULTY, interpolateDifficulty, isDifficultyLevel, type Difficulty, type DifficultyLevel } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
-import { requireElement } from './ui/dom';
+import { guardDialog, requireElement } from './ui/dom';
 import { buildFriendPanel } from './ui/friend-panel';
 import { roomFromLocation } from './friend';
 import { startAnalytics } from './analytics';
@@ -64,7 +64,9 @@ app.innerHTML = `
       Když se v nich ztrácíš, přepni <i>Figurky</i> na <i>Klasické</i>.</p>
     </details>
     <div class="campaign-bar" hidden><span class="campaign-text"></span><button type="button" class="campaign-next" hidden></button><button type="button" class="campaign-open">Kampaň…</button></div>
-    <div class="status"></div>
+    <div class="status" role="status" aria-live="polite"></div>
+    <button type="button" class="engine-retry" hidden>Zkusit znovu</button>
+    <p class="save-error" role="alert" hidden></p>
     <div class="friend-bar" hidden></div>
     <div class="review-controls" hidden>
       <button type="button" class="review-first" aria-label="Na začátek">⏮</button>
@@ -82,6 +84,7 @@ app.innerHTML = `
     <div class="buttons">
       <button type="button" class="new-game">Nová hra</button>
       <button type="button" class="undo">Zpět</button>
+      <button type="button" class="resign" hidden>Vzdát</button>
       <button type="button" class="review" hidden>Rozbor</button>
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
@@ -92,11 +95,11 @@ app.innerHTML = `
     </div>
     <footer class="credits">
       <p class="mission">Pro děti napořád zdarma. Bez registrace; nic o tobě neukládáme, všechno zůstává v tomhle
-      prohlížeči (jen když sám načteš partie z chess.com nebo turnaj z Lichess, zeptá se jich). Při hře
-      s kamarádem projdou tahy přes náš server a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu
-      otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
+      prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
+      Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
+      a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
       <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
-      <p class="social-line">Sleduj nás: <a href="https://www.facebook.com/zvirecisachy" target="_blank" rel="noopener">Facebook</a> · <a href="https://www.youtube.com/@zvirecisachy" target="_blank" rel="noopener">YouTube</a></p>
+      <p class="social-line">Sleduj nás: <a href="https://www.facebook.com/zvirecisachy" target="_blank" rel="noopener">Facebook</a> · <a href="https://www.youtube.com/@zvirecisachy" target="_blank" rel="noopener">YouTube</a> · <a href="https://www.instagram.com/zvirecisachy/" target="_blank" rel="noopener">Instagram</a></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
@@ -115,6 +118,8 @@ app.innerHTML = `
   <dialog class="campaign-dialog"></dialog>
   <dialog class="broadcasts-dialog"></dialog>
 `;
+// Old browsers without <dialog> support get an inline fallback instead of a throwing button.
+for (const dialog of app.querySelectorAll('dialog')) guardDialog(dialog);
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
 // Byte size of stockfish-18-lite-single.wasm as shipped by stockfish@18.0.8. Used by the
@@ -125,18 +130,27 @@ const ENGINE_WASM_BYTES = 7_295_411;
 // the catch returns the default, and the stored setting is silently ignored).
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
 const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
+const DIFFICULTY_STORAGE_KEY = 'skm.difficulty';
+/** What the board holds, for the matchup line (a puzzle or an ending is never "two players"). */
+let boardMode: 'play' | 'puzzle' | 'training' = 'play';
 
 // The controller owns engine-failure handling (before and after the handshake). It is
-// constructed after the engine, hence the late binding.
+// constructed after the engine, hence the late binding. `Zkusit znovu` creates a new one.
 let controller: GameController | undefined;
-const engine = createEngine(
-  ENGINE_WORKER_URL,
-  (err) => {
-    if (controller) controller.engineFailed(err);
-    else console.error('Engine failed before the controller existed', err);
-  },
-  { expectedWasmBytes: ENGINE_WASM_BYTES },
-);
+function startEngine(): Engine {
+  const created: Engine = createEngine(
+    ENGINE_WORKER_URL,
+    (err) => {
+      if (controller) controller.engineFailed(err, created);
+      else console.error('Engine failed before the controller existed', err);
+    },
+    { expectedWasmBytes: ENGINE_WASM_BYTES },
+  );
+  return created;
+}
+const engine = startEngine();
+const engineRetryButton = requireElement<HTMLButtonElement>(app, '.engine-retry');
+engineRetryButton.addEventListener('click', () => controller?.retryEngine(startEngine()));
 
 const boardEl = requireElement<HTMLElement>(app, '.board');
 
@@ -165,6 +179,7 @@ controller = new GameController(
     },
     analyseButton: requireElement<HTMLButtonElement>(app, '.analyse'),
     evalBar: requireElement<HTMLElement>(app, '.eval-bar'),
+    resignButton: requireElement<HTMLButtonElement>(app, '.resign'),
   },
   engine,
   {
@@ -172,12 +187,16 @@ controller = new GameController(
     onFeedbackChange: writeFeedbackSetting,
     undoLimit: readUndoLimitSetting(),
     onUndoLimitChange: writeUndoLimitSetting,
+    difficulty: readDifficultySetting(),
+    onDifficultyChange: writeDifficultySetting,
+    confirmDiscard: () => confirmDiscard(requireElement<HTMLElement>(app, '.buttons')),
     // Voices, colour preference and the drawn pair live in the piece-set manager, which
     // loads after the controller exists (hence the late lookups).
     voiceOf: (color) => pieceSets?.animalOf(color) ?? null,
     nextColor: () => pieceSets?.drawColor() ?? 'w',
     twoPlayer: () => pieceSets?.colorPreference === 'two',
     onRemoteStart: (color) => {
+      boardMode = 'play';
       endgamePanel.close();
       pieceSets?.startGame(color);
       renderMatchup();
@@ -188,6 +207,7 @@ controller = new GameController(
       renderMatchup();
     },
     onNewGame: (color) => {
+      boardMode = 'play';
       endgamePanel.close();
       campaignHooks?.beforeNewGame();
       pieceSets?.startGame(color);
@@ -205,8 +225,9 @@ controller = new GameController(
       endgamePanel.onGameRecord(record);
     },
     onGameLoaded: (record) => {
-      const you = record.humanColor === 'w' ? ' (ty)' : '';
-      const them = record.humanColor === 'b' ? ' (ty)' : '';
+      const human = record.mode === 'two' ? null : record.humanColor; // two people: nobody is "ty"
+      const you = human === 'w' ? ' (ty)' : '';
+      const them = human === 'b' ? ' (ty)' : '';
       matchupEl.textContent = `Rozbor: ${record.white}${you} × ${record.black}${them} · ${RESULT_LABEL[record.result]}`;
     },
     onGameStart: () => {
@@ -214,13 +235,18 @@ controller = new GameController(
       return dropPieces(boardEl, announceEl, announcement());
     },
     onPuzzleStart: (color) => {
+      boardMode = 'puzzle';
       pieceSets?.startGame(color);
       renderMatchup();
     },
     onPuzzleResult: (result) => puzzlePanel.onResult(result),
     onTrainingStart: (color) => {
+      boardMode = 'training';
       pieceSets?.startGame(color);
       renderMatchup();
+    },
+    onEngineState: (state) => {
+      engineRetryButton.hidden = state !== 'failed';
     },
   },
 );
@@ -238,6 +264,17 @@ const endgamePanel = buildEndgamePanel({
     void game.newGame().catch((err) => console.error('newGame failed', err));
   },
 });
+// The endgame panel has its own `Hrát` / `Zpět do hry`: the green `Nová hra` beside them
+// would only confuse, so it steps aside while the panel is open.
+{
+  const container = requireElement<HTMLElement>(app, '.endgame-panel');
+  const newGameBtn = requireElement<HTMLButtonElement>(app, '.new-game');
+  const sync = (): void => {
+    newGameBtn.hidden = !container.hidden;
+  };
+  new MutationObserver(sync).observe(container, { attributes: true, attributeFilter: ['hidden'] });
+  sync();
+}
 requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', () => {
   requireElement<HTMLElement>(app, '.puzzle-panel').hidden = true;
   endgamePanel.open();
@@ -252,8 +289,10 @@ const friendPanel = buildFriendPanel({
     const p = pieceSets?.colorPreference;
     return p === 'w' || p === 'b' ? p : 'random';
   },
+  inProgress: () => game.anythingInProgress,
   start: (color, sans) => game.startRemoteGame(color, sans),
   applyMove: (san, ply) => game.applyRemoteMove(san, ply),
+  waiting: (on) => game.setRemoteWaiting(on),
   leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
 });
 {
@@ -330,7 +369,21 @@ function saveGame(record: GameRecord): Promise<void> {
     pendingRecords.push(record);
     return Promise.resolve();
   }
-  return gameStore.save(record).catch((err) => console.warn('Saving the game failed', err));
+  return gameStore.save(record).catch((err) => {
+    console.warn('Saving the game failed', err);
+    showSaveError('Partii se nepodařilo uložit — v prohlížeči je asi málo místa.');
+  });
+}
+const saveErrorEl = requireElement<HTMLElement>(app, '.save-error');
+let saveErrorTimer: number | undefined;
+/** A short note under the status line for the child; hides itself after a while. */
+function showSaveError(text: string): void {
+  saveErrorEl.textContent = text;
+  saveErrorEl.hidden = false;
+  window.clearTimeout(saveErrorTimer);
+  saveErrorTimer = window.setTimeout(() => {
+    saveErrorEl.hidden = true;
+  }, 10_000);
 }
 void openGameStore().then((store) => {
   gameStore = store;
@@ -438,7 +491,7 @@ function renderMatchup(): void {
     matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Kamarád (${COLOR_NAME[other]})`;
     return;
   }
-  if (manager.colorPreference === 'two') {
+  if (manager.colorPreference === 'two' && boardMode === 'play') {
     matchupEl.textContent = `Dva hráči · ${COLOR_NAME[manager.humanColor]}: ${me?.name ?? '?'} · ${COLOR_NAME[other]}: ${them?.name ?? '?'}`;
     return;
   }
@@ -496,8 +549,14 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
     render();
   });
   // Colour is a preference; changing it means a new game (the controller draws via nextColor).
-  sideSelect.addEventListener('change', () => {
-    manager.setColorPreference(sideSelect.value as ColorPreference);
+  sideSelect.addEventListener('change', async () => {
+    const wanted = sideSelect.value as ColorPreference;
+    if (!game.isRemote && game.gameInProgress) {
+      sideSelect.value = manager.colorPreference; // unchanged until the player confirms
+      if (!(await confirmDiscard(sideSelect.closest('label') ?? sideSelect))) return;
+      sideSelect.value = wanted;
+    }
+    manager.setColorPreference(wanted);
     if (!game.isRemote) void game.newGame().catch((err) => console.error('newGame failed', err)); // a friend game keeps its colours
     render();
   });
@@ -694,6 +753,63 @@ function writeUndoLimitSetting(limit: number | null): void {
   }
 }
 
+/** The selected level (1–7); anything else stored reads as the default. */
+function readDifficultySetting(): DifficultyLevel {
+  try {
+    const v = Number(window.localStorage.getItem(DIFFICULTY_STORAGE_KEY));
+    return isDifficultyLevel(v) ? v : DEFAULT_DIFFICULTY;
+  } catch {
+    return DEFAULT_DIFFICULTY;
+  }
+}
+
+function writeDifficultySetting(level: DifficultyLevel): void {
+  try {
+    window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, String(level));
+  } catch (err) {
+    console.warn('Could not persist the difficulty setting', err);
+  }
+}
+
+// A game in progress is not thrown away unasked (Nová hra, a colour change): a small
+// question under `anchor`, answered in the page (no window.confirm). One at a time.
+let pendingConfirm: ((ok: boolean) => void) | null = null;
+function confirmDiscard(anchor: Element): Promise<boolean> {
+  pendingConfirm?.(false);
+  return new Promise((resolve) => {
+    const bar = document.createElement('div');
+    bar.className = 'confirm-bar';
+    bar.setAttribute('role', 'alertdialog');
+    const text = document.createElement('p');
+    text.textContent = 'Opravdu ukončit rozehranou partii?';
+    const yes = document.createElement('button');
+    yes.type = 'button';
+    yes.className = 'confirm-yes';
+    yes.textContent = 'Ano, ukončit';
+    const no = document.createElement('button');
+    no.type = 'button';
+    no.className = 'confirm-no';
+    no.textContent = 'Ne, hrát dál';
+    bar.append(text, yes, no);
+    const done = (ok: boolean): void => {
+      if (pendingConfirm !== done) return;
+      pendingConfirm = null;
+      bar.remove();
+      resolve(ok);
+    };
+    pendingConfirm = done;
+    yes.addEventListener('click', () => done(true));
+    no.addEventListener('click', () => done(false));
+    anchor.after(bar);
+    bar.scrollIntoView({ block: 'nearest' });
+    no.focus({ preventScroll: true });
+  });
+}
+// A reload or a closed tab would lose the game too: let the browser ask.
+window.addEventListener('beforeunload', (e) => {
+  if (game.gameInProgress) e.preventDefault();
+});
+
 function writeFeedbackSetting(enabled: boolean): void {
   try {
     window.localStorage.setItem(FEEDBACK_STORAGE_KEY, enabled ? 'on' : 'off');
@@ -718,9 +834,10 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
-// Compact panel on narrow screens: once the first move is played, fold the settings and
-// the move list away; a new game unfolds the settings again. Pure view logic driven by
-// the rendered move list, so the controller stays unaware of it.
+// Compact panel: once the first move is played, fold the settings away (on every width —
+// the move list needs the room beside the board) and, on narrow screens, the move list
+// too; a new game unfolds the settings again. Pure view logic driven by the rendered move
+// list, so the controller stays unaware of it.
 const settingsPanel = requireElement<HTMLDetailsElement>(app, '.settings');
 const movesPanel = requireElement<HTMLDetailsElement>(app, '.moves');
 const movesSummary = requireElement<HTMLElement>(app, '.moves-summary');
@@ -729,18 +846,19 @@ const narrow = window.matchMedia('(max-width: 899px)');
 let lastPlies = -1;
 
 function syncPanels(): void {
-  const sans = Array.from(moveListEl.querySelectorAll('li span:not(.move-number)'))
-    .map((el) => el.textContent ?? '')
+  // Only the moves themselves (their glyph is a nested span), read without the glyph.
+  const sans = Array.from(moveListEl.querySelectorAll<HTMLElement>('li > span.san'))
+    .map((el) => el.dataset.san ?? '')
     .filter((t) => t.length > 0);
   const plies = sans.length;
   movesSummary.textContent = plies === 0 ? '' : `(${plies}) … ${sans[plies - 1]}`;
-  if (narrow.matches && plies !== lastPlies) {
+  if (plies !== lastPlies) {
     if (lastPlies <= 0 && plies > 0) {
-      settingsPanel.open = false; // game started: make room for the board
-      movesPanel.open = false;
+      settingsPanel.open = false; // game started: make room for the board / the move list
+      if (narrow.matches) movesPanel.open = false;
     } else if (plies === 0) {
       settingsPanel.open = true; // new game: settings matter again
-      movesPanel.open = false;
+      if (narrow.matches) movesPanel.open = false;
     }
   }
   lastPlies = plies;
@@ -749,8 +867,8 @@ function syncPanels(): void {
 new MutationObserver(syncPanels).observe(moveListEl, { childList: true, subtree: true, characterData: true });
 narrow.addEventListener('change', () => {
   if (!narrow.matches) {
-    settingsPanel.open = true; // wide layout has room for everything
-    movesPanel.open = true;
+    settingsPanel.open = lastPlies <= 0;
+    movesPanel.open = true; // the wide layout always shows the moves
   } else {
     settingsPanel.open = lastPlies === 0;
     movesPanel.open = false;

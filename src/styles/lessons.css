@@ -362,3 +362,36 @@
     flex-wrap: wrap;
   }
 }
+
+/* Lesson mode (#app.lesson-mode): the lesson owns the board; nothing from a game shows. */
+#app.lesson-mode .matchup,
+#app.lesson-mode .campaign-bar,
+#app.lesson-mode .moves,
+#app.lesson-mode .review-controls,
+#app.lesson-mode .analyse,
+#app.lesson-mode .spectator .bubble,
+#app.lesson-mode .spectator .captured,
+#app.lesson-mode .buttons .new-game,
+#app.lesson-mode .buttons .undo,
+#app.lesson-mode .buttons .resign,
+#app.lesson-mode .buttons .review {
+  display: none !important;
+}
+
+/* `Lekce`: the front door for beginners, first of the mode buttons. */
+.buttons .lessons {
+  border-color: #c9a86a;
+  background: #4a3f2a;
+}
+
+.buttons .lessons:hover:not(:disabled) {
+  background: #5a4d33;
+}
+
+/* Phones: the board stacks above the panel — keep the teacher's bubble close to it. */
+@media (max-width: 899px) {
+  #app.lesson-mode .settings,
+  #app.lesson-mode .legend {
+    display: none !important;
+  }
+}

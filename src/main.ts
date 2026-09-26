@@ -26,6 +26,13 @@ import { guardDialog, requireElement } from './ui/dom';
 import { buildFriendPanel } from './ui/friend-panel';
 import { roomFromLocation } from './friend';
 import { startAnalytics } from './analytics';
+import { COURSE } from './lessons/course';
+import { markLessonDone, readLessonProgress, setTeacher, type LessonProgress } from './lessons/progress';
+import type { Lesson, PracticePointer } from './lessons/types';
+import { buildCourseMap } from './ui/course-map';
+import { createChessgroundLessonBoard, type ChessgroundLessonBoard } from './ui/lesson-board';
+import { buildLessonPanel, OWL, teacherInfo } from './ui/lesson-panel';
+import { promptPromotion } from './ui/promotion-dialog';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 
@@ -77,6 +84,7 @@ app.innerHTML = `
     <button type="button" class="analyse" hidden>Analyzovat partii</button>
     <div class="puzzle-panel" hidden></div>
     <div class="endgame-panel" hidden></div>
+    <div class="lesson-panel" hidden></div>
     <details class="moves" open>
       <summary>Tahy <span class="moves-summary"></span></summary>
       <ol class="move-list"></ol>
@@ -86,6 +94,7 @@ app.innerHTML = `
       <button type="button" class="undo">Zpět</button>
       <button type="button" class="resign" hidden>Vzdát</button>
       <button type="button" class="review" hidden>Rozbor</button>
+      <button type="button" class="lessons">Lekce</button>
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
       <button type="button" class="endgames">Koncovky</button>
@@ -117,6 +126,7 @@ app.innerHTML = `
   <dialog class="games-dialog"></dialog>
   <dialog class="campaign-dialog"></dialog>
   <dialog class="broadcasts-dialog"></dialog>
+  <dialog class="course-map"></dialog>
 `;
 // Old browsers without <dialog> support get an inline fallback instead of a throwing button.
 for (const dialog of app.querySelectorAll('dialog')) guardDialog(dialog);
@@ -132,7 +142,7 @@ const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
 const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 const DIFFICULTY_STORAGE_KEY = 'skm.difficulty';
 /** What the board holds, for the matchup line (a puzzle or an ending is never "two players"). */
-let boardMode: 'play' | 'puzzle' | 'training' = 'play';
+let boardMode: 'play' | 'puzzle' | 'training' | 'lesson' = 'play';
 
 // The controller owns engine-failure handling (before and after the handshake). It is
 // constructed after the engine, hence the late binding. `Zkusit znovu` creates a new one.
@@ -248,6 +258,7 @@ controller = new GameController(
     onEngineState: (state) => {
       engineRetryButton.hidden = state !== 'failed';
     },
+    onLessonEnd: () => endLessonView(),
   },
 );
 
@@ -276,7 +287,7 @@ const endgamePanel = buildEndgamePanel({
   sync();
 }
 requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', () => {
-  requireElement<HTMLElement>(app, '.puzzle-panel').hidden = true;
+  puzzlePanel.close();
   endgamePanel.open();
 });
 
@@ -355,6 +366,109 @@ requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', () 
   endgamePanel.close();
   puzzlePanel.open();
 });
+
+// ---- Lessons (Phase 21a / R6) ------------------------------------------------------------
+// `Lekce` opens the course map; a lesson runs on the main board through the lesson board
+// adapter (the controller is in lesson mode and neither syncs the board nor starts the
+// engine). Progress lives in `skm.lessons`; nothing leaves the browser.
+const lessonsButton = requireElement<HTMLButtonElement>(app, '.lessons');
+let lessonProgress: LessonProgress = readLessonProgress(safeLocalStorage());
+let lessonBoard: ChessgroundLessonBoard | null = null;
+
+/** The child's library character teaches and names the pieces; null with classic / own sets. */
+function lessonAnimalId(): string | null {
+  return pieceSets?.isLibrary ? pieceSets.animal : null;
+}
+function lessonTeacherImage(id: string): string | null {
+  return pieceSets?.characterImage(id, 'light', 'K') ?? null;
+}
+function lessonStatusText(lesson: Lesson): string {
+  const total = COURSE.find((l) => l.level === lesson.level)?.lessons.length ?? lesson.number;
+  return `Lekce ${lesson.number}/${total}: ${lesson.title}`;
+}
+function markDone(lesson: Lesson): void {
+  lessonProgress = markLessonDone(safeLocalStorage(), lessonProgress, lesson.id);
+}
+
+const lessonPanel = buildLessonPanel({
+  container: requireElement<HTMLElement>(app, '.lesson-panel'),
+  teacher: () => teacherInfo(lessonProgress.teacher, lessonAnimalId(), lessonTeacherImage),
+  askPromotion: (color) => promptPromotion(requireElement<HTMLDialogElement>(app, '.promotion-dialog'), color),
+  onLessonDone: markDone,
+  onKnowIt: markDone,
+  onBackToMap: () => courseMap.open(),
+  onLeave: () => {
+    endLessonView();
+    void game.leaveLesson().catch((err) => console.error('leaveLesson failed', err));
+  },
+  onPractice: (pointer) => void practise(pointer),
+  onNextLesson: (lesson) => void openLesson(lesson),
+});
+
+const courseMap = buildCourseMap({
+  dialog: requireElement<HTMLDialogElement>(app, '.course-map'),
+  progress: () => lessonProgress,
+  teachers: () => {
+    const id = lessonAnimalId();
+    return { owl: OWL, animal: id ? teacherInfo('animal', id, lessonTeacherImage) : null };
+  },
+  currentLesson: () => lessonPanel.current,
+  start: (lesson) => void openLesson(lesson),
+  markDone,
+  setTeacher: (teacher) => {
+    lessonProgress = setTeacher(safeLocalStorage(), lessonProgress, teacher);
+    if (lessonPanel.current) lessonPanel.refreshTeacher();
+  },
+});
+lessonsButton.addEventListener('click', () => courseMap.open());
+
+/** Hands the board to a lesson (asking first when a game would be thrown away). */
+async function openLesson(lesson: Lesson): Promise<void> {
+  if (!game.inLesson && (game.gameInProgress || (game.isRemote && game.anythingInProgress))) {
+    if (!(await confirmDiscard(requireElement<HTMLElement>(app, '.buttons')))) return;
+  }
+  const hadTraining = endgamePanel.current !== null;
+  puzzlePanel.close();
+  endgamePanel.close();
+  if (hadTraining) await game.setDifficultyOverride(campaignHooks?.currentDifficulty() ?? null).catch((err) => console.error('setDifficultyOverride failed', err));
+  const api = await game.startLesson(lessonStatusText(lesson));
+  if (!api) return; // superseded by another mode meanwhile
+  boardMode = 'lesson';
+  pieceSets?.startGame('w'); // the child's character on the white pieces, as the lessons say
+  renderMatchup();
+  lessonBoard ??= createChessgroundLessonBoard(api, {
+    onMove: (from, to) => lessonPanel.input({ type: 'move', from, to }),
+    onSquare: (square) => lessonPanel.input({ type: 'square', square }),
+  });
+  app.classList.add('lesson-mode');
+  settingsPanel.open = false; // room for the teacher's bubble
+  lessonPanel.start(lesson, lessonBoard, { animalId: lessonAnimalId() });
+}
+
+/** Lesson view off: the board's own handlers back, the panel hidden (idempotent). */
+function endLessonView(): void {
+  lessonBoard?.detach();
+  lessonBoard = null;
+  lessonPanel.close();
+  app.classList.remove('lesson-mode');
+  if (boardMode === 'lesson') boardMode = 'play';
+}
+
+/** A practice pointer at the end of a lesson: a game at a level, filtered puzzles, an ending. */
+async function practise(pointer: PracticePointer): Promise<void> {
+  endLessonView();
+  if (pointer.kind === 'play') {
+    const level = pointer.level;
+    if (isDifficultyLevel(level)) await game.setDifficulty(level).catch((err) => console.error('setDifficulty failed', err));
+    await game.leaveLesson().catch((err) => console.error('leaveLesson failed', err));
+  } else if (pointer.kind === 'puzzles') {
+    endgamePanel.close();
+    puzzlePanel.open({ band: pointer.band, theme: pointer.theme ?? null });
+  } else {
+    puzzlePanel.close();
+    endgamePanel.open(pointer.id);
+  }
+}
 
 // Tournament broadcasts (Phase 16): Lichess, read-only, nothing stored.
 const broadcasts = buildBroadcastsDialog({ dialog: requireElement<HTMLDialogElement>(app, '.broadcasts-dialog'), open: (r) => game.loadGame(r) });
@@ -489,6 +603,10 @@ function renderMatchup(): void {
   const other = manager.humanColor === 'w' ? 'b' : 'w';
   if (game.isRemote) {
     matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Kamarád (${COLOR_NAME[other]})`;
+    return;
+  }
+  if (boardMode === 'lesson') {
+    matchupEl.textContent = '';
     return;
   }
   if (manager.colorPreference === 'two' && boardMode === 'play') {

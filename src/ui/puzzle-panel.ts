@@ -3,7 +3,7 @@
  * status line while puzzle mode is active. The panel owns the loaded set and the
  * progress; the controller owns the board.
  */
-import { bandCounts, loadPuzzleSet, nextPuzzle, puzzleIsPlayable, readProgress, writeProgress, PuzzleLoadError, type Puzzle, type PuzzleProgress, type PuzzleSet } from '../puzzles';
+import { bandCounts, loadPuzzleSet, nextPuzzle, puzzleIsPlayable, readProgress, themeNames, themesInBand, writeProgress, PuzzleLoadError, type Puzzle, type PuzzleProgress, type PuzzleSet } from '../puzzles';
 
 export interface PuzzlePanelDeps {
   container: HTMLElement;
@@ -17,9 +17,18 @@ export interface PuzzlePanelDeps {
   leave: () => void;
 }
 
+/** Phase 21a: a lesson's practice pointer preselects the band and the theme. */
+export interface PuzzleSelection {
+  band?: string;
+  /** A Lichess theme tag; null = all themes. */
+  theme?: string | null;
+}
+
 export interface PuzzlePanel {
-  /** Opens the panel (loading the set on first use) and starts a puzzle. */
-  open: () => void;
+  /** Opens the panel (loading the set on first use) and starts a puzzle; `selection` preselects band/theme. */
+  open: (selection?: PuzzleSelection) => void;
+  /** Hides the panel without leaving (another mode took the board). */
+  close: () => void;
   /** Called by the controller's puzzle events. */
   onResult: (result: 'wrong' | 'correct' | 'solved') => void;
 }
@@ -31,6 +40,8 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
 
   const bandSelect = document.createElement('select');
   bandSelect.className = 'puzzle-band';
+  const themeSelect = document.createElement('select');
+  themeSelect.className = 'puzzle-theme';
   const nextBtn = button('Další úloha', 'puzzle-next');
   const hintBtn = button('Nápověda', 'puzzle-hint');
   const leaveBtn = button('Zpět do hry', 'puzzle-leave');
@@ -39,7 +50,7 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
   const message = el('div', '', 'puzzle-msg');
   const row1 = document.createElement('div');
   row1.className = 'puzzle-row';
-  row1.append(labelled('Obtížnost', bandSelect), nextBtn, hintBtn, leaveBtn);
+  row1.append(labelled('Obtížnost', bandSelect), labelled('Téma', themeSelect), nextBtn, hintBtn, leaveBtn);
   container.append(row1, info, progress, message);
 
   let set: PuzzleSet | null = null;
@@ -71,6 +82,7 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
           progressState = readProgress(deps.storage, loaded);
           bandSelect.replaceChildren(...loaded.bands.map((b) => new Option(`${b.label} (${b.min}–${b.max})`, b.id)));
           bandSelect.value = progressState.band;
+          renderThemes();
         })
         .catch((err: unknown) => {
           loading = null;
@@ -80,13 +92,23 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
     return loading;
   };
 
+  /** The theme select for the current band; a theme the band lacks falls back to "všechna témata". */
+  const renderThemes = (): void => {
+    if (!set || !progressState) return;
+    const state = progressState;
+    const themes = themesInBand(set, state.band);
+    if (state.theme !== null && !themes.some((t) => t.tag === state.theme)) state.theme = null;
+    themeSelect.replaceChildren(new Option('všechna témata', ''), ...themes.map((t) => new Option(`${t.label} (${t.count})`, t.tag)));
+    themeSelect.value = state.theme ?? '';
+  };
+
   const startNext = async (): Promise<void> => {
     if (!set || !progressState) return;
     let puzzle = nextPuzzle(set, progressState, current?.id ?? null);
     let guard = 0;
     while (puzzle && !puzzleIsPlayable(puzzle) && guard++ < 20) puzzle = nextPuzzle(set, progressState, puzzle.id);
     if (!puzzle) {
-      setMessage('V téhle obtížnosti nejsou žádné úlohy.', true);
+      setMessage('V téhle obtížnosti a tématu nejsou žádné úlohy.', true);
       return;
     }
     current = puzzle;
@@ -100,6 +122,13 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
   bandSelect.addEventListener('change', () => {
     if (!progressState) return;
     progressState.band = bandSelect.value;
+    renderThemes();
+    writeProgress(deps.storage, progressState);
+    void startNext();
+  });
+  themeSelect.addEventListener('change', () => {
+    if (!progressState) return;
+    progressState.theme = themeSelect.value === '' ? null : themeSelect.value;
     writeProgress(deps.storage, progressState);
     void startNext();
   });
@@ -114,14 +143,27 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
   });
 
   return {
-    open(): void {
+    open(selection?: PuzzleSelection): void {
       container.hidden = false;
       setMessage('Načítám úlohy…');
       ensureLoaded()
-        .then(() => startNext())
+        .then(() => {
+          if (selection && set && progressState) {
+            if (selection.band && set.bands.some((b) => b.id === selection.band)) progressState.band = selection.band;
+            if (selection.theme !== undefined) progressState.theme = selection.theme;
+            bandSelect.value = progressState.band;
+            renderThemes();
+            writeProgress(deps.storage, progressState);
+          }
+          return startNext();
+        })
         .catch((err: unknown) => {
           setMessage(err instanceof PuzzleLoadError ? err.message : 'Úlohy se nepodařilo načíst.', true);
         });
+    },
+    close(): void {
+      container.hidden = true;
+      current = null;
     },
     onResult(result): void {
       if (!current || !set || !progressState) return;
@@ -138,65 +180,6 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
       }
     },
   };
-}
-
-/**
- * Czech names of Lichess puzzle themes, most telling first. Tags missing here (length,
- * "crushing", "master", rare mate patterns…) are not shown at all.
- */
-const THEME_NAMES: readonly (readonly [string, string])[] = [
-  ['mateIn1', 'mat 1. tahem'],
-  ['mateIn2', 'mat 2. tahem'],
-  ['mateIn3', 'mat 3. tahem'],
-  ['mateIn4', 'mat 4. tahem'],
-  ['mateIn5', 'mat 5. tahem'],
-  ['backRankMate', 'mat na poslední řadě'],
-  ['smotheredMate', 'dušený mat'],
-  ['arabianMate', 'arabský mat'],
-  ['anastasiaMate', 'Anastasiin mat'],
-  ['mate', 'mat'],
-  ['fork', 'vidlička'],
-  ['pin', 'vazba'],
-  ['skewer', 'rentgen'],
-  ['discoveredAttack', 'odtažný útok'],
-  ['discoveredCheck', 'odtažný šach'],
-  ['doubleCheck', 'dvojitý šach'],
-  ['hangingPiece', 'nechráněná figurka'],
-  ['trappedPiece', 'chycená figurka'],
-  ['sacrifice', 'oběť'],
-  ['attraction', 'vlákání'],
-  ['deflection', 'odlákání'],
-  ['capturingDefender', 'odstranění obránce'],
-  ['clearance', 'uvolnění cesty'],
-  ['interference', 'přerušení'],
-  ['intermezzo', 'mezitah'],
-  ['quietMove', 'tichý tah'],
-  ['defensiveMove', 'obranný tah'],
-  ['promotion', 'proměna'],
-  ['advancedPawn', 'daleko postoupený pěšec'],
-  ['enPassant', 'braní mimochodem'],
-  ['castling', 'rošáda'],
-  ['kingsideAttack', 'útok na krále'],
-  ['queensideAttack', 'útok na dámském křídle'],
-  ['attackingF2F7', 'útok na f2/f7'],
-  ['exposedKing', 'odkrytý král'],
-  ['pawnEndgame', 'pěšcová koncovka'],
-  ['rookEndgame', 'věžová koncovka'],
-  ['bishopEndgame', 'střelcová koncovka'],
-  ['knightEndgame', 'jezdcová koncovka'],
-  ['queenEndgame', 'dámská koncovka'],
-  ['queenRookEndgame', 'koncovka s dámou a věží'],
-  ['endgame', 'koncovka'],
-  ['middlegame', 'střední hra'],
-  ['opening', 'zahájení'],
-];
-
-/** The puzzle's themes as Czech names; "mat" and "koncovka" only when nothing more exact is known. */
-function themeNames(themes: readonly string[]): string[] {
-  const known = THEME_NAMES.filter(([tag]) => themes.includes(tag)).map(([tag]) => tag);
-  const exactMate = known.some((t) => t.startsWith('mateIn') || t.endsWith('Mate'));
-  const exactEndgame = known.some((t) => t.endsWith('Endgame'));
-  return THEME_NAMES.filter(([tag]) => known.includes(tag) && !(tag === 'mate' && exactMate) && !(tag === 'endgame' && exactEndgame)).map(([, name]) => name);
 }
 
 function el(tag: string, text: string, className?: string): HTMLElement {

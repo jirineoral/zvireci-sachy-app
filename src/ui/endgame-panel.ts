@@ -15,7 +15,8 @@ export interface EndgamePanelDeps {
 }
 
 export interface EndgamePanel {
-  open: () => void;
+  /** Opens the panel and starts the selected position (or `id`, e.g. from a lesson's practice pointer). */
+  open: (id?: string) => void;
   /** Hides the panel and forgets the training (a new game / puzzle took over). */
   close: () => void;
   /** The training in progress, or null. */
@@ -93,7 +94,8 @@ export function buildEndgamePanel(deps: EndgamePanelDeps): EndgamePanel {
     get current() {
       return current;
     },
-    open(): void {
+    open(id?: string): void {
+      if (id && ENDGAMES.some((e) => e.id === id)) select.value = id;
       container.hidden = false;
       message.textContent = '';
       void start(selected());

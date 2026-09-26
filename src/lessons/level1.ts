@@ -660,7 +660,7 @@ export const LEVEL1: readonly Lesson[] = [
     outro: 'Umíš pěšce! Teď už znáš všechny figurky. Zkus si zahrát první partii.',
     practice: [
       { kind: 'play', level: 1, label: 'Zahraj si partii proti nejslabšímu soupeři' },
-      { kind: 'puzzles', band: 'zacatecnik', theme: 'oneMove', count: 5, label: 'Úlohy na jeden tah (začátečník)' },
+      { kind: 'puzzles', band: 'zacatecnik', theme: 'hangingPiece', count: 5, label: 'Úlohy: seber nechráněnou figurku' },
     ],
   },
 ];

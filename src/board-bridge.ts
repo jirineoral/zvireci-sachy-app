@@ -51,6 +51,11 @@ function glyphBadge(glyph: Glyph): string {
 
 export interface BoardBridge {
   sync(chess: Chess, opts: BoardSyncOptions): void;
+  /**
+   * Phase 21a: the chessground instance, for the lesson board (src/ui/lesson-board.ts),
+   * which drives it directly while the controller is in lesson mode and does not sync.
+   */
+  readonly api: Api;
 }
 
 export function createBoardBridge(
@@ -80,6 +85,7 @@ export function createBoardBridge(
   });
 
   return {
+    api,
     sync(chess: Chess, opts: BoardSyncOptions): void {
       const lastMove = chess.history({ verbose: true }).at(-1);
 

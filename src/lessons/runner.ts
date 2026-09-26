@@ -13,6 +13,7 @@
  * a dropped piece → `{ type: 'move' }`, a clicked square → `{ type: 'square' }`.
  */
 import { Chess, type Color, type Square } from 'chess.js';
+import { plural } from '../czech';
 import { attackersOf, findKing, moved, parsePlacement, placementOf, pseudoTargets, rankOf } from './geometry';
 import { PIECE_NAMES, resolveText, tookVerb, type TextContext } from './text';
 import type { ChooseStep, CollectStep, Lesson, LessonStep, MoveStep, PieceType, PracticePointer, Shape } from './types';
@@ -427,7 +428,7 @@ function onCollect(step: CollectStep, state: StepState, from: Square, to: Square
 }
 
 export function movesWord(n: number): string {
-  return n === 1 ? 'tah' : n >= 2 && n <= 4 ? 'tahy' : 'tahů';
+  return plural(n, 'tah', 'tahy', 'tahů');
 }
 
 // --- choose steps --------------------------------------------------------------------

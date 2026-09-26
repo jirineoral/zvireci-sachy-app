@@ -29,6 +29,8 @@ export interface PuzzleSet {
 
 export interface PuzzleProgress {
   band: string;
+  /** Phase 21a: only puzzles with this Lichess theme tag (null = all themes). */
+  theme: string | null;
   /** puzzle id → attempts needed (1 = first try). */
   solved: Record<string, number>;
 }
@@ -90,7 +92,7 @@ export function puzzleIsPlayable(p: Puzzle): boolean {
 }
 
 export function readProgress(storage: Storage | null, set: PuzzleSet): PuzzleProgress {
-  const fallback: PuzzleProgress = { band: set.bands[Math.min(1, set.bands.length - 1)].id, solved: {} };
+  const fallback: PuzzleProgress = { band: set.bands[Math.min(1, set.bands.length - 1)].id, theme: null, solved: {} };
   let raw: string | null = null;
   try {
     raw = storage?.getItem(PUZZLES_STORAGE_KEY) ?? null;
@@ -110,7 +112,8 @@ export function readProgress(storage: Storage | null, set: PuzzleSet): PuzzlePro
         if (Object.keys(solved).length > set.puzzles.length) break;
       }
     }
-    return { band, solved };
+    const theme = typeof o.theme === 'string' && THEME_LABELS.has(o.theme) ? o.theme : null;
+    return { band, theme, solved };
   } catch {
     console.warn('Stored puzzle progress is unreadable; starting over');
     return fallback;
@@ -125,10 +128,15 @@ export function writeProgress(storage: Storage | null, progress: PuzzleProgress)
   }
 }
 
-/** A random unsolved puzzle of the band (all solved → any puzzle of the band). */
-export function nextPuzzle(set: PuzzleSet, progress: PuzzleProgress, exclude: string | null = null): Puzzle | null {
+/** The puzzles of the progress's band (and theme, when one is chosen). */
+function inSelection(set: PuzzleSet, progress: PuzzleProgress): Puzzle[] {
   const band = set.bands.find((b) => b.id === progress.band) ?? set.bands[0];
-  const inBand = set.puzzles.filter((p) => p.rating >= band.min && p.rating <= band.max && p.id !== exclude);
+  return set.puzzles.filter((p) => p.rating >= band.min && p.rating <= band.max && (progress.theme === null || p.themes.includes(progress.theme)));
+}
+
+/** A random unsolved puzzle of the band and theme (all solved → any of them). */
+export function nextPuzzle(set: PuzzleSet, progress: PuzzleProgress, exclude: string | null = null): Puzzle | null {
+  const inBand = inSelection(set, progress).filter((p) => p.id !== exclude);
   if (inBand.length === 0) return null;
   const fresh = inBand.filter((p) => !(p.id in progress.solved));
   const pool = fresh.length > 0 ? fresh : inBand;
@@ -137,7 +145,80 @@ export function nextPuzzle(set: PuzzleSet, progress: PuzzleProgress, exclude: st
 
 export function bandCounts(set: PuzzleSet, progress: PuzzleProgress): { solved: number; total: number; label: string } {
   const band = set.bands.find((b) => b.id === progress.band) ?? set.bands[0];
-  const inBand = set.puzzles.filter((p) => p.rating >= band.min && p.rating <= band.max);
-  const solved = inBand.filter((p) => p.id in progress.solved).length;
-  return { solved, total: inBand.length, label: band.label };
+  const selection = inSelection(set, progress);
+  const solved = selection.filter((p) => p.id in progress.solved).length;
+  const theme = progress.theme !== null ? THEME_LABELS.get(progress.theme) : undefined;
+  return { solved, total: selection.length, label: theme ? `${band.label} · ${theme}` : band.label };
+}
+
+/** The named themes present in a band, in THEME_NAMES order, with their puzzle counts. */
+export function themesInBand(set: Pick<PuzzleSet, 'bands' | 'puzzles'>, bandId: string): { tag: string; label: string; count: number }[] {
+  const band = set.bands.find((b) => b.id === bandId) ?? set.bands[0];
+  const counts = new Map<string, number>();
+  for (const p of set.puzzles) {
+    if (p.rating < band.min || p.rating > band.max) continue;
+    for (const t of p.themes) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return THEME_NAMES.filter(([tag]) => (counts.get(tag) ?? 0) > 0).map(([tag, label]) => ({ tag, label, count: counts.get(tag) ?? 0 }));
+}
+
+/**
+ * Czech names of Lichess puzzle themes, most telling first. Tags missing here (length,
+ * "crushing", "master", rare mate patterns…) are not shown at all and cannot be filtered on.
+ */
+export const THEME_NAMES: readonly (readonly [string, string])[] = [
+  ['mateIn1', 'mat 1. tahem'],
+  ['mateIn2', 'mat 2. tahem'],
+  ['mateIn3', 'mat 3. tahem'],
+  ['mateIn4', 'mat 4. tahem'],
+  ['mateIn5', 'mat 5. tahem'],
+  ['backRankMate', 'mat na poslední řadě'],
+  ['smotheredMate', 'dušený mat'],
+  ['arabianMate', 'arabský mat'],
+  ['anastasiaMate', 'Anastasiin mat'],
+  ['mate', 'mat'],
+  ['fork', 'vidlička'],
+  ['pin', 'vazba'],
+  ['skewer', 'rentgen'],
+  ['discoveredAttack', 'odtažný útok'],
+  ['discoveredCheck', 'odtažný šach'],
+  ['doubleCheck', 'dvojšach'],
+  ['hangingPiece', 'nechráněná figurka'],
+  ['trappedPiece', 'chycená figurka'],
+  ['sacrifice', 'oběť'],
+  ['attraction', 'vlákání'],
+  ['deflection', 'odlákání'],
+  ['capturingDefender', 'odstranění obránce'],
+  ['clearance', 'uvolnění cesty'],
+  ['interference', 'přerušení'],
+  ['intermezzo', 'mezitah'],
+  ['quietMove', 'tichý tah'],
+  ['defensiveMove', 'obranný tah'],
+  ['promotion', 'proměna'],
+  ['advancedPawn', 'daleko postoupený pěšec'],
+  ['enPassant', 'braní mimochodem'],
+  ['castling', 'rošáda'],
+  ['kingsideAttack', 'útok na krále'],
+  ['queensideAttack', 'útok na dámském křídle'],
+  ['attackingF2F7', 'útok na f2/f7'],
+  ['exposedKing', 'odkrytý král'],
+  ['pawnEndgame', 'pěšcová koncovka'],
+  ['rookEndgame', 'věžová koncovka'],
+  ['bishopEndgame', 'střelcová koncovka'],
+  ['knightEndgame', 'jezdcová koncovka'],
+  ['queenEndgame', 'dámská koncovka'],
+  ['queenRookEndgame', 'koncovka s dámou a věží'],
+  ['endgame', 'koncovka'],
+  ['middlegame', 'střední hra'],
+  ['opening', 'zahájení'],
+];
+
+export const THEME_LABELS: ReadonlyMap<string, string> = new Map(THEME_NAMES.map(([tag, label]) => [tag, label]));
+
+/** The puzzle's themes as Czech names; "mat" and "koncovka" only when nothing more exact is known. */
+export function themeNames(themes: readonly string[]): string[] {
+  const known = THEME_NAMES.filter(([tag]) => themes.includes(tag)).map(([tag]) => tag);
+  const exactMate = known.some((t) => t.startsWith('mateIn') || t.endsWith('Mate'));
+  const exactEndgame = known.some((t) => t.endsWith('Endgame'));
+  return THEME_NAMES.filter(([tag]) => known.includes(tag) && !(tag === 'mate' && exactMate) && !(tag === 'endgame' && exactEndgame)).map(([, name]) => name);
 }

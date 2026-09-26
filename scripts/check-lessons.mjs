@@ -25,6 +25,7 @@ const { COURSE } = await import('../src/lessons/course.ts');
 const { parsePlacement, pseudoTargets, attackersOf, findKing, moved, isSquare } = await import('../src/lessons/geometry.ts');
 const { resolveText, placeholdersIn, PIECE_NAMES } = await import('../src/lessons/text.ts');
 const { ENDGAMES } = await import('../src/endgames.ts');
+const { THEME_LABELS } = await import('../src/puzzles.ts');
 
 const MAX_SENTENCE_WORDS = 15;
 const errors = [];
@@ -351,6 +352,7 @@ function checkPractice(p) {
   } else if (p.kind === 'puzzles') {
     const band = puzzleData.bands.find((b) => b.id === p.band);
     if (!band) return err(`practice: unknown puzzle band "${p.band}"`);
+    if (p.theme && !THEME_LABELS.has(p.theme)) err(`practice: theme "${p.theme}" has no Czech label, the puzzle panel cannot filter on it`);
     const pool = puzzleData.puzzles.filter((r) => r[3] >= band.min && r[3] <= band.max && (!p.theme || r[4].split(' ').includes(p.theme)));
     if (pool.length < (p.count ?? 1)) err(`practice: band ${p.band} theme ${p.theme} has only ${pool.length} puzzles`);
     notes.push(`${where}: practice puzzles ${p.band}/${p.theme ?? '*'}: ${pool.length} available`);

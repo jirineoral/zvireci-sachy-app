@@ -63,6 +63,8 @@ export interface LessonPanel {
   input: (event: LessonInput) => void;
   /** Hides the panel and forgets the lesson (does not touch the board). */
   close: () => void;
+  /** Re-reads `deps.teacher()` (the teacher was switched in the course map). */
+  refreshTeacher: () => void;
   readonly current: Lesson | null;
 }
 
@@ -218,6 +220,23 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     deps.onLeave();
   });
 
+  const paintTeacher = (): void => {
+    const t = deps.teacher();
+    teacherName.textContent = t.name;
+    avatar.replaceChildren();
+    if (t.image) {
+      const img = document.createElement('img');
+      img.src = t.image;
+      img.alt = '';
+      img.width = 56;
+      img.height = 56;
+      img.decoding = 'async';
+      avatar.append(img);
+    } else {
+      avatar.textContent = t.emoji;
+    }
+  };
+
   const close = (): void => {
     container.hidden = true;
     lesson = null;
@@ -232,25 +251,13 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
       runner = createLessonRunner(l, ctx);
       doneReported = false;
       busy = false;
-      const t = deps.teacher();
-      teacherName.textContent = t.name;
-      avatar.replaceChildren();
-      if (t.image) {
-        const img = document.createElement('img');
-        img.src = t.image;
-        img.alt = '';
-        img.width = 56;
-        img.height = 56;
-        img.decoding = 'async';
-        avatar.append(img);
-      } else {
-        avatar.textContent = t.emoji;
-      }
+      paintTeacher();
       container.hidden = false;
       render(runner.view);
     },
     input,
     close,
+    refreshTeacher: paintTeacher,
     get current() {
       return lesson;
     },

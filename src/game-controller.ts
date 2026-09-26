@@ -10,6 +10,7 @@
  * pending search *and* was computed for the current position.
  */
 import { Chess, DEFAULT_POSITION, type Color, type Square } from 'chess.js';
+import type { Api } from '@lichess-org/chessground/api';
 import {
   createBoardBridge,
   toBoardColor,
@@ -102,6 +103,11 @@ export interface GameControllerOptions {
   onDifficultyChange: (level: DifficultyLevel) => void;
   /** `Nová hra` would throw away a game in progress: the view asks first; false = keep playing. */
   confirmDiscard: () => Promise<boolean>;
+  /**
+   * Phase 21a: lesson mode ended because another mode took the board (`Nová hra`, a puzzle,
+   * a friend's link…) — the view detaches the lesson board and hides the lesson panel.
+   */
+  onLessonEnd?: () => void;
 }
 
 /** Glyphs the child's king comments on during play (the review comments on all of them). */
@@ -197,6 +203,12 @@ export class GameController {
   private training = false;
   /** `Vzdát` was clicked once; a second click within RESIGN_CONFIRM_MS resigns. */
   private resignArmed: number | null = null;
+  /**
+   * Phase 21a: a lesson runs on the board — the lesson board drives chessground directly,
+   * so the controller neither syncs the board nor starts the engine; it only shows this
+   * text in the status line. Null = no lesson.
+   */
+  private lessonStatus: string | null = null;
 
   constructor(
     private readonly els: GameControllerElements,
@@ -262,6 +274,7 @@ export class GameController {
   async newGame(): Promise<void> {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
+    this.endLesson();
     this.leaveRemote();
     this.twoPlayer = this.options.twoPlayer();
     this.humanColor = this.twoPlayer ? 'w' : this.options.nextColor();
@@ -288,6 +301,7 @@ export class GameController {
   async startTraining(fen: string, humanColor: Color): Promise<void> {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
+    this.endLesson();
     this.chess.load(fen);
     this.plies = [];
     this.preMove = null;
@@ -312,6 +326,7 @@ export class GameController {
   async startRemoteGame(humanColor: Color, sans: readonly string[]): Promise<'playing' | 'over' | 'broken'> {
     const t = await this.beginTransition();
     if (t !== this.transition) return 'broken';
+    this.endLesson();
     // The room holds what the other seat sent; only chess.js decides whether it is a game.
     const replay = new Chess();
     try {
@@ -455,10 +470,77 @@ export class GameController {
     this.options.onRemoteEnd();
   }
 
+  /**
+   * Phase 21a: hands the board to a lesson. Stops any search/analysis/piece drop, drops a
+   * puzzle, training, review or friend game, and resets the game underneath (the caller
+   * has asked before discarding a game in progress). Returns the chessground instance for
+   * the lesson board, or null when a newer transition superseded this one.
+   */
+  async startLesson(status: string): Promise<Api | null> {
+    const t = await this.beginTransition();
+    if (t !== this.transition) return null;
+    this.leaveRemote();
+    this.clearPuzzle();
+    this.disarmResign();
+    this.chess.reset();
+    this.plies = [];
+    this.preMove = null;
+    this.record = null;
+    this.reviewPly = null;
+    this.resigned = false;
+    this.training = false;
+    this.twoPlayer = false;
+    this.humanColor = 'w';
+    this.started = false;
+    this.lessonStatus = status;
+    this.renderLessonChrome();
+    return this.board.api;
+  }
+
+  /** Phase 21a: the status line while a lesson runs (e.g. another lesson started). */
+  setLessonStatus(status: string): void {
+    if (this.lessonStatus === null) return;
+    this.lessonStatus = status;
+    this.renderLessonChrome();
+  }
+
+  get inLesson(): boolean {
+    return this.lessonStatus !== null;
+  }
+
+  /** Phase 21a: leaves the lesson for a fresh pre-game (the view detached the lesson board first). */
+  async leaveLesson(): Promise<void> {
+    await this.newGame(); // newGame ends lesson mode and re-syncs the board
+  }
+
+  private endLesson(): void {
+    if (this.lessonStatus === null) return;
+    this.lessonStatus = null;
+    this.options.onLessonEnd?.();
+  }
+
+  /** Lesson mode: the lesson owns the board; the rest of the view shows no game at all. */
+  private renderLessonChrome(): void {
+    const status = this.status();
+    renderMoveList(this.els.moveList, [], [], null, false);
+    renderStatus(this.els.status, { status, engine: 'ready', puzzle: this.lessonStatus });
+    this.renderControls();
+    this.els.newGameButton.textContent = 'Nová hra';
+    this.els.newGameButton.classList.remove('start');
+    this.renderResign(status);
+    this.els.reviewButton.hidden = true;
+    renderReviewControls(this.els.reviewControls, { active: false, ply: 0, plies: 0 });
+    this.els.analyseButton.hidden = true;
+    renderEvalBar(this.els.evalBar, { visible: false, cp: null, orientation: 'white' });
+    const material = capturedMaterial(new Chess(), this.chess);
+    renderSpectators(this.els.spectators, { humanColor: 'w', bubbles: { white: null, black: null }, outcome: null, material });
+  }
+
   /** Starts a puzzle (Phase 10): the opponent's first move plays itself after a beat. */
   async startPuzzle(fen: string, moves: string[]): Promise<void> {
     const t = await this.beginTransition();
     if (t !== this.transition) return;
+    this.endLesson();
     this.chess.load(fen);
     this.plies = [];
     this.preMove = null;
@@ -600,6 +682,7 @@ export class GameController {
     if (replayRecord(record) === null) return false;
     const t = await this.beginTransition();
     if (t !== this.transition) return false;
+    this.endLesson();
     this.leaveRemote();
     this.chess.load(record.startFen);
     for (const san of record.sans) this.chess.move(san);
@@ -669,7 +752,7 @@ export class GameController {
 
   /** `Hrát`: the set-up game begins — after the piece drop, if the view runs one — the engine opens if it has white. */
   startPlaying(): void {
-    if (this.started) return;
+    if (this.started || this.lessonStatus !== null) return;
     this.started = true;
     const drop = this.options.onGameStart(this.humanColor);
     if (!drop) {
@@ -1158,6 +1241,10 @@ export class GameController {
 
   /** Sync + render + (maybe) start the engine. */
   private afterPositionChange(): void {
+    if (this.lessonStatus !== null) {
+      this.renderLessonChrome(); // the lesson owns the board; the engine stays out
+      return;
+    }
     const status = this.status();
     this.syncBoard(status);
     this.render(status);
@@ -1175,6 +1262,10 @@ export class GameController {
 
   /** Sync + render only — used while thinking or while the dialog is open. */
   private refreshView(): void {
+    if (this.lessonStatus !== null) {
+      this.renderLessonChrome();
+      return;
+    }
     const status = this.status();
     this.syncBoard(status);
     this.render(status);

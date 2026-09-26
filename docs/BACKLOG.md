@@ -546,7 +546,7 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
   discards the reply (`THINK_PAUSE_MS` in `game-controller.ts`).
 - **P7 DONE 2026-09-18 — `člověk` had `Velmistr` twice** (level 5 and the ladder's level 7):
   levels are now Batole · Školák · Učeň · Kandidát · Mistr · Král šachu · Velmistr.
-- **P8 DONE 2026-09-26 (branch `review-win-chances`) — Move feedback called "??" in decided
+- **P8 FIX 2026-09-26 (branch `review-win-chances`, on dev.zvirecisachy.cz; public after the son tests it) — Move feedback called "??" in decided
   positions** (owner's son): a mate two moves later than possible, being mated two moves
   sooner than necessary, or losing a knight with two rooks up / down all read as `Hrubá
   chyba`. Causes: `??` fired at ≥ 300 cp lost regardless of the eval (the "decided" escape

@@ -266,7 +266,9 @@ test('back / goTo / next refused on an unsolved task', () => {
 });
 
 // 2b. Level 2: every task step also gets a wrong answer (explained, never a bare „špatně“).
-for (const lesson of COURSE.find((l) => l.level === 2)?.lessons ?? []) {
+// Level tests are one-attempt (phase goes straight to stepDone, no retry) and are covered
+// separately in section 8 (takeExam), so they are skipped here.
+for (const lesson of (COURSE.find((l) => l.level === 2)?.lessons ?? []).filter((l) => !l.test)) {
   test(`${lesson.id}: wrong answers explained`, () => {
     let tasks = 0;
     for (const [i, step] of lesson.steps.entries()) {
@@ -545,11 +547,12 @@ test('mini: the weak picker is beatable through the runner (careful beginner, 10
 
 // 8. Level test.
 const exam = byId('l1-zkouska');
+const exam2 = byId('l2-zkouska');
 /** Answers the test: `wrongAt` = step ids answered wrongly. Returns the final view. */
-function takeExam(wrongAt) {
-  const r = createLessonRunner(exam, { animalId: null });
+function takeExam(wrongAt, lesson = exam) {
+  const r = createLessonRunner(lesson, { animalId: null });
   let v = r.view;
-  for (const step of exam.steps) {
+  for (const step of lesson.steps) {
     const wrong = wrongAt.includes(step.id);
     if (step.kind === 'choose') {
       const opt = step.options.find((o) => (wrong ? !step.correct.includes(o.id) : step.correct.includes(o.id)));
@@ -625,6 +628,31 @@ test('progress: a passed test marks done, test and badge', () => {
   p = progress.markTestPassed(s, p, exam);
   assert.deepEqual(progress.readLessonProgress(s), { done: { 'l1-zkouska': true }, tests: { l1: true }, badges: { l1: true }, teacher: 'owl' });
   assert.equal(progress.markTestPassed(s, p, byId('l1-vez')), p, 'not a test: nothing');
+});
+
+test('level 2 test: 10/10, 8/10 pass; 7/10 fails with its own outro and no practice; restart', () => {
+  let { r, v } = takeExam([], exam2);
+  assert.deepEqual(v.test, { correct: 10, answered: 10, total: 10, passScore: 8, passed: true });
+  ({ v } = takeExam(['notation', 'vazba'], exam2));
+  assert.equal(v.test.correct, 8);
+  assert.equal(v.test.passed, true);
+  assert.equal(v.outro, exam2.outro);
+  ({ r, v } = takeExam(['notation', 'vazba', 'zahajeni'], exam2));
+  assert.equal(v.phase, 'lessonDone');
+  assert.deepEqual(v.test, { correct: 7, answered: 10, total: 10, passScore: 8, passed: false });
+  assert.equal(v.outro, exam2.test.failOutro);
+  assert.deepEqual(v.practice, []);
+  v = r.dispatch({ type: 'restart' });
+  assert.equal(v.stepIndex, 0);
+  assert.equal(v.phase, 'task');
+  assert.deepEqual(v.test, { correct: 0, answered: 0, total: 10, passScore: 8, passed: null });
+});
+
+test('progress: a passed level 2 test marks its own done/test/badge id', () => {
+  const s = fakeStorage();
+  let p = progress.readLessonProgress(s);
+  p = progress.markTestPassed(s, p, exam2);
+  assert.deepEqual(progress.readLessonProgress(s), { done: { 'l2-zkouska': true }, tests: { l2: true }, badges: { l2: true }, teacher: 'owl' });
 });
 
 test('diploma name: stored only when remembered, cleaned', () => {

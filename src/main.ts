@@ -22,7 +22,7 @@ import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgr
 import { interpolateDifficulty, type Difficulty } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
 import { buildIntroPool } from './intro/pool';
-import { requireElement } from './ui/dom';
+import { guardDialog, requireElement } from './ui/dom';
 import { buildFriendPanel } from './ui/friend-panel';
 import { roomFromLocation } from './friend';
 import { startAnalytics } from './analytics';
@@ -117,6 +117,8 @@ app.innerHTML = `
   <dialog class="campaign-dialog"></dialog>
   <dialog class="broadcasts-dialog"></dialog>
 `;
+// Old browsers without <dialog> support get an inline fallback instead of a throwing button.
+for (const dialog of app.querySelectorAll('dialog')) guardDialog(dialog);
 
 const ENGINE_WORKER_URL = `${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`;
 // Byte size of stockfish-18-lite-single.wasm as shipped by stockfish@18.0.8. Used by the

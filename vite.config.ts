@@ -50,7 +50,7 @@ function csp(analytics: boolean, friendWs: string): string {
   ].join('; ');
 }
 
-/** Cloudflare Web Analytics site token for zvirecisachy.cz (public: it only identifies the site to count for). */
+/** Cloudflare Web Analytics site token for zvirecisachy.cz (public: it only identifies the site to count for). The beacon itself is loaded by src/analytics.ts (owner opt-out). */
 const CF_BEACON_TOKEN = '827f2cbd704d40b0bd3917ac4c481f2e';
 
 function cspMeta(analytics: boolean, friendWs: string): Plugin {
@@ -58,15 +58,7 @@ function cspMeta(analytics: boolean, friendWs: string): Plugin {
     name: 'skm-csp-meta',
     apply: 'build',
     transformIndexHtml() {
-      const tags = [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp(analytics, friendWs) }, injectTo: 'head-prepend' as const }];
-      if (analytics) {
-        tags.push({
-          tag: 'script',
-          attrs: { defer: true, src: 'https://static.cloudflareinsights.com/beacon.min.js', 'data-cf-beacon': JSON.stringify({ token: CF_BEACON_TOKEN }) },
-          injectTo: 'body' as const,
-        } as never);
-      }
-      return tags;
+      return [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp(analytics, friendWs) }, injectTo: 'head-prepend' as const }];
     },
   };
 }
@@ -85,6 +77,7 @@ export default defineConfig(({ mode }) => ({
   define: {
     __FRIEND_WS__: JSON.stringify(friendWs(mode)),
     __BUILD_STAMP__: JSON.stringify(buildStamp()),
+    __CF_BEACON_TOKEN__: JSON.stringify(mode === 'pages' ? CF_BEACON_TOKEN : ''),
     // `--mode devsite` = the dev.zvirecisachy.cz build: banner in the footer, feedback link hidden
     // (test builds must not mix into the pilot's feedback), otherwise identical.
     __DEV_SITE__: JSON.stringify(mode === 'devsite'),

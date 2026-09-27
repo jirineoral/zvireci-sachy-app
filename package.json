@@ -14,6 +14,7 @@
     "build:dev-site": "tsc --noEmit && vite build --base / --mode devsite",
     "publish:dev-site": "npm run build:dev-site && node scripts/publish-pages.mjs %USERPROFILE%/zvireci-sachy-dev && node scripts/push-pages.mjs %USERPROFILE%/zvireci-sachy-dev \"dev site\"",
     "check:lessons": "node scripts/check-lessons.mjs",
+    "check:endgames": "node scripts/check-endgames.mjs",
     "test:lessons": "node scripts/test-lesson-runner.mjs"
   },
   "dependencies": {

@@ -227,11 +227,19 @@ nothing has been measured, and a made-up number is worse than none.
 
 ## Endgame training
 
-`Koncovky` sets up one of 17 textbook endgames (`src/endgames.ts`: mates with queen, rook,
-two rooks, two bishops, bishop + knight; pawn endings; Lucena, Philidor; queen and rook
-against a pawn) with a goal — win it, or hold the draw — against the engine at full
-strength. Every position was checked with Stockfish at depth 22 before it went in.
-Progress lives in the browser (`skm.endgames`).
+`Koncovky` sets up a textbook endgame position against the engine at full strength, with
+a goal — win it, or hold the draw. 78 positions are grouped category → type → 6–7
+positions of increasing difficulty (`src/endgames.ts`, `docs/phase-23-plan.md`): **Maty**
+(dáma a král, věž a král, dvě věže, dva střelci, střelec a jezdec — pro odvážné),
+**Pěšcové koncovky** (král a pěšec, pravidlo čtverce, průlom), **Věžové koncovky**
+(Lucena, Philidor, věž proti pěšci), **Dáma proti pěšci**. Most ladders were generated
+programmatically (random legal placement or, for Lucena/Philidor, a template around the
+known motif) and picked to spread evenly across the tablebase's mate distance (or, for
+draw goals, how forgiving the position is). Every position is checked by
+`scripts/check-endgames.mjs` (`npm run check:endgames`): the Lichess tablebase for
+positions with 7 pieces or fewer, local Stockfish at depth 20 otherwise. Progress lives
+in the browser (`skm.endgames`), per position; a solved position keeps a ✓ and `Další
+pozice` jumps to the next one in its type.
 
 ## Campaign
 

@@ -70,6 +70,32 @@ procedurally generated, so there's no single fixed square to point a hint at) ex
 the two draw-exception tail rungs (`kp-draw`, `qvap`), which reuse their original,
 hand-written hints.
 
+## Phase 23c — chess review of the ladders (rev. 3)
+
+A ~2200 player / kids' coach pass over all 78 generated positions (tablebase lines and
+per-move breakdowns, Stockfish MultiPV for Průlom). Pure DTM / safe-ratio ordering let
+through positions that were true but taught the wrong thing, so the recipe above is
+superseded where it clashes with this:
+
+- **Wrong type**: `lucena-1..3` were a mate in 1, a hanging rook and a king-walk (no bridge);
+  `philidor-3/5` had the rook en prise with the king in the corner; `ctverec-1..3` were a
+  hanging pawn / rook-pawn corner, not a pawn race; all six old `prulom-*` were 3-v-3 pawn
+  chains *in contact* (the win was a plain capture, `exd5`), not a sacrificial break;
+  `dama-pesec-typ-1/2/4/5` and `vez-pesec-1` had the pawn irrelevant or hanging.
+- **Now**: Lucena = bridge steps backwards from "block the check" to the full position;
+  Philidor = rook to the 6th → keep it there → drop back when the pawn reaches the 6th →
+  only-move check from behind; Pravidlo čtverce = pawn races only, incl. the two-square
+  pawn step; Průlom = 2-v-1 breaks, then the classic 3-v-3 `b6!`/`g6!` with the defending
+  king ever closer (only one winning move from rung 3 on).
+- **Mate types** got real mate-in-1 first rungs (two bishops, bishop + knight), `kr` (king
+  already on the edge) moves before the two from-the-centre rungs.
+- **Hints** are written per position (several generic tier hints suggested a wrong plan,
+  e.g. "don't hurry with the pawn" where only the pawn run wins).
+- `check-endgames.mjs`: tablebase requests throttled (≤ 3/s, 60 s back-off on 429), the
+  reply count for win goals now counts winning moves only, and > 7-piece win positions are
+  proven by a 3-ply lookahead into the tablebase (single-PV Stockfish at depth 20 scored the
+  classic `b6!` breakthrough as 0.00).
+
 ## UI (`src/ui/endgame-panel.ts`)
 
 Exported `EndgamePanel` interface (`open`, `close`, `current`, `onGameRecord`) is

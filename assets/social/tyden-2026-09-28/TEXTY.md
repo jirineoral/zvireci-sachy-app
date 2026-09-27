@@ -8,15 +8,17 @@ Materiál v každé složce: `feed-*.jpg` (4:5, FB/IG karusel), `story-*.jpg` (9
 
 | Den | Čas | Příspěvek |
 |---|---|---|
-| Po 28. 9. (svátek) | 17:00 | 1 — Šachy, kde hrají zvířátka |
-| St 30. 9. | 18:00 | 2 — Nově: lekce se sovou |
-| Pá 2. 10. | 17:00 | 3 — Zahraj si s kamarádem |
+| Út 29. 9. | 8:00 | 1 — Šachy, kde hrají zvířátka |
+| Čt 1. 10. | 8:00 | 2 — Nově: lekce se sovou |
+| Pá 2. 10. | 8:00 | 3 — Zahraj si s kamarádem |
+
+(Majitel 2026-09-27: ráno v pracovní dny; Po 28. 9. je svátek.)
 
 ---
 
 ## 1 — Šachy, kde hrají zvířátka (`1-zviratka/`)
 
-**Facebook** (karusel feed-1…4 + feed-konec)
+**Facebook** (karusel feed-1…3 + feed-konec)
 > Šachy, kde místo figurek hrají kůzlata, žáby, kočky nebo žížaly. 🐸♟️
 > Hraješ proti počítači od úplného začátečníka až po velmistra a král ti po každé chybě poradí, co zkusit příště. V kampani postupně porazíš všech 18 zvířátek.
 > Zdarma, bez registrace, na mobilu i počítači 👉 https://zvirecisachy.cz

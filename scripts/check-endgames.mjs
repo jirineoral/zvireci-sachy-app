@@ -55,15 +55,31 @@ async function tablebaseResult(fen) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`tablebase HTTP ${res.status}`);
   const data = await res.json();
-  return { category: data.category, dtm: data.dtm, dtz: data.dtz };
+  return { category: data.category, dtm: data.dtm, dtz: data.dtz, moves: data.moves };
+}
+
+/**
+ * Among the human's legal replies, how many keep the goal (win-or-better / draw-or-better)?
+ * A low count relative to the total is "only-move-ish" — the ladder's difficulty signal for
+ * draw goals (few safe replies = precise defence needed), reported alongside DTM for wins.
+ */
+function safeMoveCount(moves, goal) {
+  if (!moves) return null;
+  // `category` on each candidate move is from the reply side's perspective (the position
+  // after the human's move, i.e. the engine's turn) — "loss" there is good for the human.
+  const safe = moves.filter((m) => m.category === 'loss' || m.category === 'draw').length;
+  return { safe, total: moves.length };
 }
 
 async function checkWithTablebase(e) {
-  const { category, dtm, dtz } = await tablebaseResult(e.fen);
+  const { category, dtm, dtz, moves } = await tablebaseResult(e.fen);
   const ok = e.goal === 'win' ? category === 'win' : category === 'win' || category === 'draw';
   if (!ok) err(`tablebase category "${category}" does not match goal "${e.goal}"`);
   const dist = dtm ?? dtz;
-  return `tablebase: ${category}${dist !== null && dist !== undefined ? `, dtm/dtz ${dist}` : ''}`;
+  const distStr = dist !== null && dist !== undefined ? `, dtm/dtz ${dist}` : '';
+  const safe = safeMoveCount(moves, e.goal);
+  const safeStr = safe ? `, ${safe.safe}/${safe.total} replies keep the goal` : '';
+  return `tablebase: ${category}${distStr}${safeStr}`;
 }
 
 // ---------------------------------------------------------------------------- engine

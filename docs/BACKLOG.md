@@ -709,3 +709,23 @@ panel (solved/wrong) and the lesson panel (correct/wrong step) without touching 
 logic. No CSP change: audio loads by `fetch()` to a same-origin path, already covered by
 the existing `connect-src 'self'` — see `docs/security-review.md`, 2026-09-27 entry.
 README: "Sounds" section. Merge to main when ready; not yet published.
+
+## U1 — Review a optimalizace UI (owner, 2026-09-27) — OPEN
+
+Za poslední dny přibylo hodně funkcí (lekce v 5 úrovních, koncovky v kategoriích, úlohy s tématy,
+kampaň, hra s kamarádem, zvuky, vzdát/odveta, diplom…) a každá si přidala svoje tlačítko, panel
+nebo nastavení. Cíl: celkový pohled na rozhraní a jeho zjednodušení, hlavně pro malé děti a mobil.
+
+Návrh postupu:
+- **Nezávislá UX recenze** (subagenti, Opus): proklikat appku jako dítě 6–8 let (neumí číst),
+  10letý hráč a rodič, na mobilu i počítači; zmapovat všechna tlačítka, panely a nastavení.
+- **Informační architektura:** kolik tlačítek je na hlavní obrazovce, co patří do menu; jasný
+  „první krok“ pro nováčka (Lekce vs. Hrát); sjednotit panely (lekce, úlohy, koncovky, kampaň,
+  kamarád) — stejné rozložení, stejná tlačítka Zpět/Dál.
+- **Nastavení:** 10+ položek v jednom seznamu — seskupit (hra / pomocníci / vzhled / zvuk),
+  rozumné výchozí hodnoty, méně voleb na očích.
+- **Mobil:** délka stránky pod deskou, velikost tlačítek, co je vidět bez posouvání.
+- **Pro nečtenáře:** ikony vedle textu, zvuk (sova čte nahlas — varianta a/b z 2026-09-27).
+- **Vizuální konzistence:** barvy, typografie, okraje; dark/light.
+- Výstup: seznam změn seřazený podle dopadu, pak implementace po malých krocích, každý krok
+  ověřený v prohlížeči a otestovaný se synem.

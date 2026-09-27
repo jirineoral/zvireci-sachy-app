@@ -28,8 +28,8 @@ export interface TeacherInfo {
   emoji: string;
 }
 
-/** The owl has no drawing yet (B9): an emoji in a circle. */
-export const OWL: TeacherInfo = { name: 'Sova', image: null, emoji: '🦉' };
+/** The owl teacher (assets/source/sovi_trenerka.png → public/lessons/sova.webp, 512 px); the emoji if the image fails. */
+export const OWL: TeacherInfo = { name: 'Sova', image: `${import.meta.env.BASE_URL}lessons/sova.webp`, emoji: '🦉' };
 
 /**
  * The teacher to show. `animalId` is the child's library character (null for classic /

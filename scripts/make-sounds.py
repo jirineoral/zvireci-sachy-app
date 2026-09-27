@@ -97,9 +97,9 @@ def render(name: str, dur: float, fn) -> None:
         v = fn(t, i, noise)
         raw.append(v)
         peak = max(peak, abs(v))
-    # Normalise to a gentle -6 dBFS ceiling (the app also plays everything at low volume
-    # by default; headroom here just avoids clipping on the loudest sound in the set).
-    target = 0.5
+    # Normalise to -1 dBFS: the cues are short and soft by design, so they need full level to be
+    # heard on laptop/phone speakers (the first version at -6 dBFS x 0.5 was inaudible in practice).
+    target = 0.89
     gain = target / peak
     for v in raw:
         s = max(-1.0, min(1.0, v * gain))

@@ -140,7 +140,7 @@ async function loadBuffer(name: SoundName): Promise<AudioBuffer | null> {
 }
 
 /** Plays `name` at a gentle default volume if sounds are on, unlocked and the file decoded. Never throws. */
-export function play(name: SoundName, volume = 0.5): void {
+export function play(name: SoundName, volume = 0.9): void {
   try {
     if (!state || !state.unlocked || !state.ctx || !state.enabled()) return;
     const ctx = state.ctx;

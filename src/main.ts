@@ -238,7 +238,7 @@ controller = new GameController(
       campaignHooks?.afterGame(record);
       endgamePanel.onGameRecord(record);
       if (record.humanColor !== null && record.result !== '*') {
-        if (record.result === '1/2-1/2') play('loss', 0.4); // a draw: same gentle cue as a loss, never a fanfare
+        if (record.result === '1/2-1/2') play('loss', 0.7); // a draw: same gentle cue as a loss, never a fanfare
         else if ((record.result === '1-0') === (record.humanColor === 'w')) play('win');
         else play('loss');
       }
@@ -262,7 +262,7 @@ controller = new GameController(
     onPuzzleResult: (result) => {
       puzzlePanel.onResult(result);
       if (result === 'solved') play('puzzle-solved');
-      else if (result === 'wrong') play('lesson-wrong', 0.35); // same soft, non-buzzer cue as a lesson mistake
+      else if (result === 'wrong') play('lesson-wrong', 0.7); // same soft, non-buzzer cue as a lesson mistake
     },
     onMove: ({ mine, capture, check }) => {
       if (check) play('check');

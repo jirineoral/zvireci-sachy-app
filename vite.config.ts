@@ -36,6 +36,11 @@ function buildStamp(): string {
  *    static.cloudflareinsights.com and its POST to cloudflareinsights.com. It counts page
  *    views and visits per day without cookies, fingerprinting or a visitor id (Cloudflare's
  *    "privacy-first" analytics) — the one third-party script the site loads, and only there.
+ *  - No `media-src` entry: sound effects (`src/sounds.ts`, `public/sounds/`) load with
+ *    `fetch()` + `decodeAudioData`, never an `<audio>`/`<video>` element, so they are
+ *    governed by `connect-src` (already `'self'`) rather than `media-src`. Add `media-src
+ *    'self'` here — it would otherwise fall back to `default-src 'none'` and be blocked —
+ *    if a future change plays sound through an `<audio src>`/`<video src>` instead.
  */
 function csp(analytics: boolean, friendWs: string): string {
   return [

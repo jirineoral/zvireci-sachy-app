@@ -762,3 +762,29 @@ on read · 5–6 not re-run in a browser in this review (no network or CSP chang
 the expected files · 8 GPL text ships. `npx tsc --noEmit`, `npm run build`,
 `npm run test:lessons` (141 passed) green after the fixes. Verdict: **safe to release** once
 owner item 1 is done (or consciously skipped); items 2–3 are hardening that can follow.
+
+### 2026-09-27 — sound effects (branch `feat-sounds`)
+- **New same-origin media, no new host.** Ten short `.ogg`/`.m4a` files (≈ 50 kB total)
+  under `public/sounds/`, synthesised from scratch by `scripts/make-sounds.py` (stdlib
+  `wave`/`math` sine waves and filtered noise; ffmpeg transcodes to Opus/AAC when present,
+  else plain WAV) — own work, no third-party audio, no `THIRD-PARTY-NOTICES` entry needed.
+- **No CSP change.** `src/sounds.ts` loads them with `fetch()` + `decodeAudioData` (never
+  an `<audio>`/`<video>` element), so the relevant directive is `connect-src`, not
+  `media-src` — and `connect-src 'self' …` already covers a same-origin path. `media-src`
+  would only be needed if a future change added `<audio src>`/`<video src>` playback,
+  which falls back to `default-src 'none'` (blocked) without it.
+- **Fails silently by design.** `initSounds`/`play()` wrap every step (AudioContext
+  creation, fetch, decode, `start()`) in `try/catch`; a blocked AudioContext, a 404, an
+  undecodable format or an old browser without Web Audio all just mean no sound, never a
+  thrown error. Nothing plays before the first `pointerdown`/`keydown` (autoplay rules;
+  also keeps the intro splash silent), and `play()` re-checks the `Zvuky` setting
+  (`skm.sounds`, garbage → default on) on every call.
+- **New localStorage key `skm.sounds`**: `'on'`/`'off'` only meaningfully read (anything
+  else including garbage defaults to on), same pattern as `skm.pieceDrop`/`skm.intro`.
+- **Nothing is sent.** Sound choice/volume never leaves the browser; no analytics event,
+  no new fetch target beyond the same-origin sound files.
+- `npx tsc --noEmit`, `npm run build`, `npm run test:lessons` (141 passed) green. Verified
+  in a browser (dev server, port 5185): the ten files fetch and decode after the first
+  click (network tab all 200), no console errors across page load / gesture / setting
+  toggle / reload-persistence / a played move and engine reply / a new piece-drop start.
+  Not yet merged to `main` or deployed.

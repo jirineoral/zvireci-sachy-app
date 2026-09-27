@@ -181,6 +181,25 @@ them) under a `KŮZLATA vs. HADI` announcement — `soupeř 7 z 18` in the campa
 click or key skips it; the engine waits for it. Setting `Nástup figurek` (`skm.pieceDrop`);
 reduced motion shows the announcement only.
 
+## Sounds
+
+Short, soft, low-volume cues for own move, the opponent's move, a capture, check, a win,
+a loss/draw (gentle, never mocking), a solved puzzle, a correct/wrong lesson step and the
+piece drop at kickoff. `src/sounds.ts` fetches same-origin files from `public/sounds/` and
+decodes them with the Web Audio API (`decodeAudioData`); nothing plays until the first
+`pointerdown`/`keydown` on the page (iOS/Safari autoplay rules — this also keeps the intro
+splash silent until the child has actually touched something), and any failure (blocked
+audio, an old browser, a bad fetch) is swallowed silently — a missing sound effect must
+never break the game. Setting `Zvuky` (`skm.sounds`, default on).
+
+The files are synthesised, not recorded or downloaded: `python scripts/make-sounds.py`
+regenerates all ten from sine waves and filtered noise (stdlib `wave` + `math` only) into
+`public/sounds/` — own work, same licence as the code (see that script's header). It
+writes `.ogg` (Opus, for Chrome/Firefox) and `.m4a` (AAC, the fallback Safari/iOS
+actually plays) when `ffmpeg` is on `PATH`, or a plain `.wav` otherwise; `sounds.ts` tries
+`.ogg`, then `.m4a`, then `.wav`, so either output works. The whole set is ≈ 50 kB.
+Re-run the script and commit the changed files under `public/sounds/` after editing it.
+
 ## chess.com import
 
 In `Partie`, the `Chess.com` section loads a player's games straight from the public

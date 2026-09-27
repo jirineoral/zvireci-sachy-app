@@ -18,6 +18,7 @@ import { TRAINER } from './endgames';
 import { DEFAULT_POSITION } from 'chess.js';
 import { buildCampaignDialog } from './ui/campaign-dialog';
 import { dropPieces, readPieceDropSetting, writePieceDropSetting, type Announcement } from './ui/piece-drop';
+import { initSounds, play, readSoundSetting, writeSoundSetting } from './sounds';
 import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
 import { DEFAULT_DIFFICULTY, interpolateDifficulty, isDifficultyLevel, type Difficulty, type DifficultyLevel } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
@@ -61,6 +62,7 @@ app.innerHTML = `
         <label>Tahy zpět <select class="undo-limit"></select></label>
         <label>Intro <select class="intro-setting"></select></label>
         <label>Nástup figurek <select class="drop-setting"></select></label>
+        <label>Zvuky <select class="sound-setting"></select></label>
         <button type="button" class="user-sets-open">Vlastní figurky…</button>
       </div>
     </details>
@@ -235,6 +237,11 @@ controller = new GameController(
       void saveGame(record);
       campaignHooks?.afterGame(record);
       endgamePanel.onGameRecord(record);
+      if (record.humanColor !== null && record.result !== '*') {
+        if (record.result === '1/2-1/2') play('loss', 0.4); // a draw: same gentle cue as a loss, never a fanfare
+        else if ((record.result === '1-0') === (record.humanColor === 'w')) play('win');
+        else play('loss');
+      }
     },
     onGameLoaded: (record) => {
       const human = record.mode === 'two' ? null : record.humanColor; // two people: nobody is "ty"
@@ -244,6 +251,7 @@ controller = new GameController(
     },
     onGameStart: () => {
       if (!readPieceDropSetting(safeLocalStorage())) return null;
+      play('piece-drop');
       return dropPieces(boardEl, announceEl, announcement());
     },
     onPuzzleStart: (color) => {
@@ -251,7 +259,16 @@ controller = new GameController(
       pieceSets?.startGame(color);
       renderMatchup();
     },
-    onPuzzleResult: (result) => puzzlePanel.onResult(result),
+    onPuzzleResult: (result) => {
+      puzzlePanel.onResult(result);
+      if (result === 'solved') play('puzzle-solved');
+      else if (result === 'wrong') play('lesson-wrong', 0.35); // same soft, non-buzzer cue as a lesson mistake
+    },
+    onMove: ({ mine, capture, check }) => {
+      if (check) play('check');
+      else if (capture) play('capture');
+      else play(mine ? 'move' : 'opponent-move');
+    },
     onTrainingStart: (color) => {
       boardMode = 'training';
       pieceSets?.startGame(color);
@@ -337,6 +354,14 @@ const dropSelect = requireElement<HTMLSelectElement>(app, '.drop-setting');
 dropSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
 dropSelect.value = readPieceDropSetting(safeLocalStorage()) ? 'on' : 'off';
 dropSelect.addEventListener('change', () => writePieceDropSetting(safeLocalStorage(), dropSelect.value === 'on'));
+
+// Sound effects: lazily unlocked on the first pointerdown/keydown (iOS/Safari autoplay
+// rules), so nothing plays during the intro splash before the child has touched anything.
+initSounds(import.meta.env.BASE_URL, () => readSoundSetting(safeLocalStorage()));
+const soundSelect = requireElement<HTMLSelectElement>(app, '.sound-setting');
+soundSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
+soundSelect.value = readSoundSetting(safeLocalStorage()) ? 'on' : 'off';
+soundSelect.addEventListener('change', () => writeSoundSetting(safeLocalStorage(), soundSelect.value === 'on'));
 function announcement(): Announcement {
   const manager = pieceSets;
   if (!manager || !manager.isLibrary) {
@@ -415,6 +440,7 @@ const lessonPanel = buildLessonPanel({
   },
   onPractice: (pointer) => void practise(pointer),
   onNextLesson: (lesson) => void openLesson(lesson),
+  onFeedback: (tone) => play(tone === 'good' ? 'lesson-correct' : 'lesson-wrong', tone === 'good' ? 0.5 : 0.35),
 });
 
 const courseMap = buildCourseMap({

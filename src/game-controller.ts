@@ -108,6 +108,15 @@ export interface GameControllerOptions {
    * a friend's link…) — the view detaches the lesson board and hides the lesson panel.
    */
   onLessonEnd?: () => void;
+  /**
+   * Sound effects (branch feat-sounds): a ply was just applied to the board. `mine` = the
+   * player sitting at this device made it (human move, either side of a two-player game);
+   * false = the computer or the remote friend's move arrived. The view maps this to a
+   * move/opponent-move/capture/check sound — never called during a lesson (lessons own
+   * their board and never reach afterPositionChange) or for puzzle attempts (those go
+   * through onPuzzleResult instead).
+   */
+  onMove?: (info: { mine: boolean; capture: boolean; check: boolean }) => void;
 }
 
 /** Glyphs the child's king comments on during play (the review comments on all of them). */
@@ -366,6 +375,7 @@ export class GameController {
       return false;
     }
     this.plies.push(null);
+    this.notifyMove(false);
     this.afterPositionChange();
     return true;
   }
@@ -1059,6 +1069,7 @@ export class GameController {
     } catch (err) {
       console.error(`Move ${from}->${to} rejected by chess.js`, err);
     }
+    if (moved) this.notifyMove(true);
     if (moved && this.remote) {
       const history = this.chess.history();
       this.options.onRemoteMove(history[history.length - 1], history.length - 1);
@@ -1182,6 +1193,7 @@ export class GameController {
       this.engineFailed(err);
       return;
     }
+    this.notifyMove(false);
     this.afterPositionChange();
   }
 
@@ -1237,6 +1249,12 @@ export class GameController {
       return pick.pv[0] ?? null;
     });
     return { fen: analysis.fen, result };
+  }
+
+  /** Sound effects: called right after a ply lands on `this.chess`, before afterPositionChange re-renders. */
+  private notifyMove(mine: boolean): void {
+    const last = this.chess.history({ verbose: true }).at(-1);
+    this.options.onMove?.({ mine, capture: last?.captured !== undefined, check: this.chess.inCheck() });
   }
 
   /** Sync + render + (maybe) start the engine. */

@@ -16,7 +16,7 @@
 import '../styles/lessons.css';
 import { plural } from '../czech';
 import { COURSE, lessonAfter } from '../lessons/course';
-import { createLessonRunner, needsPromotion, renderToBoard, type LessonBoard, type LessonInput, type LessonRunner, type LessonView, type TestView } from '../lessons/runner';
+import { createLessonRunner, needsPromotion, renderToBoard, type Feedback, type LessonBoard, type LessonInput, type LessonRunner, type LessonView, type TestView } from '../lessons/runner';
 import { animalSingular, type TextContext } from '../lessons/text';
 import type { Lesson, PieceType, PracticePointer } from '../lessons/types';
 import type { Teacher } from '../lessons/progress';
@@ -61,6 +61,8 @@ export interface LessonPanelDeps {
   onPractice: (pointer: PracticePointer) => void;
   /** „Další lekce“ at the end: the caller starts it (usually `panel.start(next, …)`). */
   onNextLesson: (lesson: Lesson) => void;
+  /** Sound effects: a new feedback message just appeared ('good' → a step answered correctly, 'bad' → a wrong try). 'info' (e.g. "the opponent cannot move") stays silent. */
+  onFeedback?: (tone: Feedback['tone']) => void;
 }
 
 export interface LessonPanel {
@@ -125,6 +127,7 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   let doneReported = false;
   let busy = false; // a promotion question is open
   let replyTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastFeedbackSig: string | null = null; // sound: fire only when a *new* feedback message appears
 
   const cancelReply = (): void => {
     if (replyTimer !== null) clearTimeout(replyTimer);
@@ -150,6 +153,9 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     bubbleText.textContent = finished ? (view.outro ?? '') : view.text;
     feedback.textContent = view.feedback?.text ?? '';
     feedback.className = `lesson-feedback${view.feedback ? ` is-${view.feedback.tone}` : ''}`;
+    const feedbackSig = view.feedback ? `${view.feedback.tone}|${view.feedback.text}` : null;
+    if (feedbackSig !== null && feedbackSig !== lastFeedbackSig && view.feedback!.tone !== 'info') deps.onFeedback?.(view.feedback!.tone);
+    lastFeedbackSig = feedbackSig;
     counter.textContent = finished ? '' : counterText(view);
     counter.hidden = counter.textContent === '';
     renderResult(view);

@@ -695,3 +695,17 @@ legal frame. Notes to make that weighing cheaper when it comes:
   Another reason the store step is a decision, not a default.
 - **Order decided by the owner:** polish the web version first; mobile only after.
 - The web app must stay first-class regardless (the no-account, shared-PC principle).
+
+## Zvuky v appce — DONE on branch (feat-sounds, 2026-09-27)
+
+Ten short, soft, synthesised (not recorded/downloaded) sound effects — own move,
+opponent move, capture, check, win, loss/draw, puzzle solved, lesson step correct,
+lesson wrong answer, piece-drop start. `scripts/make-sounds.py` generates them
+(stdlib `wave`/`math`, ffmpeg → `.ogg`/`.m4a`, else `.wav`); `src/sounds.ts` plays them
+via the Web Audio API, unlocked on the first user gesture, off by default before that
+gesture and whenever the `Zvuky` setting (`skm.sounds`) is off; never throws. Hooked
+into `game-controller.ts` (own/opponent move, capture, check, win/loss/draw), the puzzle
+panel (solved/wrong) and the lesson panel (correct/wrong step) without touching any game
+logic. No CSP change: audio loads by `fetch()` to a same-origin path, already covered by
+the existing `connect-src 'self'` — see `docs/security-review.md`, 2026-09-27 entry.
+README: "Sounds" section. Merge to main when ready; not yet published.

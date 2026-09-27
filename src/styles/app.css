@@ -252,6 +252,33 @@ body {
   color: #ffa459;
 }
 
+/* Endgame position grid (Phase 23): one button per position within a type. */
+.endgame-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.endgame-pos {
+  min-width: 2.2em;
+  padding: 4px 6px;
+  font: inherit;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+}
+
+.endgame-pos-selected {
+  border-color: #8ab4ff;
+}
+
+.endgame-pos-done {
+  color: #7fd17a;
+  border-color: #4c7f49;
+}
+
 /* "Partie" dialog (Phase 9). */
 .games-dialog {
   width: min(92vw, 640px);

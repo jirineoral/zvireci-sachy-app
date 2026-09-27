@@ -10,12 +10,11 @@ dole popisek, vpravo ikony).
 
 | Den | Čas | Příspěvek |
 |---|---|---|
-| Út 29. 9. | 8:00 | 1 – Šachy, kde hrají zvířátka |
-| Čt 1. 10. | 8:00 | 2 – Šachy od nuly se sovou |
+| Po 28. 9. | 8:00 | 1 – Šachy, kde hrají zvířátka |
+| St 30. 9. | 8:00 | 2 – Šachy od nuly se sovou |
 | Pá 2. 10. | 8:00 | 3 – Zahraj si s kamarádem |
 
-(Majitel 2026-09-27: ráno v pracovní dny; Po 28. 9. je svátek. Recenzent navrhuje TikTok spíš
-odpoledne 15–17 h – rozhodne majitel.)
+(Schváleno majitelem 2026-09-27: obsah OK, všechny sítě Po/St/Pá v 8:00.)
 
 **Hashtagy (jedna sada všude):** Instagram `#zvirecisachy #sachy #šachy #sachyprodeti #chess`,
 TikTok/Reels/Shorts `#zvirecisachy #sachy #šachy #chess`.

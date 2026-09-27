@@ -440,7 +440,7 @@ const lessonPanel = buildLessonPanel({
   },
   onPractice: (pointer) => void practise(pointer),
   onNextLesson: (lesson) => void openLesson(lesson),
-  onFeedback: (tone) => play(tone === 'good' ? 'lesson-correct' : 'lesson-wrong', tone === 'good' ? 0.5 : 0.35),
+  onFeedback: (tone) => play(tone === 'good' ? 'lesson-correct' : 'lesson-wrong', tone === 'good' ? 0.8 : 0.6),
 });
 
 const courseMap = buildCourseMap({

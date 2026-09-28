@@ -55,7 +55,7 @@ export function buildEndgamePanel(deps: EndgamePanelDeps): EndgamePanel {
   const playBtn = button('Hrát', 'endgame-play');
   const againBtn = button('Znovu', 'endgame-again');
   const nextBtn = button('Další pozice', 'endgame-next');
-  const leaveBtn = button('Zpět do hry', 'puzzle-leave');
+  const leaveBtn = button('Konec koncovek', 'puzzle-leave');
   const goal = el('div', '', 'puzzle-info');
   const hint = el('div', '', 'puzzle-info');
   const progress = el('div', '', 'puzzle-progress');

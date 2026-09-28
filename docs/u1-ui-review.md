@@ -456,6 +456,8 @@ Settings are written only when they are changed. The writes are at main.ts:907/9
 
 ## 9. Open questions for the owner (each with a proposed default)
 
+**Owner decision 2026-09-28: all proposed defaults accepted ("beru defaulty").**
+
 | # | Question | Proposed default |
 |---|----------|------------------|
 | Q1 | First visit: land on Lekce or Hrát? | **Hrát (the board)**, with the Lekce tile first and highlighted „Začni tady“ until the first lesson is done. No extra chooser screen. |

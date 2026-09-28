@@ -710,7 +710,7 @@ logic. No CSP change: audio loads by `fetch()` to a same-origin path, already co
 the existing `connect-src 'self'` — see `docs/security-review.md`, 2026-09-27 entry.
 README: "Sounds" section. Merge to main when ready; not yet published.
 
-## U1 — Review a optimalizace UI (owner, 2026-09-27) — OPEN
+## U1 — Review a optimalizace UI (owner, 2026-09-27) — REVIEW DONE (docs/u1-ui-review.md, all defaults accepted 2026-09-28), IMPLEMENTATION IN PROGRESS
 
 Za poslední dny přibylo hodně funkcí (lekce v 5 úrovních, koncovky v kategoriích, úlohy s tématy,
 kampaň, hra s kamarádem, zvuky, vzdát/odveta, diplom…) a každá si přidala svoje tlačítko, panel
@@ -741,7 +741,7 @@ upload; (b) one scheduler for all networks (Buffer / Metricool — verify free-t
 Instagram meanwhile goes out by manual web posting (works in a background tab) until Instagram
 is linked in Meta Business Suite.
 
-## V1 — Lesson explainer videos (owner, 2026-09-28) — IN PROGRESS (pilot)
+## V1 — Lesson explainer videos (owner, 2026-09-28) — IN PROGRESS (level 1 rendered; in-app first, YouTube PARKED)
 
 A narrated video for every lesson (SAPI voice "Jakub" for now), built by a deterministic
 script from the lesson data (no hand-made edits per lesson). Hosting decided by the owner:
@@ -750,3 +750,8 @@ keeps "bez cookies" and "bez reklam"; the same videos also go to YouTube (made f
 playlists per level for discovery. Pilot: pipeline + the first 2–3 level-1 lessons, shown to
 the owner before scaling. Open: R2 bucket on the owner's Cloudflare account (owner sets it up
 or explicitly allows it), social-content-review before every YouTube upload.
+
+V1 update 2026-09-28: level 1 rendered (17 lessons, test skipped). Owner: the videos go into
+the app first (self-hosted MP4, R2 explicitly allowed by the owner); a YouTube playlist is
+PARKED — the owner decides later whether the videos also belong on YouTube. R2 must first be
+enabled once in the Cloudflare dashboard (API error 10042).

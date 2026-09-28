@@ -231,7 +231,7 @@ the existing sheet is the safe option.
   **Proposal recorded 2026-09-28 (below); not built — the ladder and `Bilance` are the
   owner's call.**
 
-### R3 proposal — `UCI_LimitStrength` / `UCI_Elo` strong levels (not built)
+### R3 proposal — `UCI_LimitStrength` / `UCI_Elo` strong levels (not built) — PARKED by the owner 2026-09-28
 
 **What the shipped engine build supports.** `node_modules/stockfish/bin/stockfish-18-lite-single.js`
 (the exact file `scripts/copy-engine.mjs` copies into `public/engine/`) lists both

@@ -243,8 +243,11 @@ def piece_at(placement, sq):
 # ---------------------------------------------------------------------------------------
 LAYOUT = {
     # 9:16 keeps the board and the bubble clear of the Shorts/Reels UI (top ~150 px, bottom ~300 px, right ~90 px)
-    '9x16': dict(header=(540, 160), counter=(540, 228), board=(108, 290, 864), owl=(76, 1206, 150),
-                 bubble=(250, 1196, 1004, 1610), brand=None),
+    # full-width board (24 px margins); title/step above it below the top ~150 px, the bubble
+    # ends above the bottom ~260 px caption zone; only the lowest board ranks at the far right
+    # can sit beside the Shorts action rail (it covers x > ~990 from y ~1100).
+    '9x16': dict(header=(540, 150), counter=(540, 214), board=(36, 270, 1008), owl=(36, 1318, 136),
+                 bubble=(196, 1310, 1044, 1680), brand=None, compact=True, sizes=(56, 54, 52, 50, 48, 46, 44, 42, 40, 38)),
     '16x9': dict(header=(1470, 70), counter=(1470, 150), board=(60, 60, 960), owl=(1090, 250, 140),
                  bubble=(1250, 236, 1860, 900), brand=(1470, 1000)),
 }
@@ -308,18 +311,19 @@ class Renderer:
         chips = b.get('chips') or []
         feedback = b.get('feedback')
         # fit: largest text size whose block fits the bubble area
-        for size in (46, 44, 42, 40, 38, 36, 34, 32, 30, 28):
+        for size in self.L.get('sizes', (46, 44, 42, 40, 38, 36, 34, 32, 30, 28)):
             f = font(size, 'semibold')
             ff = font(size, 'bold')
-            lines = wrap(d, b['text'], f, width)
+            # compact (9:16): once the answer is shown, the bubble holds the answer only
+            lines = [] if (feedback and self.L.get('compact')) else wrap(d, b['text'], f, width)
             flines = wrap(d, feedback, ff, width) if feedback else []
             lh = round(size * 1.28)
             h = pad * 2 + lh * len(lines)
             if flines:
-                h += round(size * 0.5) + lh * len(flines)
+                h += (round(size * 0.5) if lines else 0) + lh * len(flines)
             if chips:
                 h += round(size * 0.6) + round(size * 1.7)
-            if think is not None:
+            if think is not None and not chips:  # with buttons the timer sits in their row
                 h += round(size * 0.5) + lh + 22
             if y0 + h <= y1max:
                 break
@@ -334,7 +338,7 @@ class Renderer:
             d.text((x0 + pad, y), ln, font=f, fill=INK)
             y += lh
         if flines:
-            y += round(size * 0.5)
+            y += round(size * 0.5) if lines else 0
             for ln in flines:
                 d.text((x0 + pad, y), ln, font=ff, fill=GOOD)
                 y += lh
@@ -351,8 +355,13 @@ class Renderer:
                                     outline=GOOD if ok else (150, 160, 175), width=4)
                 d.text((cx + cw / 2, y + chh / 2), c['label'], font=cf, fill=(255, 255, 255) if ok else INK, anchor='mm')
                 cx += cw + size * 0.5
+            if think is not None:
+                bx0, bx1, by = cx + size * 0.3, x1 - pad, y + chh / 2 - 8
+                d.rounded_rectangle([bx0, by, bx1, by + 16], radius=8, fill=(222, 226, 232))
+                if think > 0:
+                    d.rounded_rectangle([bx0, by, bx0 + (bx1 - bx0) * think, by + 16], radius=8, fill=(255, 193, 7))
             y += chh
-        if think is not None:
+        if think is not None and not chips:
             y += round(size * 0.5)
             d.text((x0 + pad, y), 'Přemýšlej…', font=ff, fill=(90, 100, 115))
             bx0 = x0 + pad + d.textlength('Přemýšlej…', font=ff) + 24

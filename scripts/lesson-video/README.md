@@ -88,7 +88,7 @@ Never write the outputs into the repository. Nothing here uploads or publishes a
 | file | |
 |---|---|
 | `<id>-16x9.mp4` | 1920×1080, in-app player and YouTube |
-| `<id>-9x16.mp4` | 1080×1920, Shorts / Reels; board and bubble kept clear of the platform UI |
+| `<id>-9x16.mp4` | 1080×1920, Shorts / Reels and phones in portrait: full-width board (24 px margins), title/step above it (below the top ~150 px), the owl's bubble below it with large text ending above the bottom ~240 px; once the answer is shown the bubble holds the answer only. Only the lowest ranks at the far right can sit beside the Shorts action rail. |
 | `<id>-poster-16x9.jpg`, `<id>-poster-9x16.jpg` | poster frames (title card) |
 | `<id>-contact-16x9.jpg`, `<id>-contact-9x16.jpg` | QC contact sheets |
 | `<id>-script.txt` | timeline: narration (screen + TTS text), arrows per shot, rule checks |

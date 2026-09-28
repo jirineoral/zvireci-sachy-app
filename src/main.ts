@@ -19,6 +19,7 @@ import { DEFAULT_POSITION } from 'chess.js';
 import { buildCampaignDialog } from './ui/campaign-dialog';
 import { dropPieces, readPieceDropSetting, writePieceDropSetting, type Announcement } from './ui/piece-drop';
 import { initSounds, play, readSoundSetting, writeSoundSetting } from './sounds';
+import { initVoice, readSpeakSetting, stopSpeaking, writeSpeakSetting } from './lessons/voice';
 import { campaignStep, moveInOrder, readCampaign, recordCampaignGame, resetProgress, skipOpponent, writeCampaign, type CampaignState } from './campaign';
 import { DEFAULT_DIFFICULTY, interpolateDifficulty, isDifficultyLevel, type Difficulty, type DifficultyLevel } from './difficulty';
 import { createIntro, readIntroSetting, shownThisSession, writeIntroSetting } from './intro/intro';
@@ -77,6 +78,7 @@ app.innerHTML = `
         <label>Intro <select class="intro-setting"></select></label>
         <label>Nástup figurek <select class="drop-setting"></select></label>
         <label>Zvuky <select class="sound-setting"></select></label>
+        <label>Sova čte nahlas <select class="speak-setting"></select></label>
         <button type="button" class="user-sets-open">Vlastní figurky…</button>
       </div>
     </details>
@@ -386,7 +388,22 @@ initSounds(import.meta.env.BASE_URL, () => readSoundSetting(safeLocalStorage()))
 const soundSelect = requireElement<HTMLSelectElement>(app, '.sound-setting');
 soundSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
 soundSelect.value = readSoundSetting(safeLocalStorage()) ? 'on' : 'off';
-soundSelect.addEventListener('change', () => writeSoundSetting(safeLocalStorage(), soundSelect.value === 'on'));
+soundSelect.addEventListener('change', () => {
+  writeSoundSetting(safeLocalStorage(), soundSelect.value === 'on');
+  if (soundSelect.value === 'off') stopSpeaking(); // "Zvuky" also gates narration
+  lessonPanel.refresh(); // the 🔊 button's visibility depends on this setting too
+});
+
+// "Sova čte nahlas" (U1 pilot): pre-recorded narration from Cloudflare R2, shares the sound
+// effects' AudioContext/unlock (src/lessons/voice.ts) and the "Zvuky" gate.
+initVoice(() => readSoundSetting(safeLocalStorage()));
+const speakSelect = requireElement<HTMLSelectElement>(app, '.speak-setting');
+speakSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
+speakSelect.value = readSpeakSetting(safeLocalStorage()) ? 'on' : 'off';
+speakSelect.addEventListener('change', () => {
+  writeSpeakSetting(safeLocalStorage(), speakSelect.value === 'on');
+  if (speakSelect.value === 'off') stopSpeaking();
+});
 function announcement(): Announcement {
   const manager = pieceSets;
   if (!manager || !manager.isLibrary) {
@@ -468,6 +485,7 @@ const lessonPanel = buildLessonPanel({
   onPractice: (pointer) => void practise(pointer),
   onNextLesson: (lesson) => void openLesson(lesson),
   onFeedback: (tone) => play(tone === 'good' ? 'lesson-correct' : 'lesson-wrong', tone === 'good' ? 0.8 : 0.6),
+  autoSpeak: () => readSpeakSetting(safeLocalStorage()),
   // U1 F2: a step played on the board brings the board back into view (reading steps do not
   // scroll, so `Dál ▶` under the bubble stays where the child's finger is).
   onStep: (boardTask) => {

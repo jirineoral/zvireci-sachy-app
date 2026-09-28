@@ -109,6 +109,33 @@
   line-height: 1.4;
 }
 
+.lesson-text-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.lesson-text-row .lesson-text {
+  flex: 1;
+}
+
+/* "Sova čte nahlas" (U1 pilot): hidden unless the current text has recorded audio. */
+.lesson-speak {
+  flex: none;
+  min-width: 44px;
+  min-height: 32px;
+  padding: 2px 8px;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  background: #fffdf7;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.lesson-speak:active {
+  background: #f3ead7;
+}
+
 .lesson-feedback {
   margin: 6px 0 0;
   min-height: 0;

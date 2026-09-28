@@ -831,6 +831,40 @@ Návrh postupu:
 - Výstup: seznam změn seřazený podle dopadu, pak implementace po malých krocích, každý krok
   ověřený v prohlížeči a otestovaný se synem.
 
+### Sova čte nahlas — pilot DONE on branch (2026-09-28, úroveň 1 only)
+
+Varianta b (nahraný zvuk, ne `speechSynthesis`) z Q4 v `docs/u1-ui-review.md` — zadání pro
+tenhle pilot ji zvolilo rovnou, bez ověřování hlasů na telefonech. Tlačítko 🔊 „Přečíst“ vedle
+textu sovy/trenéra + nastavení „Sova čte nahlas“ (`skm.speak`, výchozí vypnuto = automatické
+předčítání každého nového kroku). Zvuk generuje `scripts/lesson-audio/build.mjs` stejným
+SAPI hlasem („Microsoft Jakub“) a stejnou výslovností notace jako video pipeline
+(`src/lessons/pronounce.ts`, teď sdílené oběma). Content-addressed soubory pod
+`public/lessons/audio/` + `manifest.json`; app (`src/lessons/voice.ts`) hledá text v
+manifestu a přehrává přes sdílený `AudioContext` z `src/sounds.ts` — beze změny CSP.
+
+Rozsah pilotu: jen úroveň 1 (284 textů, 18 MB), texty jsou nahrané s postavou „kůzlata“
+(stejný default jako video pipeline). Odhad pro úrovně 1–5: 1013 unique textů, ~61 MB.
+
+Otevřené otázky pro majitele:
+- Text s jiným zvířátkem než „kůzlata“ (první zmínka figurky obsahuje název zvířátka) tlačítko
+  schová, protože zaznamenaný text nesedí — přijatelné, nebo nahrát i další zvířátka?
+- Zpětná vazba po chybné odpovědi (`wrongDefault`, dynamicky složené vysvětlení u tahů) se
+  nečte automaticky, pokud není přesně shodná s nahraným textem — chceme širší pokrytí?
+
+#### Update 2026-09-28: úrovně 2–5 nahrané, zvuk přesunutý na R2
+
+Majitel schválil obojí: (1) zvuk z gitu na Cloudflare R2 (bucket `zvirecisachy-videa`, stejná
+doména jako videa k lekcím, prefix `lesson-audio/`), (2) nahrát rovnou i úrovně 2–5. Binárky
+(`.ogg`/`.m4a`) už nejsou v gitu — `scripts/lesson-audio/build.mjs` je píše do
+`scripts/lesson-audio/out/` (gitignored), `scripts/r2-upload.mjs` je nahraje na R2 (idempotentně,
+podle content-addressed jména). V gitu zůstává jen `src/lessons/audio-manifest.json` (text →
+hash), naimportovaný přímo do JS balíčku — appka ho nikdy nefetchuje. CSP `connect-src` a CORS
+bucketu doplněny (`docs/security-review.md`, 2026-09-28).
+
+Rozsah: všech 5 úrovní, 1226 unique textů, ~79 MB celkem (17,60 / 15,87 / 16,16 / 15,40 / 14,61 MB
+po úrovních). Čtení teď vyžaduje síť (R2 není v service workeru cachované) — offline se tlačítko
+prostě schová, stejně jako pro nenahraný text.
+
 ## S1 — TikTok posting automation (owner, 2026-09-28) — PARKED
 
 Web upload in TikTok Studio via Claude in Chrome stalls after the file is sent (chunks return

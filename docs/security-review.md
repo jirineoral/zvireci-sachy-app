@@ -789,6 +789,36 @@ owner item 1 is done (or consciously skipped); items 2–3 are hardening that ca
   toggle / reload-persistence / a played move and engine reply / a new piece-drop start.
   Not yet merged to `main` or deployed.
 
+### 2026-09-28 — "sova čte nahlas" read-aloud pilot (branch, level 1 only, U1)
+
+- **New same-origin media, no new host.** 284 pre-recorded `.ogg`/`.m4a` clips (~18 MB) plus
+  a `manifest.json` under `public/lessons/audio/`, generated offline by
+  `scripts/lesson-audio/build.mjs` from Windows SAPI (`Microsoft Jakub`, the same voice the
+  lesson-video pipeline already uses) — own synthesis from the app's own lesson text, no
+  third-party audio, no `THIRD-PARTY-NOTICES` entry needed.
+- **No CSP change**, same reasoning as the 2026-09-27 sound-effects entry above:
+  `src/lessons/voice.ts` loads clips with `fetch()` + `decodeAudioData` (never an `<audio>`
+  element), so `connect-src 'self'` already covers it; no `media-src` needed.
+- **Fails silently by design.** `hasAudio`/`speak()`/`initVoice` wrap the manifest fetch,
+  the clip fetch, the decode and `start()` in `try/catch`; a missing manifest, a 404, an
+  undecodable format or an old browser without Web Audio all just mean the 🔊 button stays
+  hidden or does nothing — never a thrown error the child sees. Reuses `src/sounds.ts`'s
+  already-unlocked `AudioContext` (new export `getSharedAudioContext`) instead of adding a
+  second gesture listener, and re-checks the `Zvuky` setting on every `speak()` call, same
+  as the sound effects.
+- **New localStorage key `skm.speak`**: `'on'`/`'off'` only meaningfully read, default OFF
+  (unlike `skm.sounds`, which defaults on) since this is an opt-in pilot.
+- **Nothing is sent.** The manifest and clips are fetched, never posted; no analytics event,
+  no new fetch target beyond the same-origin audio files.
+- `npx tsc --noEmit`, `npm run build`, `npm run test:lessons` (141 passed) green. Verified in
+  a browser (ad hoc dev server, separate port to avoid a stale server from another worktree):
+  the manifest and a clip fetch and play (network tab 200s, no console errors) on a level-1
+  lesson step with „Sova čte nahlas“ on, the button is present and re-playable by click, and
+  it is correctly *absent* (`hidden`) on a level-2 lesson step, which has no recorded audio.
+  Not yet merged to `main` or deployed. `npm run check:lessons` (Stockfish-backed, pre-existing
+  and unrelated to this change) was still running in the background when this review was
+  written; the lesson data itself was not touched.
+
 ### 2026-09-28 — installable PWA, step 1 of R12 (branch `agent-afa6e22a274acd8ca`)
 - **What changed.** `public/manifest.webmanifest` (name/short_name "Zvířecí šachy",
   `start_url`/`scope` `/`, `display: standalone`, icons); five PNG icons under
@@ -978,3 +1008,60 @@ issues. All addressed here, same branch.
   analytics beacon, unrelated to any of this). Not verified: the "cached shell, wasm never
   cached" fail-fast branch specifically (see should-fix 5 above); real installability on
   an Android/iOS device; `build:dev-site` in a browser.
+
+### 2026-09-28 — read-aloud audio moved off git, onto R2; levels 2–5 recorded
+
+Owner-approved (docs/BACKLOG.md): the pilot's `public/lessons/audio/` (git-committed binaries)
+is replaced by the same Cloudflare R2 bucket/domain the lesson videos already use
+(`zvirecisachy-videa` / `https://videa.zvirecisachy.cz`), under a new `lesson-audio/` prefix,
+and the pilot is extended from level 1 to all five levels (1226 texts, ~79 MB).
+
+- **New cross-origin fetch target, not a new host.** `videa.zvirecisachy.cz` was already in
+  the CSP (`img-src`, `media-src`, for the lesson videos); it is now also in `connect-src`,
+  since `src/lessons/voice.ts` reads audio with `fetch()` + `decodeAudioData` (never an
+  `<audio>` element — see the 2026-09-27 sound-effects entry for why that keeps it a
+  `connect-src` matter, not `media-src`). No other origin is added.
+- **CORS.** The bucket had no CORS rule for GET/HEAD from our own origins yet (needed because
+  `fetch()` is subject to CORS, unlike a plain `<video src>`/`<img src>` load, which is not).
+  Set via `npx wrangler r2 bucket cors set zvirecisachy-videa --file scripts/r2-cors.json`
+  (kept in the repo for reproducibility): one rule, `GET`/`HEAD` from
+  `https://zvirecisachy.cz`, `https://dev.zvirecisachy.cz`, and the dev-server/preview
+  origins (`http://localhost:5173`/`4173`, `http://127.0.0.1:5173`/`4173`), `Access-Control-
+  Allow-Headers: *`, `max_age 3600`. Verified: `curl -H "Origin: https://zvirecisachy.cz" -I`
+  against both a pre-existing video asset and a newly uploaded audio file returns
+  `Access-Control-Allow-Origin: https://zvirecisachy.cz`. This CORS rule **replaced** whatever
+  configuration (if any) the bucket had before — `wrangler r2 bucket cors set` is a full
+  overwrite, not a merge; `cors list` after confirms the intended single rule is what is live,
+  but this is worth a second look if the video pipeline turns out to have relied on a
+  different prior rule (it should not: the video element does not need CORS).
+- **The binaries themselves never touch git any more.** `scripts/lesson-audio/build.mjs`
+  writes them to `scripts/lesson-audio/out/` (gitignored); `scripts/r2-upload.mjs` uploads
+  what is not already there (checked by a HEAD request against the public URL — content-
+  addressed names make "already there" mean "byte-identical", so this is a safe skip, not a
+  staleness risk) with `Cache-Control: public, max-age=31536000, immutable`, correct because
+  a changed text gets a new hash/filename rather than overwriting the old one. Only
+  `src/lessons/audio-manifest.json` (text → hash, no audio content) is committed, imported
+  directly into the bundle (`resolveJsonModule`, tsconfig.json) — no manifest fetch at
+  runtime, and a manifest that no longer matches what is live on R2 cannot happen except by
+  forgetting to run `r2-upload.mjs`, which is a build-process risk, not a security one.
+- **Fails silently by design, unchanged.** Every `try/catch` from the pilot (manifest lookup,
+  clip fetch, decode, `start()`) is intact; a 404, a CORS misconfiguration, a network failure
+  or an old browser without Web Audio all still just mean the 🔊 button stays hidden or the
+  clip does not play — never a thrown error the child sees. New: this fetch is now genuinely
+  cross-origin and needs the network every time (the service worker's fetch handler passes
+  cross-origin requests straight through, PWA entry above) — a clip will not play offline,
+  where it used to (same-origin, cacheable). Accepted trade-off for not shipping ~79 MB of
+  audio in every deploy/precache; the button hiding is the same "no audio available" path
+  either way, so offline behaves like "not recorded for this text" rather than erroring.
+- **Nothing new is sent.** Read-aloud playback is still a `GET` for a static file; no
+  analytics event, no request body, no cookies (R2's custom domain is not configured to set
+  any). `public/soukromi.html` now names `videa.zvirecisachy.cz` for read-aloud too (it
+  already did for lesson videos).
+- **Verified.** `npx tsc --noEmit` and `npm run build` clean (JSON import resolves). Wrangler
+  authenticated via existing OAuth session (`npx wrangler whoami`); uploaded 2381 new files
+  (71 already present from a manual spot-check upload), `r2-upload.mjs` reports 0 failed.
+  `npm run test:lessons` (163 passed) and `npm run test:ui` (14 passed) unaffected. Browser
+  check against the **live** R2 endpoint (not a local fixture): a level-1 and a level-3 step
+  both fetch their clip from `videa.zvirecisachy.cz` (network tab 200, `Access-Control-Allow-
+  Origin` present) and play with no console errors; a text with no recorded audio still
+  hides the button. Not merged to `main`, not deployed.

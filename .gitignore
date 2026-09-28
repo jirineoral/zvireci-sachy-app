@@ -26,3 +26,9 @@ public/engine/
 assets/source/_debug/
 __pycache__/
 *.pyc
+
+# "Sova čte nahlas" read-aloud clips (scripts/lesson-audio/build.mjs): generated locally,
+# uploaded to Cloudflare R2 (scripts/r2-upload.mjs) — the binaries never go into git, only
+# the small manifest (src/lessons/audio-manifest.json), which is committed and imported into
+# the bundle.
+scripts/lesson-audio/out/

@@ -139,6 +139,15 @@ async function loadBuffer(name: SoundName): Promise<AudioBuffer | null> {
   return result;
 }
 
+/**
+ * The AudioContext unlocked by the first user gesture (or null before that), for other
+ * modules that play audio from the same gesture (src/lessons/voice.ts, "sova čte nahlas") —
+ * so there is one unlock listener and one AudioContext in the app, not one per feature.
+ */
+export function getSharedAudioContext(): AudioContext | null {
+  return state?.ctx ?? null;
+}
+
 /** Plays `name` at a gentle default volume if sounds are on, unlocked and the file decoded. Never throws. */
 export function play(name: SoundName, volume = 0.9): void {
   try {

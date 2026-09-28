@@ -31,6 +31,12 @@ function buildStamp(): string {
  *    HEAD pre-check, the worker's wasm fetch, and the two external endpoints — the public
  *    chess.com API (Phase 15 import) and the Lichess broadcast API (Phase 16), both
  *    unauthenticated with CORS `*`.
+ *  - connect-src https://videa.zvirecisachy.cz: "sova čte nahlas" read-aloud clips
+ *    (src/lessons/voice.ts, 2026-09-28), moved off git into the same R2 bucket/domain as the
+ *    lesson videos. Loaded with `fetch()` + `decodeAudioData` (never an `<audio>` element),
+ *    so this is `connect-src`, not `media-src` — see the sound-effects note in
+ *    docs/security-review.md for why that distinction matters. The bucket has a CORS rule
+ *    for GET/HEAD from our own origins (2026-09-28 entry).
  *  - manifest-src 'self': the web app manifest (`public/manifest.webmanifest`, PWA/R12,
  *    2026-09-28) — without it `default-src 'none'` blocks the browser from fetching it.
  *    `worker-src 'self'` already covers the service worker registration itself.
@@ -53,7 +59,7 @@ function csp(analytics: boolean, friendWs: string): string {
     "style-src 'self'",
     "img-src 'self' data: blob: https://videa.zvirecisachy.cz",
     "media-src 'self' https://videa.zvirecisachy.cz",
-    `connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/ ${friendWs}${analytics ? ' https://cloudflareinsights.com' : ''}`,
+    `connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/ https://videa.zvirecisachy.cz ${friendWs}${analytics ? ' https://cloudflareinsights.com' : ''}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "base-uri 'none'",

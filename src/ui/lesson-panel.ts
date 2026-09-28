@@ -20,6 +20,7 @@ import { createLessonRunner, needsPromotion, renderToBoard, type Feedback, type 
 import { animalSingular, type TextContext } from '../lessons/text';
 import type { Lesson, PieceType, PracticePointer } from '../lessons/types';
 import type { Teacher } from '../lessons/progress';
+import { hasAudio, speak, stopSpeaking, voiceEnabled } from '../lessons/voice';
 import { hasLessonVideo, lessonVideoLabel } from '../lessons/videos';
 import { openLessonVideo } from '../video-player';
 
@@ -65,6 +66,8 @@ export interface LessonPanelDeps {
   onNextLesson: (lesson: Lesson) => void;
   /** Sound effects: a new feedback message just appeared ('good' → a step answered correctly, 'bad' → a wrong try). 'info' (e.g. "the opponent cannot move") stays silent. */
   onFeedback?: (tone: Feedback['tone']) => void;
+  /** "Sova čte nahlas" (`skm.speak`): read the step's text aloud automatically when it appears, not just on the 🔊 button. */
+  autoSpeak?: () => boolean;
   /** U1: a new step is showing; `boardTask` = the child has to act on the board (not read or tap an answer). */
   onStep?: (boardTask: boolean) => void;
 }
@@ -78,6 +81,8 @@ export interface LessonPanel {
   close: () => void;
   /** Re-reads `deps.teacher()` (the teacher was switched in the course map). */
   refreshTeacher: () => void;
+  /** Re-renders the current step (Zvuky/Sova čte nahlas toggled elsewhere — the 🔊 button's visibility depends on both). No-op with no lesson running. */
+  refresh: () => void;
   readonly current: Lesson | null;
 }
 
@@ -91,7 +96,11 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   const stepInfo = el('div', '', 'lesson-step');
   const videoBtn = button('▶ Video', 'lesson-video-btn');
   videoBtn.hidden = true;
-  videoBtn.addEventListener('click', () => lesson && openLessonVideo(lesson.id, videoBtn));
+  videoBtn.addEventListener('click', () => {
+    if (!lesson) return;
+    stopSpeaking(); // the owl must not talk over the lesson video
+    openLessonVideo(lesson.id, videoBtn);
+  });
   const head = el('div', '', 'lesson-head');
   head.append(title, videoBtn, stepInfo);
 
@@ -101,11 +110,17 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   const who = el('div', '', 'lesson-who');
   who.append(avatar, teacherName);
   const bubbleText = el('p', '', 'lesson-text');
+  // "Sova čte nahlas" (U1 pilot, level 1): hidden whenever the current text has no recorded
+  // audio (other levels, a different piece set, or a dynamically composed explanation).
+  const speakBtn = button('🔊 Přečíst', 'lesson-speak');
+  speakBtn.hidden = true;
+  const textRow = el('div', '', 'lesson-text-row');
+  textRow.append(bubbleText, speakBtn);
   const feedback = el('p', '', 'lesson-feedback');
   feedback.setAttribute('role', 'status');
   const counter = el('p', '', 'lesson-counter');
   const bubble = el('div', '', 'lesson-bubble');
-  bubble.append(bubbleText, feedback, counter);
+  bubble.append(textRow, feedback, counter);
   const teacherRow = el('div', '', 'lesson-teacher');
   teacherRow.append(who, bubble);
 
@@ -135,6 +150,8 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   let busy = false; // a promotion question is open
   let replyTimer: ReturnType<typeof setTimeout> | null = null;
   let lastFeedbackSig: string | null = null; // sound: fire only when a *new* feedback message appears
+  let spokenText = ''; // "sova čte nahlas": the text the 🔊 button and auto-read currently target
+  let lastSpokenText: string | null = null; // stop/replay only when this text actually changes
   let lastStepSig: string | null = null; // U1: onStep fires once per step shown
 
   const cancelReply = (): void => {
@@ -169,6 +186,17 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     counter.textContent = finished ? '' : counterText(view);
     counter.hidden = counter.textContent === '';
     renderResult(view);
+
+    // "Sova čte nahlas": prefer the newest feedback ('good'/'bad'), else the step/outro text.
+    spokenText = !finished && view.feedback && view.feedback.tone !== 'info' ? view.feedback.text : bubbleText.textContent ?? '';
+    const hasClip = spokenText !== '' && hasAudio(spokenText);
+    const canSpeak = hasClip && voiceEnabled();
+    speakBtn.hidden = !canSpeak; // also hidden while Zvuky is off: a silent button helps no one
+    if (spokenText !== lastSpokenText) {
+      lastSpokenText = spokenText;
+      stopSpeaking();
+      if (canSpeak && deps.autoSpeak?.()) speak(spokenText);
+    }
 
     choices.replaceChildren(
       ...view.choices
@@ -290,6 +318,7 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     dispatch(event);
   };
 
+  speakBtn.addEventListener('click', () => speak(spokenText));
   backStepBtn.addEventListener('click', () => dispatch({ type: 'back' }));
   retryBtn.addEventListener('click', () => dispatch({ type: 'retry' }));
   nextBtn.addEventListener('click', () => dispatch({ type: 'next' }));
@@ -323,6 +352,8 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
 
   const close = (): void => {
     cancelReply();
+    stopSpeaking();
+    lastSpokenText = null;
     container.hidden = true;
     lesson = null;
     runner = null;
@@ -332,6 +363,8 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   return {
     start(l: Lesson, b: LessonBoard, ctx: TextContext): void {
       cancelReply();
+      stopSpeaking();
+      lastSpokenText = null;
       lesson = l;
       board = b;
       runner = createLessonRunner(l, ctx);
@@ -344,6 +377,9 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     },
     input,
     close,
+    refresh: () => {
+      if (runner) render(runner.view);
+    },
     refreshTeacher: paintTeacher,
     get current() {
       return lesson;

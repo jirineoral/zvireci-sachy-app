@@ -120,6 +120,49 @@ score at the end. Passing earns the level's badge (course map) and a printable d
 sheet alone on an A4 landscape page). Level 1 (lessons 1–18) is complete; plan and
 curriculum in `docs/phase-21-plan.md`.
 
+### Sova čte nahlas (read-aloud)
+
+For children who cannot read yet (U1, `docs/BACKLOG.md`), a 🔊 „Přečíst“ button next to the
+teacher's text plays a pre-recorded clip of it; the setting „Sova čte nahlas“ (`skm.speak`,
+default off) plays it automatically on every new step instead. All levels (1–5) are recorded;
+a lesson without audio for its current text — the dynamically composed wrong-move
+explanations, or a piece set other than „kůzlata“ on a first-piece-mention sentence — simply
+hides the button, never an error.
+
+The audio is generated deterministically by `scripts/lesson-audio/build.mjs`, reusing the
+lesson-video pipeline's TTS call (`scripts/lesson-video/tts.ps1`, Windows SAPI, Czech voice
+„Microsoft Jakub“) and its notation pronunciation, now the single source of truth in
+`src/lessons/pronounce.ts`. The clips themselves are **not** committed to git — they are
+uploaded to the same Cloudflare R2 bucket/domain as the lesson videos
+(`https://videa.zvirecisachy.cz`, prefix `lesson-audio/`) and served straight from there; only
+the small `src/lessons/audio-manifest.json` (text → content hash, a few hundred KB) is
+committed, and it is imported straight into the JS bundle — no runtime fetch for it, and no
+CDN cache to invalidate when it changes, because a new build simply ships the new one.
+
+```
+node scripts/lesson-audio/build.mjs                 # all 5 levels into scripts/lesson-audio/out/
+node scripts/lesson-audio/build.mjs --levels 1,2,3  # a subset (additive: unrelated levels' audio is kept)
+node scripts/lesson-audio/build.mjs --dry-run       # list the extracted texts, no TTS
+node scripts/lesson-audio/build.mjs --report-only   # counts/MB per level, no TTS
+
+node scripts/r2-upload.mjs             # upload scripts/lesson-audio/out/ to R2 (idempotent)
+node scripts/r2-upload.mjs --dry-run   # just say what would be uploaded
+```
+
+Output under `scripts/lesson-audio/out/` (gitignored) is content-addressed —
+`<hash>.{ogg,m4a}`, named by a hash of the voice and the normalised text — so an unchanged
+step is never re-synthesised and an edited text produces a new file and a new manifest entry
+automatically; re-running `build.mjs` for a set of levels also prunes manifest entries/files
+that those levels no longer need (keeping anything other levels still use) and writes the
+manifest with sorted keys. `r2-upload.mjs` HEADs each file's public URL first and only
+uploads what is missing — safe to re-run after every `build.mjs` run, with
+`Cache-Control: public, max-age=31536000, immutable` (correct for content-addressed names).
+`src/lessons/voice.ts` looks the currently shown text up in the bundled manifest and plays
+with the same `fetch()` + `decodeAudioData()` + shared `AudioContext` pattern as the sound
+effects (`src/sounds.ts`) — same "never throws" contract, but this fetch is cross-origin (R2,
+CORS-enabled for our own origins) rather than same-origin, and needs the network — it is not
+cached by the service worker, so a clip simply won't play offline instead of erroring.
+
 ## Puzzles
 
 `Úlohy` offers 3 200 tactics puzzles in four bands (začátečník 400–999 … těžší 1800–2300),

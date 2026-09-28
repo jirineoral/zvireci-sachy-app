@@ -291,7 +291,7 @@ export const LEVEL1: readonly Lesson[] = [
         accept: ['c1g5'],
         completeness: { kind: 'lands', square: 'g5' },
         text: 'Střelec bere šikmo, stejně jak jezdí. Vezmi střelcem černou figurku.',
-        success: 'Výborně! Na druhou figurku tvůj střelec nedosáhne. Stojí na světlém poli.',
+        success: 'Výborně! Na druhou figurku tvůj střelec nedosáhne. Ta druhá stojí na světlém poli.',
         wrongDefault: 'Tím nic nevezmeš. Najdi figurku, ke které vede šikmá cesta.',
       },
       {

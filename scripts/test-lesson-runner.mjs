@@ -832,7 +832,7 @@ test('l4-klicova-pole: only the opposition wins; another king move is explained'
   assert.equal(moveAt('l4-klicova-pole', 'take-opposition', 'e2', 'd3').phase, 'stepDone');
   const v = moveAt('l4-klicova-pole', 'take-opposition', 'e2', 'e3');
   assert.notEqual(v.phase, 'stepDone');
-  assert.match(v.feedback.text, /vyhru pustí/);
+  assert.match(v.feedback.text, /výhru pustí/);
 });
 
 test('l4-trojuhelnik: Kd4 guards c5; another king move is explained', () => {

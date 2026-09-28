@@ -100,8 +100,15 @@ dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloup
   scripts/check-lessons.mjs <id-prefix>` for quick runs). L4 lessons 8–11 (záchrana,
   klíčová pole, trojúhelník, průlom) + L4 test; L5 lessons 3, 5, 8, 11, 12 + L5 test; L5
   reordered to the plan's order.
-- **Next:** test-lesson-runner cases, full check + build, adversarial review (Opus) and
-  fixes. L6–L7 not started.
+- **Done (review):** test-lesson-runner cases; adversarial review (Opus, club player /
+  junior coach role, tools: tablebase, Stockfish) — 3 errors (a wrong "forced" reply, a
+  misdescribed outside-passer idea, „vyhru“ → „výhru“, now linted) and 15 wording/pedagogy
+  points fixed. Evans–Reshevsky verified against chessgames.com (gid 1252040).
+- **Open for a strong player / the owner:** whether the exchange-sacrifice lesson should
+  open with a positional example instead of the desperado Vxd4; whether to teach the key
+  squares of 5th/6th-rank and rook pawns later. Level-5 structure lessons (4, 6, 7) still
+  need the planned strong-player read.
+- **Next:** L6–L7 (not started).
 
 ## Level tests (same rules as L1/L2: no hints, one attempt, ~10 tasks, ≤2 mistakes)
 - L3: odstranění obránce · přetížení (choose) · odlákání · vlákání · rentgen · mezitah ·

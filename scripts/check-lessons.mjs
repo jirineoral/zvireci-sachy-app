@@ -489,6 +489,7 @@ function lintText(text, label, ctx = { animalId: 'kuzlata' }) {
   }
   if (/O-O/.test(plain)) err(`${label}: O-O — write 0-0`);
   if (/dvojit/i.test(plain)) err(`${label}: „dvojitý“ — the term is „dvojný“`);
+  if (/\bvyhr(u|y)\b/i.test(plain)) err(`${label}: „vyhru“ — the noun is „výhra“ (výhru, výhry)`);
   if (/pěšák/i.test(plain)) err(`${label}: „pěšák“ — the term is „pěšec“`);
   if (/anastasi|anastázi(?!in)/i.test(plain)) err(`${label}: the mate is spelled „Anastáziin mat“`);
   if (/\bjsi\s+\p{L}+l\b/u.test(plain) || /\p{L}+l\s+jsi\b/u.test(plain)) err(`${label}: gendered „jsi …l“ — the child may be a girl; rephrase`);

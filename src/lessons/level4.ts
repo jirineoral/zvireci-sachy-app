@@ -597,7 +597,7 @@ export const LEVEL4: readonly Lesson[] = [
         fen: PERPETUAL_START,
         accept: ['d1h5'],
         completeness: { kind: 'best', marginCp: 100 },
-        text: 'Černý má o věž víc a hrozí Dxf2+. Najdi šach, který můžeš opakovat pořád dokola.',
+        text: 'Černý má o věž a pěšce víc a hrozí Dxf2+. Najdi šach, který můžeš opakovat pořád dokola.',
         success: 'Výborně! Černý král musí uhnout na g8.',
         wrongDefault: 'Tohle remízu neudrží. Hledej šach dámou, před kterým se černý král neschová.',
       },
@@ -635,7 +635,7 @@ export const LEVEL4: readonly Lesson[] = [
         accept: ['c8g8', 'c8h8'],
         completeness: { kind: 'best', marginCp: 100 },
         text: 'Zbav se dámy. Obětuj ji se šachem.',
-        success: 'Výborně! Evans zahrál 49.Dg8+ a Reshevsky ji vzal: Kxg8.',
+        success: 'Výborně! Dámu musí vzít, jinak dostane mat. Evans zahrál 49.Dg8+ Kxg8.',
         wrongDefault: 'Tohle nepomůže. Obětuj dámu se šachem, aby ji černý musel vzít.',
       },
       {
@@ -688,7 +688,7 @@ export const LEVEL4: readonly Lesson[] = [
           { from: 'e6', brush: 'green' },
           { from: 'f6', brush: 'green' },
         ],
-        text: 'Klíčová pole pěšce e4 jsou d6, e6 a f6. Leží o dvě řady před ním. Když na ně vstoupí tvůj král, pěšec vyhraje.',
+        text: 'Klíčová pole pěšce e4 jsou d6, e6 a f6, o dvě řady před ním. Když na ně vstoupí tvůj král, vyhraje. Platí to pro pěšce na 2. až 4. řadě, ne pro krajního pěšce.',
       },
       {
         // Tablebase: black to move loses (Kd8 / Kf8 both lose).
@@ -733,7 +733,7 @@ export const LEVEL4: readonly Lesson[] = [
         completeness: { kind: 'tablebase' },
         text: 'Pěšec d2 má klíčová pole c4, d4 a e4. Černý král je hlídá. Najdi jediný vyhrávající tah.',
         success: 'Opozice! Černý král musí uhnout. Tvůj král pak vstoupí na klíčové pole.',
-        wrongDefault: 'Tenhle tah vyhru pustí. Postav krále proti černému, s jedním polem mezi nimi.',
+        wrongDefault: 'Tenhle tah výhru pustí. Postav krále proti černému, s jedním polem mezi nimi.',
       },
       {
         id: 'distant-idea',
@@ -754,7 +754,8 @@ export const LEVEL4: readonly Lesson[] = [
         completeness: { kind: 'tablebase' },
         text: 'Tvůj král míří k pěšci c2. Černý král ho chce zastavit. Najdi jediný vyhrávající tah.',
         success: 'Vzdálená opozice! Mezi králi jsou tři pole a na tahu je černý.',
-        wrongDefault: 'Tenhle tah vyhru pustí. Postav krále na stejný sloupec jako černého, se třemi poli mezi nimi.',
+        wrong: { f2e1: 'I to je vzdálená opozice, ale tvůj král couvá. Černý král mezitím doběhne k pěšci. Jdi dopředu.' },
+        wrongDefault: 'Tenhle tah výhru pustí. Postav krále na stejný sloupec jako černého, se třemi poli mezi nimi.',
       },
       {
         // Tablebase: only Kf2 wins (distant opposition to Kf8, five squares between).
@@ -765,7 +766,7 @@ export const LEVEL4: readonly Lesson[] = [
         completeness: { kind: 'tablebase' },
         text: 'Ještě jednou, teď z větší dálky. Najdi jediný vyhrávající tah.',
         success: 'Výborně! Mezi králi je pět polí. I to je vzdálená opozice.',
-        wrongDefault: 'Tenhle tah vyhru pustí. Postav krále na sloupec f, proti černému králi.',
+        wrongDefault: 'Tenhle tah výhru pustí. Postav krále na sloupec f, proti černému králi.',
       },
     ],
     outro: 'Král na klíčovém poli vyhrává. Dostaneš se tam, když získáš opozici, klidně i vzdálenou.',
@@ -801,7 +802,7 @@ export const LEVEL4: readonly Lesson[] = [
           { id: 'cerny', label: 'Černý vyhraje' },
         ],
         correct: ['bily'],
-        explain: 'Ano! Černý král musí ustoupit. Bílý král pak dojde k pěšci b7.',
+        explain: 'Ano! Černý král musí ustoupit a bílý král projde dál. Vyhraje.',
         wrongDefault: 'Černý král musí táhnout a pustí bílého krále dál. To je nevýhoda tahu.',
         verify: { kind: 'outcome' },
       },
@@ -814,7 +815,7 @@ export const LEVEL4: readonly Lesson[] = [
           { from: 'e5', to: 'd4', brush: 'blue' },
           { from: 'd4', to: 'd5', brush: 'blue' },
         ],
-        text: 'Na tahu je ale bílý. Tah předá černému trojúhelníkem: tři kroky králem a zpátky na d5.',
+        text: 'Na tahu je ale bílý. Tah předá černému trojúhelníkem: Ke5, Kd4 a zpátky Kd5. Černý to zopakovat nemůže, pole c7 mu hlídá pěšec b6.',
       },
       {
         // Tablebase: only Kd4 wins (it guards c5; everything else loses the pawn).
@@ -824,7 +825,7 @@ export const LEVEL4: readonly Lesson[] = [
         accept: ['e5d4'],
         completeness: { kind: 'tablebase' },
         text: 'Bílý zahrál Ke5 a černý šel na c6. Pokračuj v trojúhelníku.',
-        success: 'Výborně! Černý se vrátí na d7 a ty zahraješ Kd5.',
+        success: 'Výborně! Když se černý vrátí na d7, zahraješ Kd5.',
         wrongDefault: 'Černý král napadá pěšce c5. Kryj ho a pokračuj v trojúhelníku.',
       },
       {
@@ -862,8 +863,8 @@ export const LEVEL4: readonly Lesson[] = [
         text: 'Průlom: obětuješ pěšce, aby jiný tvůj pěšec prošel. Najdi první tah.',
         success: 'Výborně! Černý musí brát. Jinak bílý pěšec vezme a proběhne.',
         wrong: {
-          a5a6: 'Po bxa6 už průlom nevyjde. Začni prostředním pěšcem.',
-          c5c6: 'Po bxc6 už průlom nevyjde. Začni prostředním pěšcem.',
+          a5a6: 'Po bxa6 už průlom nevyjde a černý vyhraje. Začni prostředním pěšcem.',
+          c5c6: 'Po bxc6 už průlom nevyjde a černý vyhraje. Začni prostředním pěšcem.',
         },
         wrongDefault: 'Tohle nevyhraje. Průlom začíná prostředním pěšcem.',
       },
@@ -1022,6 +1023,7 @@ export const LEVEL4: readonly Lesson[] = [
         completeness: { kind: 'best' },
         text: 'Dej dvojšach a příštím tahem mat.',
         success: 'Správně! Šachuje pěšec h7 i věž g2. Po Kf8 přijde Vg8 mat.',
+        wrong: { g6f7: 'Je to taky dvojšach, ale král pěšce vezme: Kxf7. Dvojšach pěšcem na h7 dá mat.' },
         wrongDefault: 'Pěšec gxh7+ šachuje a zároveň otevře sloupec g věži. Po Kf8 přijde Vg8 mat.',
       },
       {

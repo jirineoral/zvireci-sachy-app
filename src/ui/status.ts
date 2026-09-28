@@ -23,7 +23,7 @@ const ENGINE_SUFFIX: Record<EngineIndicator, string> = {
 
 /** Renders the status line (side to move / result, plus the engine state). */
 export function renderStatus(el: HTMLElement, view: StatusView): void {
-  const text = view.puzzle ?? (view.preGame ? 'Vyber si, za koho hraješ, a dej Hrát!' : view.status.text);
+  const text = view.puzzle ?? (view.preGame ? 'Klepni na zelené tlačítko Hrát a hra začne.' : view.status.text);
   const suffix = view.analysing ? ` — analyzuji… ${view.analysing}` : ENGINE_SUFFIX[view.engine];
   el.textContent = text + suffix;
   el.classList.toggle('game-over', view.status.over);

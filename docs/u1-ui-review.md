@@ -1,6 +1,6 @@
 # U1 — UI review and redesign proposal
 
-**Status: proposal, not implemented.** This is backlog item U1 (docs/BACKLOG.md).
+**Status: phase 1 implemented on a branch (not merged, not published), see §11.** This is backlog item U1 (docs/BACKLOG.md).
 
 - **Reviewed against:** the live build `b128b2e` (https://zvirecisachy.cz/#bezmereni) and the source at `c08a665`, on 2026-09-28.
 - **Revision:** the draft was revised after an adversarial review (§10 lists what changed).
@@ -495,3 +495,28 @@ An independent Opus reviewer checked the draft against the code. Accepted change
 - **Move feedback default.** It stays off (engine cost and tone), so Q5 changed.
 - **Effort.** Word unification is now M, the panel refactor XL, and autosave was promoted and specified.
 - **Added:** Q10 (Kamarád tile), Q11 (pilot users) and F23 (the campaign `alert`).
+
+## 11. Implementation status
+
+**Phase 1** (2026-09-28, branch `worktree-agent-ad44c08748ea874de`, not merged, not published). Order as in §7: 0a, 0b, then quick wins.
+
+| Item | State | Where |
+|------|-------|-------|
+| 0a Playwright smoke suite | Done. `npm run test:ui` builds, serves `dist/` with `vite preview` and drives the installed Edge (playwright-core). 14 checks: new-user defaults and ▶ Hrát at 1366×768, 375×812, 360×640; board in view after Hrát, Úlohy, Koncovky, Kampaň, lesson; a fixture with every `skm.*` setting (first load + reload, start as black); existing users by one key or by a saved game only; the mid-game confirmation; the Kamarád card. | `scripts/test-ui.mjs`, `scripts/ui-harness.mjs` |
+| 0b `skm.uiVersion` | Done, rule of §8.1. Existing users: old values frozen only where absent. Nothing stored is overwritten; IndexedDB is only read (a count of `games`, 2.5 s timeout = decide next visit). Code defaults unchanged. | `src/ui-version.ts` |
+| 1 Board into view on every start | Done: Hrát, Úlohy, Koncovky, Kampaň, lesson start, lesson steps played on the board (reading steps do not scroll, so `Dál ▶` stays under the finger), Rozbor. Settings fold on every start; an ending no longer reopens them. Laptop: sticky board column. | `main.ts` `revealBoard` / `onBoardStart` |
+| 2 Guards, undo hidden | Done. Úlohy, Koncovky, Kampaň use `confirmDiscard` (also for a friend game). Undo hidden in puzzles and endings. | `main.ts` `mayLeaveGame` |
+| 3 ▶ Hrát on the board | Done. "Nová hra" steps aside in the pre-game. While a piece is picked up the button is see-through, so white can move to e4/d4. | `game-controller.ts`, `app.css` |
+| 4, 16d Beginner defaults | Done for new users: bílá, obtížnost 1, band začátečník. | `ui-version.ts` |
+| 6 Trust line | Done: „Zdarma · bez reklam · bez registrace · Soukromí“ under the title; soukromi.html says „zdarma, bez reklam“; footer sentence fixed. | |
+| 8 Kamarád card, 🌐 | Done: safety card with [Vytvořit odkaz] / [Zrušit]; globe (inline SVG) on Kamarád and Turnaje. Relay and worker untouched. | `friend-panel.ts` |
+| 15 (part) Words | "↶ Vrátit tah (N)", "◀ Krok zpět", "Zrušit". **Deviation:** the exits are "Konec úloh", "Konec koncovek", "Konec lekcí" and "Seznam lekcí" instead of "◀ Zpět": without the panel header (item 17) two "◀" buttons would sit in one lesson panel, and "Konec" is honest (it never returned to the discarded game). Revisit with item 17. | |
+
+**Not in phase 1 (next):**
+- 5 settings folded for returning users + 🔊 by the board; 7 credits/social links into „O aplikaci“, external links in a new tab; 9 44 px targets and spacing; 10 course-map sticky „◀ Zpět“; 11a picture icons; Q11 one-time owl note for pilot users.
+- 14 autosave (`skm.currentGame`, „Pokračovat v rozehrané partii“) — §7 orders it after the quick wins.
+- 12 + 13 new main screen (tiles, settings sheet with chip, ☰ Pro rodiče), 16a–c, 16e read-aloud, 17 one panel component, 18–20.
+
+**Adversarial review (Opus) and fixes, 2026-09-28.** Fixed: ▶ Hrát stuck see-through after a new pre-game; the sticky board hid rank 1 on laptops under ≈ 740 px of height (sticky now only from 740 px); an IndexedDB error could mark a player known only by saved games as new (now undecided; marker written first); a slow IndexedDB answer could change a running game's difficulty; the pieces setup could supersede a friend connection still arriving; the Kampaň confirmation focus; Konec koncovek / Konec lekcí reopen the settings; the footer's privacy wording. Suite: 14 checks. Still open (minor): ▶ Hrát shows for a moment while a `#hra=` connection is arriving; focus drops to the page after ▶ Hrát hides itself; lesson board-step scrolling on 360×640 not tried on a real phone.
+
+**Before the merge:** try it with the son on his phone (Q11 muscle memory), then decide on the owl note for pilot users.

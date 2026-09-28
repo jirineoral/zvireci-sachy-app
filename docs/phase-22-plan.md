@@ -109,7 +109,27 @@ dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloup
   teach them later — add a lesson in L6. No strong player is available for now, so the
   planned strong-player read (tablebase lessons, Evans–Reshevsky, L5 structure lessons 4, 6,
   7) stays open; the Opus club-player review is the substitute until then.
-- **Next:** L6–L7 (not started; include the key-squares follow-up above).
+- **L6 (2026-09-28, on branch, awaiting owner review):** `src/lessons/level6.ts`, 13 lessons +
+  test, wired into `course.ts` (level title „Expert“, badge `l6`, diploma as before). Lessons:
+  1 Mat 4. tahem · 2 Poslední řada a přetížení · 3 Klíčová pole: daleký a krajní pěšec (the
+  owner's follow-up) · 4 Rétiho studie · 5 Korespondující pole (Lasker–Reichhelm) ·
+  6 Saavedrova pozice · 7 Vančurova pozice · 8 Jezdec a střelec proti pěšci · 9 Mat střelcem a
+  jezdcem · 10 Obranný tah · 11 Chycená figurka II (+ tichý tah) · 12 Vzájemná nevýhoda tahu
+  (trébuchet) · 13 Rozbor vlastní partie II · 14 Zkouška úrovně 6 (11 tasks, pass 9).
+  Decisions: the coach's curriculum order kept, the key-squares lesson inserted as 3 (right
+  after the tactics, before the studies that use it); „Chycená figurka“ (not „figura“) as in L3
+  and the puzzle theme label; Lasker–Reichhelm taught as *korespondující pole* (the coach's
+  „vzdálená opozice“ does not explain it: the winning line 1.Kb1 Kb7 2.Kc1 Kc7 3.Kd1 is not
+  opposition); no new Koncovky ids yet (Réti, Saavedra, Vančura, minor piece vs pawn stay
+  lesson-only; practice points to existing endgames and puzzle themes).
+  Checker additions: `best` takes an optional `depth` (Lasker–Reichhelm needs 24; at 18
+  Stockfish rates Ka2 within 30 cp of Kb1); new choose fact `keysquares`, computed by an exact
+  K+P vs K bitbase (`scripts/kpk.mjs`, retrograde, < 1 s). The bitbase confirms the taught key
+  squares: 2nd–4th rank three squares two ranks ahead; 5th rank six (e5: d6 e6 f6 d7 e7 f7);
+  6th rank six (d6: c7 d7 e7 c8 d8 e8) except the b/g pawn (b6: a7 b7 a8 b8 — stalemate);
+  rook pawn a6: b7 b8 (the strict test fails further back only because the black king
+  catches or blocks the pawn — the lesson teaches b7/b8 with the pawn safe).
+- **Next:** L7 (not started).
 
 ## Level tests (same rules as L1/L2: no hints, one attempt, ~10 tasks, ≤2 mistakes)
 - L3: odstranění obránce · přetížení (choose) · odlákání · vlákání · rentgen · mezitah ·

@@ -24,9 +24,13 @@
 //    scripts/tablebase-cache.json, authoring time only); every other result-keeping move is
 //    explained in `wrong` or excluded by the wording (`tbNarrow`); `tablebase` completeness
 //    and the `outcome` / `tbmoves` choose facts are computed from it.
+//  - level 6: `best` may ask for a deeper search (`depth`, e.g. Lasker–Reichhelm, where depth
+//    18 cannot tell the only win from draws); the `keysquares` choose fact is computed from an
+//    exact K+P vs K bitbase (scripts/kpk.mjs).
 import './ts-hooks.mjs';
 import { childMove, simulate } from './mini-sim.mjs';
 import { pieceCount, probe, resultKeepingMoves, saveTablebaseCache, TB_MAX_PIECES } from './tablebase.mjs';
+import { keySquares } from './kpk.mjs';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -234,11 +238,11 @@ async function checkMoveStep(step, level) {
     expected = legalUci.includes(u) ? [u] : [];
   } else if (c.kind === 'best') {
     const margin = c.marginCp ?? 50;
-    const scores = await engineScores(step.fen, Math.min(legal.length, 100));
+    const scores = await engineScores(step.fen, Math.min(legal.length, 100), c.depth ?? 18);
     const best = Math.max(...Object.values(scores));
     const near = Object.entries(scores).filter(([u]) => legalUci.includes(u)).filter(([, v]) => v >= best - margin).map(([u]) => u);
     expected = near;
-    notes.push(`${where}: engine best ${best} cp; within ${margin} cp: ${near.join(' ')}`);
+    notes.push(`${where}: engine best ${best} cp (depth ${c.depth ?? 18}); within ${margin} cp: ${near.join(' ')}`);
   } else if (c.kind === 'tablebase') {
     if (pieceCount(step.fen) > TB_MAX_PIECES) err(`tablebase completeness needs at most ${TB_MAX_PIECES} pieces`);
     else {
@@ -368,6 +372,14 @@ async function checkChooseFact(step) {
   } else if (v.kind === 'reachable') {
     const to = chess.moves({ square: v.from, verbose: true }).map((m) => m.to);
     truth = step.options.filter((o) => o.square && to.includes(o.square)).map((o) => o.id);
+  } else if (v.kind === 'keysquares') {
+    const board = parsePlacement(step.fen);
+    const pieces = [...board.entries()];
+    const pawns = pieces.filter(([, p]) => p.type === 'p');
+    if (pieces.length !== 3 || pawns.length !== 1 || pawns[0][1].color !== 'w') return err('verify keysquares: needs exactly two kings and one white pawn');
+    const keys = keySquares(pawns[0][0]);
+    truth = step.options.filter((o) => o.square && keys.includes(o.square)).map((o) => o.id);
+    notes.push(`${where}: KPK key squares of ${pawns[0][0]}: ${keys.join(' ')}`);
   } else if (v.kind === 'outcome' || v.kind === 'tbmoves') {
     if (pieceCount(step.fen) > TB_MAX_PIECES) return err(`verify ${v.kind}: more than ${TB_MAX_PIECES} pieces`);
     if (v.kind === 'outcome') {

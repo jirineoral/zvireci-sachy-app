@@ -52,7 +52,8 @@ export function renderControls(els: ControlsElements, state: ControlsState): voi
   els.feedback.value = state.feedbackEnabled ? 'on' : 'off';
   els.undoLimit.value = state.undoLimit === null ? 'unlimited' : String(state.undoLimit);
   els.undoLimit.disabled = state.disabled;
-  els.undo.textContent = state.undosLeft === null || state.undoLimit === null ? 'Zpět' : `Zpět (${state.undosLeft})`;
+  // U1 §4: "Zpět" meant four things; a take-back is always „↶ Vrátit tah“.
+  els.undo.textContent = state.undosLeft === null || state.undoLimit === null ? '↶ Vrátit tah' : `↶ Vrátit tah (${state.undosLeft})`;
   els.difficulty.disabled = state.disabled || state.difficultyLocked;
   els.difficulty.title = state.difficultyLocked ? 'Obtížnost řídí kampaň' : '';
   els.feedback.disabled = state.disabled;

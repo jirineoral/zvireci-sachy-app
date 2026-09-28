@@ -35,11 +35,20 @@ import { buildDiplomaDialog } from './ui/diploma';
 import { createChessgroundLessonBoard, type ChessgroundLessonBoard } from './ui/lesson-board';
 import { buildLessonPanel, OWL, teacherInfo } from './ui/lesson-panel';
 import { promptPromotion } from './ui/promotion-dialog';
+import { initUiVersion } from './ui-version';
 import { registerServiceWorker } from './pwa';
 
 registerServiceWorker(); // PWA (R12 step 1): production builds only, see src/pwa.ts
 
 const app = requireElement<HTMLDivElement>(document, '#app');
+
+/** U1 item 8: a small globe on the buttons that go online (Kamarád, Turnaje). */
+const ONLINE_BADGE =
+  '<svg class="online-badge" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">' +
+  '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.3"/>' +
+  '<ellipse cx="8" cy="8" rx="2.8" ry="6.5" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
+  '<path d="M1.5 8h13M2.7 4.7h10.6M2.7 11.3h10.6" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>' +
+  '<span class="visually-hidden"> (přes internet)</span>';
 
 app.innerHTML = `
   <div class="stage">
@@ -48,11 +57,13 @@ app.innerHTML = `
       <div class="eval-bar" hidden><div class="eval-fill"></div><span class="eval-text"></span></div>
       <div class="board"></div>
       <div class="announce" hidden></div>
+      <button type="button" class="board-start" hidden><span class="board-start-icon" aria-hidden="true">▶</span> Hrát</button>
     </div>
     <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="captured" hidden></div><div class="bubble" hidden></div></div>
   </div>
   <aside class="panel">
     <h1>Zvířecí šachy <small class="subtitle">(nejen) pro děti</small></h1>
+    <p class="trust">Zdarma · bez reklam · bez registrace · <a href="soukromi.html" target="_blank" rel="noopener">Soukromí</a></p>
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">
@@ -104,13 +115,13 @@ app.innerHTML = `
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
       <button type="button" class="endgames">Koncovky</button>
-      <button type="button" class="broadcasts">Turnaje</button>
+      <button type="button" class="broadcasts" title="Přes internet">Turnaje${ONLINE_BADGE}</button>
       <button type="button" class="campaign">Kampaň</button>
-      <button type="button" class="friend">Kamarád</button>
+      <button type="button" class="friend" title="Přes internet">Kamarád${ONLINE_BADGE}</button>
     </div>
     <footer class="credits">
-      <p class="mission">Pro děti napořád zdarma. Bez registrace; nic o tobě neukládáme, všechno zůstává v tomhle
-      prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
+      <p class="mission">Pro děti napořád zdarma, bez reklam a bez registrace. Žádné osobní údaje nesbíráme:
+      nastavení, postup i partie zůstávají jen v tomhle prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
       Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
       a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
       <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
@@ -148,6 +159,9 @@ const ENGINE_WASM_BYTES = 7_295_411;
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
 const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 const DIFFICULTY_STORAGE_KEY = 'skm.difficulty';
+// U1 §8.1: beginner defaults for genuinely new users only — decided before any setting is
+// read (localStorage at once; a browser with no `skm.*` key also asks IndexedDB for saved games).
+const uiVersion = initUiVersion(safeLocalStorage());
 /** What the board holds, for the matchup line (a puzzle or an ending is never "two players"). */
 let boardMode: 'play' | 'puzzle' | 'training' | 'lesson' = 'play';
 
@@ -166,6 +180,7 @@ function startEngine(): Engine {
   return created;
 }
 const engine = startEngine();
+requireElement<HTMLButtonElement>(app, '.review').addEventListener('click', () => onBoardStart()); // U1 F2: Rozbor
 const engineRetryButton = requireElement<HTMLButtonElement>(app, '.engine-retry');
 engineRetryButton.addEventListener('click', () => controller?.retryEngine(startEngine()));
 
@@ -197,6 +212,7 @@ controller = new GameController(
     analyseButton: requireElement<HTMLButtonElement>(app, '.analyse'),
     evalBar: requireElement<HTMLElement>(app, '.eval-bar'),
     resignButton: requireElement<HTMLButtonElement>(app, '.resign'),
+    startButton: requireElement<HTMLButtonElement>(app, '.board-start'),
   },
   engine,
   {
@@ -251,8 +267,10 @@ controller = new GameController(
       const you = human === 'w' ? ' (ty)' : '';
       const them = human === 'b' ? ' (ty)' : '';
       matchupEl.textContent = `Rozbor: ${record.white}${you} × ${record.black}${them} · ${RESULT_LABEL[record.result]}`;
+      onBoardStart();
     },
     onGameStart: () => {
+      onBoardStart(); // `Hrát` (the board button, a campaign game): the board, not the settings
       if (!readPieceDropSetting(safeLocalStorage())) return null;
       play('piece-drop');
       return dropPieces(boardEl, announceEl, announcement());
@@ -261,6 +279,7 @@ controller = new GameController(
       boardMode = 'puzzle';
       pieceSets?.startGame(color);
       renderMatchup();
+      onBoardStart();
     },
     onPuzzleResult: (result) => {
       puzzlePanel.onResult(result);
@@ -276,6 +295,7 @@ controller = new GameController(
       boardMode = 'training';
       pieceSets?.startGame(color);
       renderMatchup();
+      onBoardStart();
     },
     onEngineState: (state) => {
       engineRetryButton.hidden = state !== 'failed';
@@ -295,9 +315,10 @@ const endgamePanel = buildEndgamePanel({
   leave: () => {
     void game.setDifficultyOverride(campaignHooks?.currentDifficulty() ?? null).catch((err) => console.error('setDifficultyOverride failed', err));
     void game.newGame().catch((err) => console.error('newGame failed', err));
+    unfoldSettings(); // back to the pre-game: settings matter again (0 → 0 plies does not reopen them)
   },
 });
-// The endgame panel has its own `Hrát` / `Zpět do hry`: the green `Nová hra` beside them
+// The endgame panel has its own `Hrát` / `Konec koncovek`: the green `Nová hra` beside them
 // would only confuse, so it steps aside while the panel is open.
 {
   const container = requireElement<HTMLElement>(app, '.endgame-panel');
@@ -308,7 +329,8 @@ const endgamePanel = buildEndgamePanel({
   new MutationObserver(sync).observe(container, { attributes: true, attributeFilter: ['hidden'] });
   sync();
 }
-requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', () => {
+requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', async () => {
+  if (!(await mayLeaveGame())) return; // U1 F4: a curious tap no longer throws a game away
   puzzlePanel.close();
   endgamePanel.open();
 });
@@ -387,7 +409,8 @@ const puzzlePanel = buildPuzzlePanel({
   hint: () => game.puzzleHint(),
   leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
 });
-requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', () => {
+requireElement<HTMLButtonElement>(app, '.puzzles').addEventListener('click', async () => {
+  if (!(await mayLeaveGame())) return; // U1 F4
   endgamePanel.close();
   puzzlePanel.open();
 });
@@ -440,10 +463,16 @@ const lessonPanel = buildLessonPanel({
   onLeave: () => {
     endLessonView();
     void game.leaveLesson().catch((err) => console.error('leaveLesson failed', err));
+    unfoldSettings();
   },
   onPractice: (pointer) => void practise(pointer),
   onNextLesson: (lesson) => void openLesson(lesson),
   onFeedback: (tone) => play(tone === 'good' ? 'lesson-correct' : 'lesson-wrong', tone === 'good' ? 0.8 : 0.6),
+  // U1 F2: a step played on the board brings the board back into view (reading steps do not
+  // scroll, so `Dál ▶` under the bubble stays where the child's finger is).
+  onStep: (boardTask) => {
+    if (boardTask) revealBoard();
+  },
 });
 
 const courseMap = buildCourseMap({
@@ -466,9 +495,7 @@ lessonsButton.addEventListener('click', () => courseMap.open());
 
 /** Hands the board to a lesson (asking first when a game would be thrown away). */
 async function openLesson(lesson: Lesson): Promise<void> {
-  if (!game.inLesson && (game.gameInProgress || (game.isRemote && game.anythingInProgress))) {
-    if (!(await confirmDiscard(requireElement<HTMLElement>(app, '.buttons')))) return;
-  }
+  if (!game.inLesson && !(await mayLeaveGame())) return;
   const hadTraining = endgamePanel.current !== null;
   puzzlePanel.close();
   endgamePanel.close();
@@ -485,6 +512,12 @@ async function openLesson(lesson: Lesson): Promise<void> {
   app.classList.add('lesson-mode');
   settingsPanel.open = false; // room for the teacher's bubble
   lessonPanel.start(lesson, lessonBoard, { animalId: lessonAnimalId() });
+  revealBoard();
+  // Laptop: the board is sticky, but closing the course map returned focus (and the scroll)
+  // to `Lekce` far down the panel — bring the teacher's bubble back up.
+  if (!window.matchMedia('(max-width: 899px)').matches) {
+    window.requestAnimationFrame(() => requireElement<HTMLElement>(app, '.lesson-panel').scrollIntoView({ block: 'nearest' }));
+  }
 }
 
 /** Lesson view off: the board's own handlers back, the panel hidden (idempotent). */
@@ -557,6 +590,15 @@ void openGameStore().then((store) => {
 
 const game: GameController = controller;
 
+// The controller read the difficulty before IndexedDB answered: a new user's beginner level
+// (written by initUiVersion) applies now, still before any game has started.
+if (uiVersion.sync === null) {
+  void uiVersion.done.then((kind) => {
+    // Only while nothing has started yet (a slow IndexedDB must not change a running game).
+    if (kind === 'new' && game.preGame) void game.setDifficulty(readDifficultySetting()).catch((err) => console.error('setDifficulty failed', err));
+  });
+}
+
 // Intro + splash (Phase 8): the overlay is a sibling of #app (which becomes inert while the
 // overlay is up — it must not be inside it); the game boots underneath.
 const introOverlay = document.createElement('div');
@@ -603,6 +645,7 @@ void openUserSetStore()
       console.warn('Could not read user piece sets', err);
       return [];
     });
+    await uiVersion.done; // the colour default of a new user is written before it is read
     const manager = await initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), userSets });
     pieceSets = manager;
     const rerender = wirePieceSetSelects(manager);
@@ -622,7 +665,9 @@ void openUserSetStore()
     // The controller opened its first game before the preferences were known: draw again
     // (no move has been played yet; a new game is what a colour change means anyway) —
     // unless a game over a link (`#hra=`) is already on: then only align the characters.
-    if (game.isRemote) {
+    // A friend connection still on its way (`#hra=`, rejoin) must not be superseded by a
+    // computer game either: its `startRemoteGame` would come back 'broken'.
+    if (game.isRemote || friendPanel.active) {
       manager.startGame(game.humanSide);
       renderMatchup();
     } else {
@@ -773,8 +818,10 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
     if (next) campaignNextBtn.textContent = `Další: ${next.name}`;
   };
 
-  const play = (opponentId: string): void => {
-    if (!manager.isLibrary || !applyStrength(opponentId)) return;
+  const play = async (opponentId: string): Promise<void> => {
+    if (!manager.isLibrary || !strengthOf(opponentId)) return;
+    if (!(await mayLeaveGame())) return; // U1 F4: asked before anything changes
+    if (!applyStrength(opponentId)) return;
     if (manager.colorPreference === 'two') manager.setColorPreference('random'); // the campaign is against the computer
     campaignOpponent = opponentId;
     campaignNext = null;
@@ -837,7 +884,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   });
   campaignOpenBtn.addEventListener('click', () => dialog.open());
   campaignNextBtn.addEventListener('click', () => {
-    if (campaignNext) play(campaignNext);
+    if (campaignNext) void play(campaignNext);
   });
 
   campaignHooks = {
@@ -963,8 +1010,51 @@ function confirmDiscard(anchor: Element): Promise<boolean> {
     anchor.after(bar);
     bar.scrollIntoView({ block: 'nearest' });
     no.focus({ preventScroll: true });
+    // Asked from inside a modal (Kampaň) that closes right after: focus the answer once the
+    // dialog has handed focus back to its opener.
+    window.requestAnimationFrame(() => {
+      if (bar.isConnected) no.focus({ preventScroll: true });
+    });
   });
 }
+/**
+ * U1 F4: before a mode takes the board (Úlohy, Koncovky, Kampaň, a lesson), a game in
+ * progress — or a game with a friend over a link — is not thrown away unasked.
+ */
+async function mayLeaveGame(): Promise<boolean> {
+  if (!game.gameInProgress && !(game.isRemote && game.anythingInProgress)) return true;
+  return confirmDiscard(requireElement<HTMLElement>(app, '.buttons'));
+}
+
+/**
+ * U1 F2: after every start the board is what matters. Scrolls it into view when any part of
+ * it is off-screen (on phones the panel sits below the board) and folds the settings.
+ */
+function revealBoard(): void {
+  const stage = app.querySelector<HTMLElement>('.stage');
+  if (!stage) return;
+  window.requestAnimationFrame(() => {
+    const r = stage.getBoundingClientRect();
+    const visible = window.visualViewport?.height ?? window.innerHeight;
+    if (r.top >= 0 && r.bottom <= visible) return;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 4), behavior: smooth ? 'smooth' : 'auto' });
+  });
+}
+
+/** Leaving a mode for the pre-game (Konec koncovek / lekcí): the settings open again. */
+function unfoldSettings(): void {
+  const settings = app.querySelector<HTMLDetailsElement>('details.settings');
+  if (settings) settings.open = true;
+}
+
+/** A game, puzzle, ending or review starts: settings fold away and the board comes into view. */
+function onBoardStart(): void {
+  const settings = app.querySelector<HTMLDetailsElement>('details.settings');
+  if (settings) settings.open = false;
+  revealBoard();
+}
+
 // A reload or a closed tab would lose the game too: let the browser ask.
 window.addEventListener('beforeunload', (e) => {
   if (game.gameInProgress) e.preventDefault();
@@ -1016,8 +1106,10 @@ function syncPanels(): void {
     if (lastPlies <= 0 && plies > 0) {
       settingsPanel.open = false; // game started: make room for the board / the move list
       if (narrow.matches) movesPanel.open = false;
-    } else if (plies === 0) {
-      settingsPanel.open = true; // new game: settings matter again
+    } else if (plies === 0 && boardMode === 'play' && game.preGame) {
+      // A new game waiting for `Hrát`: settings matter again. (Not an ending that starts
+      // with no moves, nor a game already started — U1 F6.)
+      settingsPanel.open = true;
       if (narrow.matches) movesPanel.open = false;
     }
   }

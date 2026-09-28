@@ -26,6 +26,7 @@ function buildStamp(): string {
  *  - img-src data:: the built-in cburnett piece set is data:image/svg+xml in the bundled CSS.
  *  - img-src blob:: the player's own piece sets (MVP M1) are object URLs of PNGs that our
  *    own code re-encoded from sniffed uploads; no other blob: source exists.
+ *  - img-src https://videa.zvirecisachy.cz: lesson video posters (src/video-player.ts).
  *  - connect-src 'self' https://api.chess.com https://lichess.org: sets.json, the wasm
  *    HEAD pre-check, the worker's wasm fetch, and the two external endpoints — the public
  *    chess.com API (Phase 15 import) and the Lichess broadcast API (Phase 16), both
@@ -39,18 +40,19 @@ function buildStamp(): string {
  *    static.cloudflareinsights.com and its POST to cloudflareinsights.com. It counts page
  *    views and visits per day without cookies, fingerprinting or a visitor id (Cloudflare's
  *    "privacy-first" analytics) — the one third-party script the site loads, and only there.
- *  - No `media-src` entry: sound effects (`src/sounds.ts`, `public/sounds/`) load with
- *    `fetch()` + `decodeAudioData`, never an `<audio>`/`<video>` element, so they are
- *    governed by `connect-src` (already `'self'`) rather than `media-src`. Add `media-src
- *    'self'` here — it would otherwise fall back to `default-src 'none'` and be blocked —
- *    if a future change plays sound through an `<audio src>`/`<video src>` instead.
+ *  - media-src 'self' https://videa.zvirecisachy.cz: lesson explainer videos
+ *    (src/video-player.ts) play through a plain `<video src>` element from our own
+ *    Cloudflare R2 bucket. Sound effects (`src/sounds.ts`, `public/sounds/`) still load
+ *    with `fetch()` + `decodeAudioData`, not an `<audio>`/`<video>` element, so they stay
+ *    governed by `connect-src` (already `'self'`) rather than this entry.
  */
 function csp(analytics: boolean, friendWs: string): string {
   return [
     "default-src 'none'",
     `script-src 'self' 'wasm-unsafe-eval'${analytics ? ' https://static.cloudflareinsights.com' : ''}`,
     "style-src 'self'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https://videa.zvirecisachy.cz",
+    "media-src 'self' https://videa.zvirecisachy.cz",
     `connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/ ${friendWs}${analytics ? ' https://cloudflareinsights.com' : ''}`,
     "worker-src 'self'",
     "manifest-src 'self'",

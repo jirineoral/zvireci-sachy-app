@@ -478,3 +478,13 @@
     display: none !important;
   }
 }
+
+/* "▶ Video" (src/video-player.ts opens the overlay) — big tap target for kids. */
+.lesson-video-btn {
+  min-height: 44px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  font-weight: 600;
+  border-color: #6a9fc9;
+  color: #9fd0ff;
+}

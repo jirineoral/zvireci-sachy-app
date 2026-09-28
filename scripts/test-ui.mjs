@@ -333,6 +333,56 @@ test('mid-game Kampaň asks first; Konec koncovek reopens the settings', async (
   await context.close();
 });
 
+/** Opens the course map and starts the lesson whose title matches `title` exactly. */
+async function startLesson(page, title) {
+  await page.click('.buttons .lessons');
+  await page.waitForSelector('dialog.course-map[open]');
+  await page.click(`dialog.course-map[open] .course-start[aria-label="Začít: ${title}"]`);
+  await page.waitForSelector('.lesson-panel:not([hidden])');
+}
+
+test('lesson video (mobile, portrait): ▶ Video opens the 9x16 clip, ✕ Zavřít returns focus', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'mobile');
+  await load(page, url);
+  await startLesson(page, 'Věž');
+  assert(await visible(page, '.lesson-video-btn'), '▶ Video button missing for l1-vez');
+  assert(/^▶ Video/.test((await page.textContent('.lesson-video-btn')) ?? ''), 'button label does not start with ▶ Video');
+  await page.click('.lesson-video-btn');
+  await page.waitForSelector('.video-player-dialog[open]');
+  const src = await page.getAttribute('.video-player-video', 'src');
+  const poster = await page.getAttribute('.video-player-video', 'poster');
+  assert(src === 'https://videa.zvirecisachy.cz/lesson-video/l1-vez/l1-vez-9x16.mp4', `unexpected portrait src: ${src}`);
+  assert(poster === 'https://videa.zvirecisachy.cz/lesson-video/l1-vez/l1-vez-poster-9x16.jpg', `unexpected portrait poster: ${poster}`);
+  await page.click('.video-player-close');
+  await page.waitForSelector('.video-player-dialog[open]', { state: 'hidden' });
+  assert(await page.evaluate(() => document.activeElement?.classList.contains('lesson-video-btn')), 'focus did not return to ▶ Video');
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  await context.close();
+});
+
+test('lesson video (desktop, landscape): ▶ Video opens the 16x9 clip; Escape closes it', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'desktop');
+  await load(page, url);
+  await startLesson(page, 'Věž');
+  await page.click('.lesson-video-btn');
+  await page.waitForSelector('.video-player-dialog[open]');
+  const src = await page.getAttribute('.video-player-video', 'src');
+  assert(src === 'https://videa.zvirecisachy.cz/lesson-video/l1-vez/l1-vez-16x9.mp4', `unexpected landscape src: ${src}`);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.video-player-dialog[open]', { state: 'hidden' });
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  await context.close();
+});
+
+test('lesson video: the level test (Zkouška) never gets a ▶ Video button', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'desktop');
+  await load(page, url);
+  await startLesson(page, 'Zkouška úrovně 1');
+  assert(!(await visible(page, '.lesson-video-btn')), '▶ Video button shown for the level test');
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  await context.close();
+});
+
 // ---------------------------------------------------------------------------------------
 
 const only = process.argv[2];

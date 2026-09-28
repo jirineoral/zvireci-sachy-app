@@ -104,11 +104,12 @@ dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloup
   junior coach role, tools: tablebase, Stockfish) — 3 errors (a wrong "forced" reply, a
   misdescribed outside-passer idea, „vyhru“ → „výhru“, now linted) and 15 wording/pedagogy
   points fixed. Evans–Reshevsky verified against chessgames.com (gid 1252040).
-- **Open for a strong player / the owner:** whether the exchange-sacrifice lesson should
-  open with a positional example instead of the desperado Vxd4; whether to teach the key
-  squares of 5th/6th-rank and rook pawns later. Level-5 structure lessons (4, 6, 7) still
-  need the planned strong-player read.
-- **Next:** L6–L7 (not started).
+- **Owner decisions (2026-09-28):** the exchange-sacrifice lesson keeps the desperado Vxd4
+  opening (owner indifferent). Key squares of 5th/6th-rank pawns and of rook pawns: yes,
+  teach them later — add a lesson in L6. No strong player is available for now, so the
+  planned strong-player read (tablebase lessons, Evans–Reshevsky, L5 structure lessons 4, 6,
+  7) stays open; the Opus club-player review is the substitute until then.
+- **Next:** L6–L7 (not started; include the key-squares follow-up above).
 
 ## Level tests (same rules as L1/L2: no hints, one attempt, ~10 tasks, ≤2 mistakes)
 - L3: odstranění obránce · přetížení (choose) · odlákání · vlákání · rentgen · mezitah ·

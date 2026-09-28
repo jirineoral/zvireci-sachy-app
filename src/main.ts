@@ -35,6 +35,9 @@ import { buildDiplomaDialog } from './ui/diploma';
 import { createChessgroundLessonBoard, type ChessgroundLessonBoard } from './ui/lesson-board';
 import { buildLessonPanel, OWL, teacherInfo } from './ui/lesson-panel';
 import { promptPromotion } from './ui/promotion-dialog';
+import { registerServiceWorker } from './pwa';
+
+registerServiceWorker(); // PWA (R12 step 1): production builds only, see src/pwa.ts
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 

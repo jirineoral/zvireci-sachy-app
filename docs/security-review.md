@@ -788,3 +788,94 @@ owner item 1 is done (or consciously skipped); items 2–3 are hardening that ca
   click (network tab all 200), no console errors across page load / gesture / setting
   toggle / reload-persistence / a played move and engine reply / a new piece-drop start.
   Not yet merged to `main` or deployed.
+
+### 2026-09-28 — installable PWA, step 1 of R12 (branch `agent-afa6e22a274acd8ca`)
+- **What changed.** `public/manifest.webmanifest` (name/short_name "Zvířecí šachy",
+  `start_url`/`scope` `/`, `display: standalone`, icons); five PNG icons under
+  `public/icons/` generated deterministically from artwork already in the repo
+  (`public/piece-sets/animals/kuzlata/light/K.png`, the white goat king) by
+  `scripts/make-icons.py` — no new artwork, no third-party asset; iOS meta tags and
+  `<link rel=manifest>` in `index.html`. A hand-written service worker: the source is a
+  template (`scripts/sw-template.js`); `scripts/build-sw.mjs` runs after `vite build` in
+  every build script (`build`, `build:pages`, `build:dev-site`), fills in a cache-version
+  hash (sha256 of the precached files' own contents) and the precache URL list from the
+  finished `dist/`, and writes `dist/sw.js` — so the worker's own bytes change on every
+  deploy that changes the shell, which is what makes the browser's built-in update check
+  (it byte-diffs `sw.js` on navigation) actually fire. Registration is one line in
+  `src/main.ts` calling `registerServiceWorker()` (`src/pwa.ts`), gated on
+  `import.meta.env.PROD` so `vite` (dev server) never registers one.
+- **Why hand-written, not vite-plugin-pwa/Workbox.** The caching need here is small and
+  fixed (one app shell to precache, three runtime strategies for everything else) and the
+  HEAD-pre-check and cross-origin exclusions below are easiest to get right — and to keep
+  right when they matter for safety — in a worker whose entire logic is one screen of
+  code the owner can read, rather than behind a generated Workbox bundle. No new
+  dependency.
+- **What is precached vs. cached-on-use, and why.** `npm run build:pages` on this branch:
+  the app shell (`index.html`, the one JS bundle ~439 kB / ~139 kB gzip, one CSS bundle
+  ~51 kB / ~12 kB gzip, `compat.js`, `manifest.webmanifest`, the 5 icons, `soukromi.html`,
+  `THIRD-PARTY-NOTICES.txt`, and the ~21 kB Stockfish *loader* script) is **13 files,
+  ~968 kB total** — precached on install, so the app shell and the ability to *start* an
+  engine search work with zero prior visits. The Stockfish **`.wasm` is 7.0 MB** — far too
+  big to add to every install's first download for a feature most sessions won't touch in
+  the first minute — so it is fetched and cached the first time an engine is actually
+  created (cache-first afterwards). Piece sets (~15 MB total across all characters),
+  lessons, puzzles (~427 kB) and splash images are likewise cached only as each is opened
+  (stale-while-revalidate) — a fresh install does not silently download tens of MB.
+  Consequence, stated plainly: the *very first* offline session can open the app and play
+  in two-player mode and against the engine immediately, but a character/lesson/puzzle
+  band never opened online yet will show the app's own existing graceful-degradation
+  message ("that side shows the built-in pieces" etc.) instead of loading — expected and
+  observed in testing (see below), not a bug.
+- **HEAD pre-check safety.** The fetch handler's first check is `if (request.method !==
+  'GET') return;` — HEAD (and everything but GET) is never intercepted and always reaches
+  the real network, so `src/engine.ts`'s wasm content-length pre-check keeps seeing the
+  real response in every online case, exactly as before this change.
+- **A real bug found and fixed while testing offline play**, in `src/engine.ts`
+  (`precheckWasm`): the function's single `try/catch` treated *any* thrown error the same
+  way, including a plain `fetch()` rejection with no network at all (`TypeError: Failed to
+  fetch`) — offline, this permanently disabled the engine for that page load (silent
+  fallback to two-player, same code path as a genuinely missing file). Split the fetch
+  call into its own `try`: a network-level failure (not a timeout) now makes the
+  pre-check resolve — proceed, offline is not "the file is wrong" — while a server that
+  *did* answer with the wrong thing (bad status, an SPA-fallback HTML page, a wrong
+  content-length) still throws exactly as before. `npx tsc --noEmit` clean; behaviour
+  verified live (below). This is a genuine behavioural change to existing code, scoped to
+  the one function; the deliberate fail-closed cases are untouched.
+- **Cross-origin exclusion.** The fetch handler's second check is `if (url.origin !==
+  self.location.origin) return;` before any caching logic runs — chess.com, the Lichess
+  broadcast API, the friend relay WebSocket (not interceptable by a service worker's fetch
+  event at all — WebSocket upgrades don't go through it — but excluded for clarity anyway)
+  and the Cloudflare Analytics beacon are all passed straight through, untouched, exactly
+  as without a service worker.
+- **Updates without the player clearing anything.** The cache name is
+  `skm-cache-<version>`; `activate` deletes every `skm-cache-*` that isn't the current
+  one. The page never auto-swaps a waiting worker in: `src/pwa.ts` shows a small banner
+  ("Je tu nová verze hry" / "Obnovit") and only posts `SKIP_WAITING` when the player
+  clicks it, then reloads once `controllerchange` fires — never mid-game on its own.
+  Verified live: deployed v1, confirmed offline behaviour, then rebuilt (a genuinely
+  different bundle hash) with the server back up — the banner appeared, clicking it
+  reloaded onto the new worker, and `caches.keys()` showed only the new cache name (the
+  old one gone).
+- **CSP.** Added `manifest-src 'self'` — `default-src 'none'` would otherwise block the
+  browser from fetching `manifest.webmanifest`. `worker-src 'self'` (already present)
+  covers registering the service worker itself; no other directive changed.
+- **Verified** (branch `agent-afa6e22a274acd8ca`, `npm run build:pages` + `npx vite
+  preview`, real Chrome via the Claude-in-Chrome extension — the sandboxed built-in
+  browser tool in this environment refuses all `navigator.serviceWorker.register()` calls
+  with an opaque error and was not usable for this): manifest fetches and parses (4
+  icons, correct name); service worker installs and activates; **offline** (verified by
+  killing the preview server process, not just DevTools' network throttle, i.e. a harder
+  test) — a full reload still renders the complete app (splash, board, settings) from
+  cache; a *new game against the engine actually plays* offline end to end (engine opened
+  as white and played `1. e4`, the player answered `1...g5`, the engine replied `2. d3`
+  locally, all with the HTTP server dead); the update banner appears for a second,
+  content-different build and reloads cleanly onto it with the old cache removed. A
+  character not previously opened while online correctly fails to load its stylesheet
+  offline and falls back to the built-in piece set (existing app behaviour, not new).
+  **Not verified**: real installability prompts / home-screen behaviour on an actual
+  Android/iOS device (no such device in this environment); the maskable icon's rendering
+  under Android's actual adaptive-icon mask (only inspected the source PNG); the
+  dev-site (`build:dev-site`) build was not separately smoke-tested beyond confirming its
+  npm script also runs `build-sw.mjs`. `npx tsc --noEmit` and `npm run check:lessons` /
+  `npm run test:lessons` were run after the `engine.ts` change; see the commit for their
+  result. Not merged to `main`, not deployed anywhere.

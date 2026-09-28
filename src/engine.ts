@@ -127,37 +127,47 @@ const WASM_SIZE_TOLERANCE = 0.05;
 
 /**
  * HEAD request for the .wasm before the worker is created. Resolves when the file looks
- * reachable (or the server cannot tell us: 405/501, missing content-length); rejects when
- * it is missing, unreachable or has an unexpected size.
+ * reachable (or the server cannot tell us: 405/501, missing content-length, no network at
+ * all - see below); rejects when a server actually answered and the answer is wrong
+ * (missing, an SPA fallback, or an unexpected size).
+ *
+ * Offline (PWA, R12 step 1): with no network at all, `fetch()` itself rejects before any
+ * response exists - that's a different case from a server answering "no" and must not be
+ * treated as "the file is wrong". It resolves instead, exactly like the other "cannot
+ * tell, proceed" cases below: `startWorker` then loads the worker script and .wasm the
+ * normal way, which a service worker can serve from its cache, and a truly unreachable
+ * engine still surfaces through the unchanged handshake timeout. A response the server
+ * *did* send - wrong status, an HTML fallback, a bad content-length - still fails closed.
  */
 async function precheckWasm(wasmUrl: string, expectedBytes: number): Promise<void> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PRECHECK_TIMEOUT_MS);
+  let response: Response;
   try {
-    const response = await fetch(wasmUrl, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
-    if (response.status === 405 || response.status === 501) return; // host refuses HEAD: unknown, proceed
-    if (!response.ok) throw new Error(`Engine wasm not reachable: HTTP ${response.status} for ${wasmUrl}`);
-    // SPA hosts (and Vite dev) answer unknown paths with index.html and status 200.
-    const type = response.headers.get('content-type') ?? '';
-    if (type.includes('text/html')) {
-      throw new Error(`Engine wasm not reachable: ${wasmUrl} answered with HTML (missing file / SPA fallback)`);
-    }
-    // With transfer compression (GitHub Pages, most CDNs) content-length is the encoded
-    // size, so the check only applies to uncompressed answers.
-    const encoding = (response.headers.get('content-encoding') ?? 'identity').toLowerCase();
-    if (encoding !== 'identity') return; // size unknown, proceed
-    const length = Number(response.headers.get('content-length'));
-    if (!Number.isFinite(length) || length <= 0) return; // unknown, proceed
-    if (Math.abs(length - expectedBytes) > expectedBytes * WASM_SIZE_TOLERANCE) {
-      throw new Error(`Engine wasm has unexpected size ${length} (expected ~${expectedBytes}) at ${wasmUrl}`);
-    }
+    response = await fetch(wasmUrl, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error(`Engine wasm pre-check timed out after ${PRECHECK_TIMEOUT_MS} ms`);
     }
-    throw err instanceof Error ? err : new Error(String(err));
+    return; // fetch() rejected before any response: no network, not a wrong answer - proceed
   } finally {
     clearTimeout(timer);
+  }
+  if (response.status === 405 || response.status === 501) return; // host refuses HEAD: unknown, proceed
+  if (!response.ok) throw new Error(`Engine wasm not reachable: HTTP ${response.status} for ${wasmUrl}`);
+  // SPA hosts (and Vite dev) answer unknown paths with index.html and status 200.
+  const type = response.headers.get('content-type') ?? '';
+  if (type.includes('text/html')) {
+    throw new Error(`Engine wasm not reachable: ${wasmUrl} answered with HTML (missing file / SPA fallback)`);
+  }
+  // With transfer compression (GitHub Pages, most CDNs) content-length is the encoded
+  // size, so the check only applies to uncompressed answers.
+  const encoding = (response.headers.get('content-encoding') ?? 'identity').toLowerCase();
+  if (encoding !== 'identity') return; // size unknown, proceed
+  const length = Number(response.headers.get('content-length'));
+  if (!Number.isFinite(length) || length <= 0) return; // unknown, proceed
+  if (Math.abs(length - expectedBytes) > expectedBytes * WASM_SIZE_TOLERANCE) {
+    throw new Error(`Engine wasm has unexpected size ${length} (expected ~${expectedBytes}) at ${wasmUrl}`);
   }
 }
 

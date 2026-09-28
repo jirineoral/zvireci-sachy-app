@@ -12,6 +12,8 @@ It does **not** cover the artwork, which is not a derivative of any GPL work:
 - `public/piece-sets/animals/*/light/*.png`, `public/piece-sets/animals/*/dark/*.png`
 - `public/piece-sets/farm/*.png`
 - `public/splash/*.jpg`, `public/og.jpg` (the link-preview image, cut from the splash)
+- `public/icons/*.png` (the PWA app icons, cut and recoloured from the goat king piece by
+  `scripts/make-icons.py` — same artwork, same terms)
 - `assets/source/**` (the generated sheets the pieces were cut from)
 - `assets/social/*` (social media pictures and screenshots made from the same artwork)
 - `docs/*.png` (contact sheets and the sheet template — the same artwork)

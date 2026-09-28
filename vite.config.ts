@@ -30,6 +30,9 @@ function buildStamp(): string {
  *    HEAD pre-check, the worker's wasm fetch, and the two external endpoints — the public
  *    chess.com API (Phase 15 import) and the Lichess broadcast API (Phase 16), both
  *    unauthenticated with CORS `*`.
+ *  - manifest-src 'self': the web app manifest (`public/manifest.webmanifest`, PWA/R12,
+ *    2026-09-28) — without it `default-src 'none'` blocks the browser from fetching it.
+ *    `worker-src 'self'` already covers the service worker registration itself.
  *  - frame-ancestors cannot be expressed in a <meta> policy; a header would be needed.
  *  - connect-src <relay>: the "Hrát s kamarádem" WebSocket (Phase 20) — only this origin.
  *  - Cloudflare Web Analytics (public site only, `--mode pages`): the beacon script from
@@ -50,6 +53,7 @@ function csp(analytics: boolean, friendWs: string): string {
     "img-src 'self' data: blob:",
     `connect-src 'self' https://api.chess.com/pub/ https://lichess.org/api/broadcast/ ${friendWs}${analytics ? ' https://cloudflareinsights.com' : ''}`,
     "worker-src 'self'",
+    "manifest-src 'self'",
     "base-uri 'none'",
     "form-action 'none'",
   ].join('; ');

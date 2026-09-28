@@ -277,6 +277,28 @@ especially welcome.
 
 All piece artwork (the character library) is AI-generated.
 
+## Instalace / offline
+
+The site is an installable PWA (backlog R12, step 1): "Přidat na plochu" / "Nainstalovat"
+in the browser puts a `Zvířecí šachy` icon on the phone's home screen or in the desktop's
+app list, opening full-screen with no browser chrome (`public/manifest.webmanifest`; icons
+generated from the goat king's own artwork by `python scripts/make-icons.py`).
+
+A hand-written service worker (`scripts/sw-template.js`, filled in per build by
+`scripts/build-sw.mjs` into `dist/sw.js`, registered from `src/pwa.ts` in production
+builds only) precaches the app shell (the JS/CSS bundle, `index.html`, the manifest, the
+icons, `compat.js`, `soukromi.html`, `THIRD-PARTY-NOTICES.txt` and the small Stockfish
+loader script — under 1 MB) so the app opens and a game against the engine starts with no
+network at all. The Stockfish `.wasm` (~7 MB) and piece sets/lessons/puzzles/sounds/splash
+images are cached the first time they are used instead of being precached — once a
+character or a lesson has been opened while online, it keeps working offline. Nothing
+cross-origin (chess.com, Lichess, the friend relay, Cloudflare Analytics) is ever cached.
+Every deploy gets its own cache name (derived from the build's contents) and the old one
+is deleted on activate, so a new version reaches players with nothing to clear by hand —
+when one is ready, a small banner ("Je tu nová verze hry — Obnovit") offers to reload;
+it never reloads on its own mid-game. Details and the CSP change:
+`docs/security-review.md`, 2026-09-28.
+
 ## Publishing
 
 The public site (https://zvirecisachy.cz, custom domain on GitHub Pages) is a build in a

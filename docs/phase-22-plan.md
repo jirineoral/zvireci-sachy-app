@@ -109,7 +109,27 @@ dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloup
   teach them later — add a lesson in L6. No strong player is available for now, so the
   planned strong-player read (tablebase lessons, Evans–Reshevsky, L5 structure lessons 4, 6,
   7) stays open; the Opus club-player review is the substitute until then.
-- **Next:** L6–L7 (not started; include the key-squares follow-up above).
+- **L6 (2026-09-28, on branch, awaiting owner review):** `src/lessons/level6.ts`, 13 lessons +
+  test, wired into `course.ts` (level title „Expert“, badge `l6`, diploma as before). Lessons:
+  1 Mat 4. tahem · 2 Poslední řada a přetížení · 3 Klíčová pole: daleký a krajní pěšec (the
+  owner's follow-up) · 4 Rétiho studie · 5 Korespondující pole (Lasker–Reichhelm) ·
+  6 Saavedrova pozice · 7 Vančurova pozice · 8 Jezdec a střelec proti pěšci · 9 Mat střelcem a
+  jezdcem · 10 Obranný tah · 11 Chycená figurka II (+ tichý tah) · 12 Vzájemná nevýhoda tahu
+  (trébuchet) · 13 Rozbor vlastní partie II · 14 Zkouška úrovně 6 (11 tasks, pass 9).
+  Decisions: the coach's curriculum order kept, the key-squares lesson inserted as 3 (right
+  after the tactics, before the studies that use it); „Chycená figurka“ (not „figura“) as in L3
+  and the puzzle theme label; Lasker–Reichhelm taught as *korespondující pole* (the coach's
+  „vzdálená opozice“ does not explain it: the winning line 1.Kb1 Kb7 2.Kc1 Kc7 3.Kd1 is not
+  opposition); no new Koncovky ids yet (Réti, Saavedra, Vančura, minor piece vs pawn stay
+  lesson-only; practice points to existing endgames and puzzle themes).
+  Checker additions: `best` takes an optional `depth` (Lasker–Reichhelm needs 24; at 18
+  Stockfish rates Ka2 within 30 cp of Kb1); new choose fact `keysquares`, computed by an exact
+  K+P vs K bitbase (`scripts/kpk.mjs`, retrograde, < 1 s). The bitbase confirms the taught key
+  squares: 2nd–4th rank three squares two ranks ahead; 5th rank six (e5: d6 e6 f6 d7 e7 f7);
+  6th rank six (d6: c7 d7 e7 c8 d8 e8) except the b/g pawn (b6: a7 b7 a8 b8 — stalemate);
+  rook pawn a6: b7 b8 (the strict test fails further back only because the black king
+  catches or blocks the pawn — the lesson teaches b7/b8 with the pawn safe).
+- **Next:** L7 (not started).
 
 ## Level tests (same rules as L1/L2: no hints, one attempt, ~10 tasks, ≤2 mistakes)
 - L3: odstranění obránce · přetížení (choose) · odlákání · vlákání · rentgen · mezitah ·
@@ -121,4 +141,16 @@ dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloup
   pěšec · vzdálený volný pěšec (kdo vyhraje) · špatný střelec · dvě věže na sedmé (mat 2.
   tahem) · mat dvěma střelci · oběť (mat 2. tahem) · nestejnobarevní střelci (kdo vyhraje) ·
   oběť kvality. 11 tasks, pass 9.
-- L6–L7: see the coach review (session 2026-09-26) — to be written when those levels are.
+- L6 (2026-09-28, on branch): mat 4. tahem · poslední řada (odlákání) · klíčové pole pěšce na
+  6. řadě · Réti (mirrored) · podproměna (Saavedra mirrored) · Vančura (choose, tbmoves) ·
+  jezdec proti pěšci (kdo vyhraje) · roh pro mat S+J (choose) · obranný tah · vzájemná
+  nevýhoda tahu (kdo vyhraje) · chycená dáma. 11 tasks, pass 9. The coach review's list is
+  kept except „distant opposition (move)“ (Lasker–Reichhelm needs a 9-piece engine check; the
+  key-square task replaces it).
+- L6 open doubts for a strong player: the wording of the *why* in Lasker–Reichhelm (taught as
+  korespondující pole, kid-level); Vančura's „bílý král se před šachy nemá kam schovat“
+  (Wikipedia's explanation, not a tablebase fact); „Střelci obvykle stačí hlídat jedno pole“;
+  the rook-pawn key squares b7/b8 are taught with the pawn safe (the strict bitbase test does
+  not hold when the black king catches or blocks the pawn).
+- L7: see the coach review (session 2026-09-26, subagent transcript; recorded in this plan's
+  curriculum and test lines) — to be written when that level is.

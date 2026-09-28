@@ -65,7 +65,8 @@ export interface ShowStep extends StepBase {
  */
 export type Completeness =
   | { kind: 'mate' }
-  | { kind: 'best'; marginCp?: number }
+  /** `depth`: the checker's search depth (default 18) — deeper for slow pawn endings. */
+  | { kind: 'best'; marginCp?: number; depth?: number }
   | { kind: 'lands'; square: Square; from?: Square }
   | { kind: 'captures'; from?: Square }
   | { kind: 'legal'; from?: Square }
@@ -132,8 +133,11 @@ export type ChooseOption = { id: string; label: string; square?: undefined } | {
  *    wins with best play from this position (side to move as in the FEN).
  *  - `tbmoves` (tablebase, ≤ 7 pieces): each option stands for a move (option id → UCI);
  *    correct = exactly the options whose move keeps the position's result.
+ *  - `keysquares` (king + pawn vs king, white pawn): square options — correct = the pawn's
+ *    key squares, computed by an exact K+P vs K bitbase (scripts/kpk.mjs).
  */
 export type ChooseFact =
+  | { kind: 'keysquares' }
   | { kind: 'state' }
   | { kind: 'castle'; side: 'k' | 'q' }
   | { kind: 'reachable'; from: Square }

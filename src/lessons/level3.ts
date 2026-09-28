@@ -936,7 +936,7 @@ export const LEVEL3: readonly Lesson[] = [
         completeness: { kind: 'best' },
         text: 'Černý je na tahu a král stojí na kraji čtverce. Zůstaň uvnitř a dožeň pěšce.',
         success: 'Výborně! Pěšec ti neuteče, král ho dostihne.',
-        wrongDefault: 'Tímhle tahem bys vypadl ze čtverce. Pěšec by pak proběhl sám.',
+        wrongDefault: 'Tímhle tahem vypadneš ze čtverce. Pěšec pak proběhne sám.',
       },
       {
         // Tablebase: white to move wins (h5). With black to move it would be a draw.

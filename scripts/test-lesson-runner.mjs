@@ -906,4 +906,77 @@ test('progress: passing the level 4 and 5 tests stores their own badges', () => 
   assert.deepEqual(got.tests, { l4: true, l5: true });
 });
 
+// Level 6 (Phase 22).
+test('l6-klicova-pole: both key squares are accepted, the pawn push is explained as a draw', () => {
+  for (const to of ['d6', 'e6']) assert.equal(moveAt('l6-klicova-pole', 'step-in', 'd5', to).phase, 'stepDone', `Kd5-${to}`);
+  const v = moveAt('l6-klicova-pole', 'step-in', 'e5', 'e6');
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /remíza/);
+  assert.match(moveAt('l6-klicova-pole', 'rook-pawn-key', 'a6', 'b6').feedback.text, /c8/);
+});
+
+test('l6-reti: only the diagonal king move is accepted', () => {
+  assert.equal(moveAt('l6-reti', 'diagonal', 'h8', 'g7').phase, 'stepDone');
+  assert.notEqual(moveAt('l6-reti', 'diagonal', 'h8', 'h7').phase, 'stepDone');
+});
+
+test('l6-saavedra: the queen promotion is explained as stalemate, the rook wins', () => {
+  const q = moveAt('l6-saavedra', 'rook', 'c7', 'c8', 'q');
+  assert.notEqual(q.phase, 'stepDone');
+  assert.match(q.feedback.text, /pat/);
+  assert.match(moveAt('l6-saavedra', 'rook', 'c7', 'c8', 'n').feedback.text, /sebere jezdce/);
+  assert.equal(moveAt('l6-saavedra', 'rook', 'c7', 'c8', 'r').phase, 'stepDone');
+  assert.equal(chooseAt('l6-saavedra', 'trick', 'pat').phase, 'stepDone');
+});
+
+test('l6-vancura: the side-on check is explained kindly, the rook behind the pawn is not enough', () => {
+  const v = moveAt('l6-vancura', 'build', 'f1', 'f4');
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /drží remízu/);
+  assert.match(moveAt('l6-vancura', 'build', 'f1', 'a1').feedback.text, /nestačí/);
+  assert.equal(moveAt('l6-vancura', 'check', 'f6', 'f5').phase, 'stepDone');
+});
+
+test('l6-lehka-figura-pesec: both knight moves in time are accepted', () => {
+  for (const to of ['d2', 'e3']) assert.equal(moveAt('l6-lehka-figura-pesec', 'knight-stop', 'f1', to).phase, 'stepDone', `Jf1-${to}`);
+  assert.notEqual(moveAt('l6-lehka-figura-pesec', 'knight-stop', 'f1', 'g3').phase, 'stepDone');
+});
+
+test('l6-vzajemna-nevyhoda: Kc5 wins, attacking d5 from d6 is explained', () => {
+  assert.equal(moveAt('l6-vzajemna-nevyhoda', 'reach', 'c6', 'c5').phase, 'stepDone');
+  assert.match(moveAt('l6-vzajemna-nevyhoda', 'reach', 'c6', 'd6').feedback.text, /Kxd4/);
+});
+
+test('l6-obranny-tah: the natural recapture is explained', () => {
+  const lesson = byId('l6-obranny-tah');
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, 'king'));
+  const v = r.dispatch({ type: 'move', from: 'b7', to: 'c6' });
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /věž a8/);
+});
+
+const exam6 = byId('l6-zkouska');
+test('l6 test: 11/11, 9/11 pass; 8/11 fails with its own outro and no practice; restart', () => {
+  let { r, v } = takeExam([], exam6);
+  assert.deepEqual(v.test, { correct: 11, answered: 11, total: 11, passScore: 9, passed: true });
+  assert.equal(v.outro, exam6.outro);
+  ({ v } = takeExam(['t-mate4', 't-zugzwang'], exam6));
+  assert.equal(v.test.correct, 9);
+  assert.equal(v.test.passed, true);
+  ({ r, v } = takeExam(['t-mate4', 't-zugzwang', 't-reti'], exam6));
+  assert.deepEqual(v.test, { correct: 8, answered: 11, total: 11, passScore: 9, passed: false });
+  assert.equal(v.outro, exam6.test.failOutro);
+  assert.deepEqual(v.practice, []);
+  v = r.dispatch({ type: 'restart' });
+  assert.equal(v.stepIndex, 0);
+  assert.deepEqual(v.test, { correct: 0, answered: 0, total: 11, passScore: 9, passed: null });
+});
+
+test('progress: passing the level 6 test stores its own badge', () => {
+  const s = fakeStorage();
+  let p = progress.readLessonProgress(s);
+  p = progress.markTestPassed(s, p, exam6);
+  assert.deepEqual(progress.readLessonProgress(s).badges, { l6: true });
+});
+
 console.log(`test-lesson-runner: ${passed} passed${process.exitCode ? ', FAILURES above' : ''}`);

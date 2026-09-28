@@ -1,14 +1,12 @@
 /**
- * Level 4 — Středně pokročilý (docs/phase-22-plan.md, curriculum). Phase 22 ships only the
- * mechanically checkable subset: plan lessons 1–7 and 12 (tactics with big margins or forced
- * mates, and the "rook/queen vs pawn" pointers). Plan lessons 8–11 (věčný šach/pat, klíčová
- * pole, trojúhelník, průlom) need a tablebase checker and are NOT here — see the plan's
- * generation order. There is no level test yet (it needs the full level).
+ * Level 4 — Středně pokročilý (docs/phase-22-plan.md, curriculum): all 12 plan lessons and
+ * the level test (13), in the plan's order. Lessons 1–7 and 12 came first (tactics with big
+ * margins or forced mates); 8–11 and the test followed once `check-lessons.mjs` could check
+ * endgames against the Lichess tablebase (`tablebase` completeness, the `outcome` choose
+ * fact, and the audit of every ≤ 7-piece task from level 4 on).
  *
- * `number` is 1..8, the position in this array (scripts/check-lessons.mjs requires
- * `number === index + 1`). The plan's own numbering has a gap (8–11 come later); each
- * lesson's doc comment below says which plan lesson it is, so a future author inserting the
- * missing lessons knows where to splice them in and can renumber 8→12 etc. at that point.
+ * `number` is the position in this array (scripts/check-lessons.mjs requires
+ * `number === index + 1`); lesson ids never change, so progress survives the renumbering.
  *
  * Sources. Tactics are real game positions from the Lichess puzzle database (CC0; the puzzle
  * id is noted, the FEN is the position after the opponent's first move) or two classic games
@@ -25,6 +23,29 @@ import type { Lesson } from './types';
 
 /** Greek gift „works“: black's knight was kicked from f6 by e5, the bishop on b4 cannot guard g5. */
 const GREEK_WORKS = 'r1bq1rk1/pppn1ppp/2n1p3/3pP3/1b1P4/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 7 8';
+
+// ---- Lesson 8: Záchrana ------------------------------------------------------------------
+// A constructed perpetual (Stockfish depth 20: Dh5+ 0.00, every other move −9.59 or worse;
+// then De8+ 0.00, everything else mated) and the real game Larry Evans – Samuel Reshevsky,
+// US Championship 1963/64, New York, round 9 (29 Dec 1963), replayed move by move with
+// chess.js from the chessgames.com score (game 1252040; Wikipedia "Swindle (chess)" gives the
+// same finish): 47.h4 Ve2+ 48.Kh1 Dxg3 49.Dg8+ Kxg8 50.Vxg7+ ½–½ (Kxg7 is stalemate).
+// At move 49 Dg8+ and Dh8+ both draw (0.00), at move 50 Vxg7+ and Vf8+ (Stockfish depth 20).
+const PERPETUAL_START = '8/pp4pk/1q3p2/8/8/8/1r3PPP/3Q2K1 w - - 0 1';
+const PERPETUAL_KG8 = '6k1/pp4p1/1q3p2/7Q/8/8/1r3PPP/6K1 w - - 2 2';
+const PERPETUAL_KH7 = '4Q3/pp4pk/1q3p2/8/8/8/1r3PPP/6K1 w - - 4 3';
+const EVANS_BEFORE_QG8 = '2Q5/5Rpk/8/1p2p2p/1P2Pn1P/5Pq1/4r3/7K w - - 0 49';
+const EVANS_BEFORE_VXG7 = '6k1/5Rp1/8/1p2p2p/1P2Pn1P/5Pq1/4r3/7K w - - 0 50';
+const EVANS_STALEMATE = '8/6k1/8/1p2p2p/1P2Pn1P/5Pq1/4r3/7K w - - 0 51';
+
+// ---- Lesson 10: Trojúhelník ----------------------------------------------------------------
+/** Tablebase: white to move wins only with Ke5/Kd4/Ke4/Kc4 (c6+ draws); black to move loses. */
+const TRIANGLE_WHITE = '8/1p1k4/1P6/2PK4/8/8/8/8 w - - 0 1';
+const TRIANGLE_BLACK = '8/1p1k4/1P6/2PK4/8/8/8/8 b - - 5 3';
+
+// ---- Lesson 11: Průlom ---------------------------------------------------------------------
+/** Kings on g8/h1: b6 is the only win (with Kh8 instead, Kg2 would win too). */
+const BREAK_START = '6k1/ppp5/8/PPP5/8/8/8/7K w - - 0 1';
 
 export const LEVEL4: readonly Lesson[] = [
   // plan lesson 1: Uvolnění (clearance)
@@ -557,11 +578,337 @@ export const LEVEL4: readonly Lesson[] = [
     practice: [{ kind: 'puzzles', band: 'stredni', theme: 'mateIn3', count: 5, label: 'Úlohy: mat 3. tahem' }],
   },
 
+  // plan lesson 8: Záchrana: věčný šach a pat (Evans–Reshevsky, New York 1963)
+  {
+    id: 'l4-zachrana',
+    level: 4,
+    number: 8,
+    title: 'Záchrana: věčný šach a pat',
+    steps: [
+      {
+        id: 'idea',
+        kind: 'show',
+        fen: PERPETUAL_START,
+        text: 'Když prohráváš, nevzdávej to. Hledej záchranu: věčný šach nebo pat. Obojí je remíza.',
+      },
+      {
+        id: 'perpetual1',
+        kind: 'move',
+        fen: PERPETUAL_START,
+        accept: ['d1h5'],
+        completeness: { kind: 'best', marginCp: 100 },
+        text: 'Černý má o věž víc a hrozí Dxf2+. Najdi šach, který můžeš opakovat pořád dokola.',
+        success: 'Výborně! Černý král musí uhnout na g8.',
+        wrongDefault: 'Tohle remízu neudrží. Hledej šach dámou, před kterým se černý král neschová.',
+      },
+      {
+        id: 'perpetual2',
+        kind: 'move',
+        fen: PERPETUAL_KG8,
+        accept: ['h5e8'],
+        completeness: { kind: 'best', marginCp: 100 },
+        text: 'Král uhnul na g8. Šachuj dál.',
+        success: 'Výborně! Král musí zpátky na h7. A ty zase dáš Dh5+.',
+        wrongDefault: 'Bez šachu černý vyhraje. Hledej další šach dámou.',
+      },
+      {
+        id: 'perpetual-why',
+        kind: 'show',
+        fen: PERPETUAL_KH7,
+        shapes: [
+          { from: 'e8', to: 'h5', brush: 'blue' },
+          { from: 'h5', to: 'e8', brush: 'blue' },
+        ],
+        text: 'Tomu se říká věčný šach. Pozice se pořád opakuje, a to je remíza.',
+      },
+      {
+        id: 'evans-intro',
+        kind: 'show',
+        fen: EVANS_BEFORE_QG8,
+        shapes: [{ from: 'h1', brush: 'red' }],
+        text: 'Larry Evans proti Samuelu Reshevskému, New York 1963. Bílý prohrává. Jeho král ale nemá žádný volný tah.',
+      },
+      {
+        id: 'evans-queen',
+        kind: 'move',
+        fen: EVANS_BEFORE_QG8,
+        accept: ['c8g8', 'c8h8'],
+        completeness: { kind: 'best', marginCp: 100 },
+        text: 'Zbav se dámy. Obětuj ji se šachem.',
+        success: 'Výborně! Evans zahrál 49.Dg8+ a Reshevsky ji vzal: Kxg8.',
+        wrongDefault: 'Tohle nepomůže. Obětuj dámu se šachem, aby ji černý musel vzít.',
+      },
+      {
+        id: 'evans-rook',
+        kind: 'move',
+        fen: EVANS_BEFORE_VXG7,
+        accept: ['f7g7', 'f7f8'],
+        completeness: { kind: 'best', marginCp: 100 },
+        text: 'Teď obětuj i věž. Musí to být šach.',
+        success: 'Věž bude šachovat pořád dokola. Když ji král vezme, je pat.',
+        wrongDefault: 'Po tomhle tahu dá černý mat. Obětuj věž se šachem.',
+      },
+      {
+        id: 'evans-stalemate',
+        kind: 'choose',
+        fen: EVANS_STALEMATE,
+        text: 'Co kdyby černý věž vzal: Kxg7? Jak by na tom byl bílý?',
+        options: [
+          { id: 'sach', label: 'Je v šachu' },
+          { id: 'mat', label: 'Dostal mat' },
+          { id: 'pat', label: 'Je v patu' },
+          { id: 'nic', label: 'Nic z toho' },
+        ],
+        correct: ['pat'],
+        explain: 'Pat! Bílý není v šachu a nemá žádný tah. Proto se hráči po Vxg7+ hned dohodli na remíze.',
+        wrongDefault: 'Bílý král není v šachu. Má ale bílý vůbec nějaký tah?',
+        verify: { kind: 'state' },
+      },
+    ],
+    outro: 'Když prohráváš, hledej věčný šach nebo pat. Evans tak zachránil remízu proti slavnému velmistrovi.',
+    practice: [
+      { kind: 'puzzles', band: 'stredni', theme: 'defensiveMove', count: 5, label: 'Úlohy: obranný tah' },
+      { kind: 'endgame', id: 'qvap', label: 'Koncovky: pat zachrání remízu' },
+    ],
+  },
+
+  // plan lesson 9: Klíčová pole a vzdálená opozice (tablebase)
+  {
+    id: 'l4-klicova-pole',
+    level: 4,
+    number: 9,
+    title: 'Klíčová pole a vzdálená opozice',
+    steps: [
+      {
+        id: 'idea',
+        kind: 'show',
+        fen: '4k3/8/8/8/4P3/8/8/4K3 w - - 0 1',
+        shapes: [
+          { from: 'd6', brush: 'green' },
+          { from: 'e6', brush: 'green' },
+          { from: 'f6', brush: 'green' },
+        ],
+        text: 'Klíčová pole pěšce e4 jsou d6, e6 a f6. Leží o dvě řady před ním. Když na ně vstoupí tvůj král, pěšec vyhraje.',
+      },
+      {
+        // Tablebase: black to move loses (Kd8 / Kf8 both lose).
+        id: 'key-wins',
+        kind: 'choose',
+        fen: '4k3/8/4K3/8/4P3/8/8/8 b - - 0 1',
+        text: 'Tvůj král stojí na klíčovém poli e6. Na tahu je černý. Jak to dopadne?',
+        options: [
+          { id: 'bily', label: 'Bílý vyhraje' },
+          { id: 'remiza', label: 'Remíza' },
+          { id: 'cerny', label: 'Černý vyhraje' },
+        ],
+        correct: ['bily'],
+        explain: 'Ano! Král na klíčovém poli vyhraje. Nezáleží na tom, kdo je na tahu.',
+        wrongDefault: 'Tvůj král už stojí na klíčovém poli. Černý ho odtud nevyžene.',
+        verify: { kind: 'outcome' },
+      },
+      {
+        id: 'which-key',
+        kind: 'choose',
+        fen: '3k4/8/8/8/8/3P4/8/3K4 w - - 0 1',
+        text: 'Které z těch polí je klíčové pro pěšce d3?',
+        options: [
+          { id: 'd4', square: 'd4' },
+          { id: 'd5', square: 'd5' },
+          { id: 'd7', square: 'd7' },
+        ],
+        correct: ['d5'],
+        explain: 'Ano! Pěšec d3 má klíčová pole c5, d5 a e5. Leží o dvě řady před ním.',
+        wrongExplain: {
+          d4: 'To je jen o jednu řadu před pěšcem. Klíčová pole leží o dvě řady dál.',
+          d7: 'To je moc daleko. Klíčová pole leží o dvě řady před pěšcem.',
+        },
+        wrongDefault: 'Klíčová pole leží o dvě řady před pěšcem.',
+      },
+      {
+        // Endgame kp-far. Tablebase: only Kd3 wins.
+        id: 'take-opposition',
+        kind: 'move',
+        fen: '8/8/8/3k4/8/8/3PK3/8 w - - 0 1',
+        accept: ['e2d3'],
+        completeness: { kind: 'tablebase' },
+        text: 'Pěšec d2 má klíčová pole c4, d4 a e4. Černý král je hlídá. Najdi jediný vyhrávající tah.',
+        success: 'Opozice! Černý král musí uhnout. Tvůj král pak vstoupí na klíčové pole.',
+        wrongDefault: 'Tenhle tah vyhru pustí. Postav krále proti černému, s jedním polem mezi nimi.',
+      },
+      {
+        id: 'distant-idea',
+        kind: 'show',
+        fen: '8/4k3/8/8/8/8/8/4K3 b - - 0 1',
+        shapes: [
+          { from: 'e1', brush: 'green' },
+          { from: 'e7', brush: 'red' },
+        ],
+        text: 'Vzdálená opozice: králové stojí na stejném sloupci a mezi nimi jsou tři nebo pět polí. Má ji ten, kdo není na tahu.',
+      },
+      {
+        // Tablebase: only Ke3 wins (distant opposition to Ke7).
+        id: 'distant',
+        kind: 'move',
+        fen: '8/4k3/8/8/8/8/2P2K2/8 w - - 0 1',
+        accept: ['f2e3'],
+        completeness: { kind: 'tablebase' },
+        text: 'Tvůj král míří k pěšci c2. Černý král ho chce zastavit. Najdi jediný vyhrávající tah.',
+        success: 'Vzdálená opozice! Mezi králi jsou tři pole a na tahu je černý.',
+        wrongDefault: 'Tenhle tah vyhru pustí. Postav krále na stejný sloupec jako černého, se třemi poli mezi nimi.',
+      },
+      {
+        // Tablebase: only Kf2 wins (distant opposition to Kf8, five squares between).
+        id: 'distant-far',
+        kind: 'move',
+        fen: '5k2/8/8/8/8/8/2P5/6K1 w - - 0 1',
+        accept: ['g1f2'],
+        completeness: { kind: 'tablebase' },
+        text: 'Ještě jednou, teď z větší dálky. Najdi jediný vyhrávající tah.',
+        success: 'Výborně! Mezi králi je pět polí. I to je vzdálená opozice.',
+        wrongDefault: 'Tenhle tah vyhru pustí. Postav krále na sloupec f, proti černému králi.',
+      },
+    ],
+    outro: 'Král na klíčovém poli vyhrává. Dostaneš se tam, když získáš opozici, klidně i vzdálenou.',
+    practice: [
+      { kind: 'endgame', id: 'kp-far', label: 'Koncovky: král a pěšec 5/7' },
+      { kind: 'endgame', id: 'kral-pesec-6', label: 'Koncovky: král a pěšec 6/7' },
+    ],
+  },
+
+  // plan lesson 10: Trojúhelník, nevýhoda tahu (tablebase). The basic example from the
+  // Wikipedia article "Triangulation (chess)": 1.Ke5 Kc6 2.Kd4 Kd7 3.Kd5.
+  {
+    id: 'l4-trojuhelnik',
+    level: 4,
+    number: 10,
+    title: 'Trojúhelník a nevýhoda tahu',
+    steps: [
+      {
+        id: 'idea',
+        kind: 'show',
+        fen: TRIANGLE_WHITE,
+        text: 'Nevýhoda tahu: kdo je na tahu, musí svou pozici zhoršit. Šachisté tomu říkají zugzwang.',
+      },
+      {
+        // Tablebase: black to move loses (every king move).
+        id: 'black-to-move',
+        kind: 'choose',
+        fen: TRIANGLE_BLACK,
+        text: 'Představ si, že je tu na tahu černý. Jak to dopadne?',
+        options: [
+          { id: 'bily', label: 'Bílý vyhraje' },
+          { id: 'remiza', label: 'Remíza' },
+          { id: 'cerny', label: 'Černý vyhraje' },
+        ],
+        correct: ['bily'],
+        explain: 'Ano! Černý král musí ustoupit. Bílý král pak dojde k pěšci b7.',
+        wrongDefault: 'Černý král musí táhnout a pustí bílého krále dál. To je nevýhoda tahu.',
+        verify: { kind: 'outcome' },
+      },
+      {
+        id: 'triangle',
+        kind: 'show',
+        fen: TRIANGLE_WHITE,
+        shapes: [
+          { from: 'd5', to: 'e5', brush: 'blue' },
+          { from: 'e5', to: 'd4', brush: 'blue' },
+          { from: 'd4', to: 'd5', brush: 'blue' },
+        ],
+        text: 'Na tahu je ale bílý. Tah předá černému trojúhelníkem: tři kroky králem a zpátky na d5.',
+      },
+      {
+        // Tablebase: only Kd4 wins (it guards c5; everything else loses the pawn).
+        id: 'triangle-move',
+        kind: 'move',
+        fen: '8/1p6/1Pk5/2P1K3/8/8/8/8 w - - 2 2',
+        accept: ['e5d4'],
+        completeness: { kind: 'tablebase' },
+        text: 'Bílý zahrál Ke5 a černý šel na c6. Pokračuj v trojúhelníku.',
+        success: 'Výborně! Černý se vrátí na d7 a ty zahraješ Kd5.',
+        wrongDefault: 'Černý král napadá pěšce c5. Kryj ho a pokračuj v trojúhelníku.',
+      },
+      {
+        id: 'done',
+        kind: 'show',
+        fen: TRIANGLE_BLACK,
+        text: 'Stejná pozice jako na začátku, jen je na tahu černý. Teď musí ustoupit a prohraje.',
+      },
+    ],
+    outro: 'Když potřebuješ, aby byl na tahu soupeř, ztrať tempo trojúhelníkem. Tři kroky králem a jsi zpátky.',
+    practice: [{ kind: 'endgame', id: 'kral-pesec-6', label: 'Koncovky: král a pěšec 6/7' }],
+  },
+
+  // plan lesson 11: Průlom (a5 b5 c5 vs a7 b7 c7: b6!). Eight pieces, so the first move is
+  // checked with Stockfish (depth 24: b6 +52, everything else draws or loses); after the
+  // first capture the tablebase takes over.
+  {
+    id: 'l4-prulom',
+    level: 4,
+    number: 11,
+    title: 'Průlom',
+    steps: [
+      {
+        id: 'idea',
+        kind: 'show',
+        fen: BREAK_START,
+        text: 'Tři bílí pěšci proti třem černým. Oba králové jsou daleko. Bílý na tahu vyhraje průlomem.',
+      },
+      {
+        id: 'break',
+        kind: 'move',
+        fen: BREAK_START,
+        accept: ['b5b6'],
+        completeness: { kind: 'best', marginCp: 100 },
+        text: 'Průlom: obětuješ pěšce, aby jiný tvůj pěšec prošel. Najdi první tah.',
+        success: 'Výborně! Černý musí brát. Jinak bílý pěšec vezme a proběhne.',
+        wrong: {
+          a5a6: 'Po bxa6 už průlom nevyjde. Začni prostředním pěšcem.',
+          c5c6: 'Po bxc6 už průlom nevyjde. Začni prostředním pěšcem.',
+        },
+        wrongDefault: 'Tohle nevyhraje. Průlom začíná prostředním pěšcem.',
+      },
+      {
+        // Tablebase: only c6 wins.
+        id: 'after-axb6',
+        kind: 'move',
+        fen: '6k1/1pp5/1p6/P1P5/8/8/8/7K w - - 0 2',
+        accept: ['c5c6'],
+        completeness: { kind: 'tablebase' },
+        text: 'Černý vzal axb6. Pokračuj v průlomu.',
+        success: 'Výborně! Po bxc6 proběhne pěšec a5 až do dámy.',
+        wrongDefault: 'Tohle nevyhraje. Obětuj dalšího pěšce, aby cesta zůstala volná.',
+      },
+      {
+        // Tablebase: only a6 wins.
+        id: 'after-cxb6',
+        kind: 'move',
+        fen: '6k1/pp6/1p6/P1P5/8/8/8/7K w - - 0 2',
+        accept: ['a5a6'],
+        completeness: { kind: 'tablebase' },
+        text: 'Teď černý vzal jinak: cxb6. Pokračuj v průlomu.',
+        success: 'Výborně! Po bxa6 proběhne pěšec c5 až do dámy.',
+        wrongDefault: 'Tohle nevyhraje. Obětuj dalšího pěšce, aby cesta zůstala volná.',
+      },
+      {
+        id: 'runs',
+        kind: 'show',
+        fen: '6k1/2p5/Ppp5/8/8/8/8/7K b - - 0 3',
+        shapes: [{ from: 'a6', to: 'a8', brush: 'green' }],
+        text: 'Černý král je moc daleko. Pěšec a6 doběhne na a8 a promění se v dámu.',
+      },
+    ],
+    outro: 'Průlom: obětuj pěšce, aby jiný prošel. Tři proti třem začni prostředním pěšcem.',
+    practice: [
+      { kind: 'endgame', id: 'prulom-3', label: 'Koncovky: průlom 3/6' },
+      { kind: 'endgame', id: 'prulom-6', label: 'Koncovky: průlom 6/6' },
+    ],
+  },
+
   // plan lesson 12: Věž a dáma proti pěšci
   {
     id: 'l4-vez-dama-pesec',
     level: 4,
-    number: 8,
+    number: 12,
     title: 'Věž a dáma proti pěšci',
     steps: [
       {
@@ -587,6 +934,7 @@ export const LEVEL4: readonly Lesson[] = [
         text: 'Dej věží šach z dálky.',
         success: 'Výborně! Černý král musí od pěšce pryč. Tvůj král pak pěšce sebere.',
         wrongDefault: 'Tohle není šach. Zkus šach po třetí řadě, daleko od krále.',
+        tbNarrow: 'The task asks for a check; Vh3+ is the only rook check (many quiet rook moves win too).',
       },
       {
         id: 'queen-technique',
@@ -603,6 +951,7 @@ export const LEVEL4: readonly Lesson[] = [
         text: 'Černý král stojí před pěšcem. Pěšec teď nemůže dál. Udělej krok králem.',
         success: 'Výborně! Tohle opakuješ, dokud tvůj král nedojde až k pěšci.',
         wrongDefault: 'Dáma svou práci udělala. Teď je čas na krok králem.',
+        tbNarrow: 'The task asks for a king step; many queen moves win too.',
       },
       {
         id: 'exception',
@@ -619,5 +968,146 @@ export const LEVEL4: readonly Lesson[] = [
       { kind: 'endgame', id: 'qvp', label: 'Koncovky: dáma proti pěšci na d2' },
       { kind: 'endgame', id: 'qvap', label: 'Koncovky: krajní pěšec drží remízu' },
     ],
+  },
+
+  // plan lesson 13: Zkouška úrovně 4 (docs/phase-22-plan.md, level tests: uvolnění ·
+  // přerušení · mlýn/dvojšach · řecký dar funguje? · tichý tah · mat 3. tahem · záchrana ·
+  // klíčové pole · průlom · věž/dáma proti pěšci). New positions, not the lessons' ones.
+  {
+    id: 'l4-zkouska',
+    level: 4,
+    number: 13,
+    title: 'Zkouška úrovně 4',
+    test: {
+      passScore: 8,
+      badge: 'l4',
+      failOutro: 'Tentokrát to nevyšlo. Zopakuj si lekce, kde to drhlo, a zkus to znovu.',
+    },
+    steps: [
+      {
+        id: 'intro',
+        kind: 'show',
+        fen: '8/8/8/8/8/8/8/8 w - - 0 1',
+        diagram: true,
+        text: 'Zkouška úrovně 4! Čeká tě 10 úloh. Na každou máš jen jeden pokus a žádnou nápovědu.',
+      },
+      {
+        // Lichess puzzle 9gkvX, after 26...Jb4 (Jf6+ Sxf6 Dh7#).
+        id: 't-clearance',
+        kind: 'move',
+        fen: 'r4rk1/4bpp1/qn5p/1p2P3/pn1BN1b1/3Q1N2/P1B3PP/2R2R1K w - - 5 27',
+        accept: ['e4f6'],
+        completeness: { kind: 'best' },
+        text: 'Uvolni dámě cestu k černému králi a dej mat 2. tahem.',
+        success: 'Správně! Jezdec uhnul se šachem. Po Sxf6 přijde Dh7 mat.',
+        wrongDefault: 'Jezdec e4 stál dámě v cestě. Jf6+ ji uvolní a po Sxf6 přijde Dh7 mat.',
+      },
+      {
+        // Lichess puzzle nP9Uz, after 27...dxc4.
+        id: 't-interference',
+        kind: 'move',
+        fen: '4r3/pp2rkp1/2p4p/8/2p1nPP1/5N1P/PP4K1/4RR2 w - - 0 28',
+        accept: ['f3e5'],
+        completeness: { kind: 'best' },
+        text: 'Věž e7 kryje jezdce e4. Přeruš jejich spojení a vyhraj figurku.',
+        success: 'Správně! Je5+ zavřel sloupec e. Jezdce e4 teď vezme Vxe4.',
+        wrongDefault: 'Postav jezdce se šachem na e5, mezi věž e7 a jezdce e4. Pak Vxe4.',
+      },
+      {
+        // Lichess puzzle KiZR1, after 27...Sxf3.
+        id: 't-double-check',
+        kind: 'move',
+        fen: '3r2kb/p1q2p1p/1p3PP1/2p5/8/1P1B1b2/P1P3R1/3R2K1 w - - 0 28',
+        accept: ['g6h7'],
+        completeness: { kind: 'best' },
+        text: 'Dej dvojšach a příštím tahem mat.',
+        success: 'Správně! Šachuje pěšec h7 i věž g2. Po Kf8 přijde Vg8 mat.',
+        wrongDefault: 'Pěšec gxh7+ šachuje a zároveň otevře sloupec g věži. Po Kf8 přijde Vg8 mat.',
+      },
+      {
+        // The l4-recky-dar setup with the knight on e2 instead of f3: after Sxh7+ Kxh7 white
+        // is −2.0 (Stockfish depth 24); without the sacrifice +1.2.
+        id: 't-greek',
+        kind: 'choose',
+        fen: 'r1bq1rk1/pppn1ppp/2n1p3/3pP3/1b1P4/2NB4/PPP1NPPP/R1BQ1RK1 w - - 7 8',
+        text: 'Vyjde tady řecký dar Sxh7+?',
+        options: [
+          { id: 'ano', label: 'Ano' },
+          { id: 'ne', label: 'Ne' },
+        ],
+        correct: ['ne'],
+        explain: 'Správně. Jezdec stojí na e2, ne na f3. Na pole g5 se nedostane.',
+        wrongDefault: 'Jezdec stojí na e2, ne na f3. Šach z g5 nepřijde a oběť se nevyplatí.',
+      },
+      {
+        // Lichess puzzle RrcVo, after 18...dxe5.
+        id: 't-quiet',
+        kind: 'move',
+        fen: 'rn1q1rk1/p1p1bp2/1p2p1pQ/4pb2/3P4/1PP5/P4P2/RNB1K1R1 w Q - 0 19',
+        accept: ['g1h1'],
+        completeness: { kind: 'best' },
+        text: 'Najdi tichý tah, po kterém hrozí mat.',
+        success: 'Správně! Vh1 hrozí Dh8 mat. Černý se ubrání jen za cenu materiálu.',
+        wrongDefault: 'Tichý tah Vh1 hrozí Dh8 mat.',
+      },
+      {
+        // Lichess puzzle G9TXo, after 31...Dxc1 (Vh8+ Kxh8 Dh4+ Kg8 Dh7#).
+        id: 't-mate3',
+        kind: 'move',
+        fen: '5rk1/5pp1/p3p1p1/1p4N1/1P5R/P6P/3r1QP1/2q2n1K w - - 0 32',
+        accept: ['h4h8'],
+        completeness: { kind: 'best' },
+        text: 'Dej mat 3. tahem. Zahraj první tah.',
+        success: 'Správně! Po Kxh8 přijde Dh4+ Kg8 a Dh7 mat.',
+        wrongDefault: 'Začni obětí věže Vh8+. Po Kxh8 přijde Dh4+ Kg8 a Dh7 mat.',
+      },
+      {
+        // Tablebase: Vc8+ and Vg7+ draw (the rook checks forever, taking it is stalemate).
+        id: 't-rescue',
+        kind: 'move',
+        fen: '6k1/2R5/8/8/8/4q1p1/6P1/7K w - - 0 1',
+        accept: ['c7c8', 'c7g7'],
+        completeness: { kind: 'tablebase' },
+        text: 'Černý má dámu a hrozí mat. Zachraň remízu.',
+        success: 'Správně! Věž bude šachovat pořád dokola. Když ji král vezme, je pat.',
+        wrongDefault: 'Tvůj král nemá žádný tah. Šachuj věží, dokud ji černý nevezme. Pak je pat.',
+      },
+      {
+        // Tablebase: exactly the key squares c4, d4, e4 win.
+        id: 't-key',
+        kind: 'move',
+        fen: '8/8/3k4/8/8/3K4/3P4/8 w - - 0 1',
+        accept: ['d3c4', 'd3d4', 'd3e4'],
+        completeness: { kind: 'tablebase' },
+        text: 'Najdi tah, který vyhraje.',
+        success: 'Správně! Tvůj král stojí na klíčovém poli pěšce d2.',
+        wrongDefault: 'Klíčová pole pěšce d2 jsou c4, d4 a e4. Tvůj král na ně mohl vstoupit hned.',
+      },
+      {
+        // l4-prulom mirrored (kings b8/a1). Stockfish depth 24: g6 +50, Kb2 0, others lose.
+        id: 't-breakthrough',
+        kind: 'move',
+        fen: '1k6/5ppp/8/5PPP/8/8/8/K7 w - - 0 1',
+        accept: ['g5g6'],
+        completeness: { kind: 'best', marginCp: 100 },
+        text: 'Vyhraj průlomem.',
+        success: 'Správně! Po hxg6 přijde f6 a po fxg6 zase h6.',
+        wrongDefault: 'Průlom začíná prostředním pěšcem: g6.',
+      },
+      {
+        // Tablebase: every king step wins (and so do many queen moves: the task asks for the king).
+        id: 't-queen-pawn',
+        kind: 'move',
+        fen: '8/8/8/8/8/Q7/4p3/4k2K w - - 0 1',
+        accept: ['h1g1', 'h1g2', 'h1h2'],
+        completeness: { kind: 'legal', from: 'h1' },
+        text: 'Černý král stojí před svým pěšcem. Využij čas a přiveď svého krále blíž.',
+        success: 'Správně! Krok králem blíž. Pak zase šachuj dámou.',
+        wrongDefault: 'Když černý král stojí před pěšcem, přiblíž se králem.',
+        tbNarrow: 'The task asks for a king move; every king step wins, queen moves win too.',
+      },
+    ],
+    outro: 'Zkouška je za tebou! Odznak je tvůj a můžeš si vytisknout diplom.',
+    practice: [{ kind: 'play', level: 5, label: 'Zahraj si partii proti silnějšímu soupeři' }],
   },
 ];

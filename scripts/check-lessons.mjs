@@ -19,8 +19,14 @@
 //    move, and the weak opponent is beatable (a careful-beginner bot wins most games).
 //  - level tests (21b): tasks only (an optional first `show`), one correct option per
 //    choose, no arrows, collect tasks limited, pass score ≤ tasks, a badge id.
+//  - tablebase (Phase 22, from level 4 on): in positions with at most 7 pieces every
+//    accepted move keeps the result (Lichess tablebase, scripts/tablebase.mjs — cached in
+//    scripts/tablebase-cache.json, authoring time only); every other result-keeping move is
+//    explained in `wrong` or excluded by the wording (`tbNarrow`); `tablebase` completeness
+//    and the `outcome` / `tbmoves` choose facts are computed from it.
 import './ts-hooks.mjs';
 import { childMove, simulate } from './mini-sim.mjs';
+import { pieceCount, probe, resultKeepingMoves, saveTablebaseCache, TB_MAX_PIECES } from './tablebase.mjs';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -172,7 +178,21 @@ async function engineScores(fen, multipv, depth = 18) {
 const setEq = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 const uciOf = (m) => `${m.from}${m.to}${m.promotion ?? ''}`;
 
-async function checkMoveStep(step) {
+/** Level from which endgame positions are held to the tablebase (docs/phase-22-plan.md). */
+const TB_FROM_LEVEL = 4;
+const tbApplies = (fen, level) => level >= TB_FROM_LEVEL && pieceCount(fen) <= TB_MAX_PIECES && fenFields(fen)[2] === '-';
+
+/** Tablebase lookup that turns network trouble into a checker error instead of a crash. */
+async function tbKeep(fen) {
+  try {
+    return await resultKeepingMoves(fen);
+  } catch (e) {
+    err(`tablebase: ${e.message}`);
+    return null;
+  }
+}
+
+async function checkMoveStep(step, level) {
   if (step.diagram) err('a move step cannot be a diagram');
   const chess = checkFullFen(step.fen);
   if (!chess) return;
@@ -219,10 +239,35 @@ async function checkMoveStep(step) {
     const near = Object.entries(scores).filter(([u]) => legalUci.includes(u)).filter(([, v]) => v >= best - margin).map(([u]) => u);
     expected = near;
     notes.push(`${where}: engine best ${best} cp; within ${margin} cp: ${near.join(' ')}`);
+  } else if (c.kind === 'tablebase') {
+    if (pieceCount(step.fen) > TB_MAX_PIECES) err(`tablebase completeness needs at most ${TB_MAX_PIECES} pieces`);
+    else {
+      const tb = await tbKeep(step.fen);
+      if (tb) {
+        expected = tb.keep.filter((u) => legalUci.includes(u));
+        notes.push(`${where}: tablebase ${tb.category}; result-keeping: ${expected.join(' ')}`);
+      }
+    }
   } else err(`unknown completeness ${JSON.stringify(c)}`);
   if (expected && !setEq([...new Set(expected)], [...new Set(step.accept)])) {
     err(`accepted ${JSON.stringify(step.accept)} but ${c.kind} gives ${JSON.stringify(expected)}`);
   }
+  // Tablebase audit (from level 4): accepted moves keep the result; other result-keeping
+  // moves are explained (`wrong`) or excluded by the wording (`tbNarrow`, or a mate task).
+  if (c.kind !== 'tablebase' && tbApplies(step.fen, level)) {
+    const tb = await tbKeep(step.fen);
+    if (tb) {
+      for (const u of step.accept) if (!tb.keep.includes(u)) err(`tablebase: accepted ${u} does not keep the ${tb.category} (it gives the opponent a ${tb.all[u]})`);
+      const others = tb.keep.filter((u) => legalUci.includes(u) && !step.accept.includes(u));
+      const unexplained = others.filter((u) => !(step.wrong ?? {})[u]);
+      if (unexplained.length && !step.tbNarrow && c.kind !== 'mate') err(`tablebase: ${unexplained.join(' ')} also keep the ${tb.category} — accept them, explain them in \`wrong\`, or say in \`tbNarrow\` how the wording excludes them`);
+      for (const [u, text] of Object.entries(step.wrong ?? {})) {
+        if (tb.keep.includes(u) && !/vyhrává|vyhraje|remíz|drží|taky|také|i to/i.test(text)) warn(`tablebase: wrong[${u}] keeps the ${tb.category} — its text should say so („I to vyhrává, ale…“)`);
+      }
+      notes.push(`${where}: tablebase ${tb.category}; other result-keeping moves: ${others.join(' ') || '—'}${step.tbNarrow ? ` (narrowed: ${step.tbNarrow})` : ''}`);
+    }
+  }
+  if (step.tbNarrow && !tbApplies(step.fen, level)) warn('tbNarrow on a step the tablebase audit does not cover');
   // Wrong-move texts must refer to real, non-accepted moves the board offers.
   const ep = fenFields(step.fen)[3] === '-' ? null : fenFields(step.fen)[3];
   const offered = [];
@@ -283,7 +328,7 @@ function checkCollectStep(step) {
   notes.push(`${where}: collect minimum ${best} move(s)${step.maxMoves !== undefined ? `, limit ${step.maxMoves}` : ''}`);
 }
 
-function checkChooseStep(step) {
+async function checkChooseStep(step) {
   if (step.diagram) checkPlacementBasics(step.fen); else checkFullFen(step.fen);
   const board = safeBoard(step.fen);
   if (step.options.length < 2 || step.options.length > 4) err(`${step.options.length} options (2–4)`);
@@ -301,12 +346,12 @@ function checkChooseStep(step) {
     if (step.correct.includes(k)) err(`wrongExplain["${k}"] is a correct option`);
   }
   for (const o of step.options) if (o.square && board?.get(o.square)?.type === 'k') warn(`option ${o.id} on a king`);
-  if (step.verify) checkChooseFact(step);
+  if (step.verify) await checkChooseFact(step);
   for (const s of step.shapes ?? []) if (!s.to && step.correct.some((c) => step.options.find((o) => o.id === c)?.square === s.from)) err(`a circle on ${s.from} gives the answer away`);
 }
 
 /** `verify` on a choose step: compute the true answer with chess.js. */
-function checkChooseFact(step) {
+async function checkChooseFact(step) {
   const v = step.verify;
   if (step.diagram) return err('verify needs a full (non-diagram) position');
   let chess;
@@ -323,6 +368,27 @@ function checkChooseFact(step) {
   } else if (v.kind === 'reachable') {
     const to = chess.moves({ square: v.from, verbose: true }).map((m) => m.to);
     truth = step.options.filter((o) => o.square && to.includes(o.square)).map((o) => o.id);
+  } else if (v.kind === 'outcome' || v.kind === 'tbmoves') {
+    if (pieceCount(step.fen) > TB_MAX_PIECES) return err(`verify ${v.kind}: more than ${TB_MAX_PIECES} pieces`);
+    if (v.kind === 'outcome') {
+      for (const o of step.options) if (!['bily', 'cerny', 'remiza'].includes(o.id)) err(`verify outcome: option id "${o.id}" (bily/cerny/remiza)`);
+      let r;
+      try { r = await probe(step.fen); } catch (e) { return err(`tablebase: ${e.message}`); }
+      const mover = chess.turn() === 'w' ? 'bily' : 'cerny';
+      const other = mover === 'bily' ? 'cerny' : 'bily';
+      const byCat = { win: mover, loss: other, draw: 'remiza', 'cursed-win': 'remiza', 'blessed-loss': 'remiza' };
+      if (!byCat[r.category]) return err(`verify outcome: tablebase category ${r.category}`);
+      truth = [byCat[r.category]];
+      notes.push(`${where}: tablebase ${r.category} for the side to move`);
+    } else {
+      const legal = chess.moves({ verbose: true }).map(uciOf);
+      for (const o of step.options) if (!v.moves[o.id]) err(`verify tbmoves: option ${o.id} has no move`);
+      for (const [id, u] of Object.entries(v.moves)) if (!legal.includes(u)) err(`verify tbmoves: ${id} → ${u} is not legal`);
+      const tb = await tbKeep(step.fen);
+      if (!tb) return;
+      truth = step.options.filter((o) => tb.keep.includes(v.moves[o.id])).map((o) => o.id);
+      notes.push(`${where}: tablebase ${tb.category}; options keeping it: ${truth.join(' ') || '—'}`);
+    }
   } else return err(`unknown verify kind ${v.kind}`);
   if (!setEq([...truth], [...step.correct])) err(`verify ${v.kind}: correct ${JSON.stringify(step.correct)} but the position says ${JSON.stringify(truth)}`);
 }
@@ -486,8 +552,12 @@ for (const level of COURSE) {
   });
 }
 
+// `node scripts/check-lessons.mjs l4-` checks only the steps of lessons whose id starts with
+// the prefix (quick authoring runs; the full run is what counts).
+const only = process.argv[2];
 for (const level of COURSE) {
   for (const lesson of level.lessons) {
+    if (only && !lesson.id.startsWith(only)) continue;
     const stepIds = new Set();
     for (const [i, step] of lesson.steps.entries()) {
       where = `${lesson.id} #${i + 1} ${step.id} (${step.kind})`;
@@ -497,9 +567,9 @@ for (const level of COURSE) {
       for (const s of [...(step.shapes ?? []).flatMap((x) => [x.from, x.to].filter(Boolean)), ...(step.stars ?? [])]) if (!isSquare(s)) err(`bad square ${s}`);
       const b = safeBoard(step.fen);
       if (step.kind !== 'collect') for (const s of step.stars ?? []) if (b?.has(s)) err(`star ${s} on an occupied square`);
-      if (step.kind === 'move') await checkMoveStep(step);
+      if (step.kind === 'move') await checkMoveStep(step, lesson.level);
       else if (step.kind === 'collect') checkCollectStep(step);
-      else if (step.kind === 'choose') checkChooseStep(step);
+      else if (step.kind === 'choose') await checkChooseStep(step);
       else if (step.kind === 'show') checkShowStep(step);
       else if (step.kind === 'mini') checkMiniStep(step);
       else err(`unknown step kind ${step.kind}`);
@@ -510,6 +580,7 @@ for (const level of COURSE) {
 
 engine?.send('quit');
 engine?.proc.kill();
+saveTablebaseCache();
 
 for (const n of notes) console.log(`  · ${n}`);
 for (const w of warnings) console.log(`WARN  ${w}`);

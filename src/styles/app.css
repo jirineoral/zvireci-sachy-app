@@ -533,6 +533,47 @@ body {
   color: #b8bec8;
 }
 
+/* U1 F9: the parent's first question answered near the top. */
+.trust {
+  margin: -6px 0 0;
+  font-size: 0.875rem;
+  color: #b8bec8;
+}
+
+.trust a {
+  color: #7fd17a;
+}
+
+/* U1: the globe on the buttons that go online (Kamarád, Turnaje). */
+.online-badge {
+  margin-left: 0.35em;
+  vertical-align: -0.1em;
+  opacity: 0.85;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* U1 Q7: Kamarád's safety card before a room is created. */
+.friend-bar.friend-card {
+  padding: 10px 12px;
+  border: 1px solid #7fd17a;
+  border-radius: 8px;
+  background: #242a24;
+}
+
+.friend-bar.friend-card .friend-text {
+  flex: 1 1 100%;
+  line-height: 1.4;
+}
+
 /* "Jak poznat figurky?" (pilot feedback P1) */
 .legend {
   font-size: 0.8rem;

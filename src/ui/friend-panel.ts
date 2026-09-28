@@ -76,7 +76,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
   const text = document.createElement('span');
   text.className = 'friend-text';
   const createBtn = button('Vytvořit odkaz', 'friend-create');
-  const cancelBtn = button('Zpět', 'friend-cancel');
+  const cancelBtn = button('Zrušit', 'friend-cancel');
   const copyBtn = button('Kopírovat odkaz', 'friend-copy');
   const shareBtn = button('Sdílet…', 'friend-share');
   const rematchBtn = button('Odveta', 'friend-rematch');
@@ -123,10 +123,15 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
 
   const render = (): void => {
     bar.hidden = client === null && !intro;
+    bar.classList.toggle('friend-card', intro);
     deps.waiting(client !== null && !peer && sans.length === 0 && game <= 1);
     if (bar.hidden) return;
     if (intro) {
-      text.textContent = `Pošli kamarádovi odkaz. Kdo ho má, může si sednout ke stolu.${createArmed ? ' Rozehraná partie tím skončí — opravdu?' : ''}`;
+      // U1 Q7: the safety card is the confirmation step before a real online room exists.
+      text.textContent =
+        'Hraješ s kamarádem, kterého znáš? Odkaz mu pošli s rodičem — kdo odkaz má, může si sednout ke stolu. ' +
+        'Bez chatu a bez jmen, posílají se jen tahy a do 24 hodin od posledního tahu se smažou.' +
+        (createArmed ? ' Rozehraná partie tím skončí — opravdu?' : '');
       createBtn.textContent = createArmed ? 'Ano, vytvořit odkaz' : 'Vytvořit odkaz';
       for (const b of [copyBtn, shareBtn, rematchBtn, leaveBtn]) b.hidden = true;
       createBtn.hidden = cancelBtn.hidden = false;
@@ -294,6 +299,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     disarm();
     intro = true;
     render();
+    bar.scrollIntoView({ block: 'nearest' });
   });
   createBtn.addEventListener('click', () => {
     if (!createArmed && deps.inProgress()) {

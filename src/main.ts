@@ -39,6 +39,14 @@ import { initUiVersion } from './ui-version';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 
+/** U1 item 8: a small globe on the buttons that go online (Kamarád, Turnaje). */
+const ONLINE_BADGE =
+  '<svg class="online-badge" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">' +
+  '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.3"/>' +
+  '<ellipse cx="8" cy="8" rx="2.8" ry="6.5" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
+  '<path d="M1.5 8h13M2.7 4.7h10.6M2.7 11.3h10.6" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>' +
+  '<span class="visually-hidden"> (přes internet)</span>';
+
 app.innerHTML = `
   <div class="stage">
     <div class="spectator spectator-top cg-wrap"><piece class="king black"></piece><div class="captured" hidden></div><div class="bubble" hidden></div></div>
@@ -52,6 +60,7 @@ app.innerHTML = `
   </div>
   <aside class="panel">
     <h1>Zvířecí šachy <small class="subtitle">(nejen) pro děti</small></h1>
+    <p class="trust">Zdarma · bez reklam · bez registrace · <a href="soukromi.html" target="_blank" rel="noopener">Soukromí</a></p>
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">
@@ -103,13 +112,13 @@ app.innerHTML = `
       <button type="button" class="games">Partie</button>
       <button type="button" class="puzzles">Úlohy</button>
       <button type="button" class="endgames">Koncovky</button>
-      <button type="button" class="broadcasts">Turnaje</button>
+      <button type="button" class="broadcasts" title="Přes internet">Turnaje${ONLINE_BADGE}</button>
       <button type="button" class="campaign">Kampaň</button>
-      <button type="button" class="friend">Kamarád</button>
+      <button type="button" class="friend" title="Přes internet">Kamarád${ONLINE_BADGE}</button>
     </div>
     <footer class="credits">
-      <p class="mission">Pro děti napořád zdarma. Bez registrace; nic o tobě neukládáme, všechno zůstává v tomhle
-      prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
+      <p class="mission">Pro děti napořád zdarma, bez reklam a bez registrace. Nic o tobě neposíláme na žádný server:
+      nastavení, postup i partie zůstávají jen v tomhle prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
       Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
       a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
       <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>

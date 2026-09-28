@@ -52,6 +52,15 @@ function glyphBadge(glyph: Glyph): string {
 export interface BoardBridge {
   sync(chess: Chess, opts: BoardSyncOptions): void;
   /**
+   * Freezes the board (no colour may move) without re-syncing the position from chess.js.
+   * Used while the promotion dialog is open (R5): chessground has already moved the
+   * dragged pawn onto the destination square before `after` fired, and a plain `sync()`
+   * here would immediately snap it back to its origin by reapplying the pre-move FEN. A
+   * cancelled promotion still restores the origin square cleanly, via the normal `sync()`
+   * that `afterPositionChange()` runs once the dialog resolves.
+   */
+  lock(): void;
+  /**
    * Phase 21a: the chessground instance, for the lesson board (src/ui/lesson-board.ts),
    * which drives it directly while the controller is in lesson mode and does not sync.
    */
@@ -86,6 +95,9 @@ export function createBoardBridge(
 
   return {
     api,
+    lock(): void {
+      api.set({ movable: { color: undefined, dests: new Map() } });
+    },
     sync(chess: Chess, opts: BoardSyncOptions): void {
       const lastMove = chess.history({ verbose: true }).at(-1);
 

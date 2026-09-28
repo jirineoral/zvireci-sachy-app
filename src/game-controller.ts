@@ -787,11 +787,30 @@ export class GameController {
     drop.cancel();
   }
 
+  /**
+   * R6: undo as black at move 1. With only the engine's opening move on the board (ply
+   * count 1) and the human to move next, the normal "pop 2 plies" rule would try to take
+   * back both the (nonexistent) human move and the engine's move, landing on the start
+   * position with the engine to move again — "Zpět" would visibly do nothing but let the
+   * engine re-open. Disabled in exactly that state; every other position undoes normally.
+   * Two-player mode and the failed-engine fallback have no "engine's turn" to protect and
+   * are excluded, so they keep undoing one ply whenever one exists.
+   */
+  private undoBlockedAtEngineOpening(): boolean {
+    return (
+      !this.twoPlayer &&
+      this.engineState !== 'failed' &&
+      this.chess.history().length === 1 &&
+      this.chess.turn() === this.humanColor
+    );
+  }
+
   async undo(): Promise<void> {
     if (this.chess.history().length === 0 || this.reviewPly !== null) return;
     if (this.remote) return; // no take-backs against a friend over a link (a rematch instead)
     if (this.resigned) return; // a resigned game is over and saved
     if (this.undosLeft !== null && this.undosLeft <= 0 && !this.twoPlayer) return;
+    if (this.undoBlockedAtEngineOpening()) return; // R6: would reopen at the start position
     // Evaluated before the await: the position cannot change during it (board locked or idle).
     const wasEngineTurn = this.chess.turn() !== this.humanColor;
     const t = await this.beginTransition();
@@ -1042,7 +1061,8 @@ export class GameController {
     if (candidates[0].promotion) {
       // chess.js says this is a promotion: ask which piece.
       this.promotionOpen = true;
-      this.refreshView(); // board locked, controls disabled (pawn re-syncs to its origin square)
+      this.board.lock(); // board locked; the just-dropped pawn stays on the destination square (R5)
+      this.render(this.status()); // controls/status disabled; syncBoard is skipped on purpose
       let choice: PromotionPiece | null = null;
       try {
         choice = await promptPromotion(this.els.promotionDialog, this.chess.turn());
@@ -1429,7 +1449,15 @@ export class GameController {
       difficultyLocked: this.difficultyOverride !== null,
       feedbackEnabled: this.feedbackEnabled,
       undoEnabled:
-        this.chess.history().length > 0 && !this.promotionOpen && this.reviewPly === null && this.record === null && !this.resigned && this.puzzle === null && !this.remote && (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
+        this.chess.history().length > 0 &&
+        !this.promotionOpen &&
+        this.reviewPly === null &&
+        this.record === null &&
+        !this.resigned &&
+        this.puzzle === null &&
+        !this.remote &&
+        !this.undoBlockedAtEngineOpening() &&
+        (this.twoPlayer || this.undosLeft === null || this.undosLeft > 0),
       undosLeft: this.twoPlayer ? null : this.undosLeft,
       undoLimit: this.undoBudget,
       disabled: this.promotionOpen,

@@ -32,12 +32,13 @@ Never write the outputs into the repository. Nothing here uploads or publishes a
 ## What it does
 
 1. **Storyboard** (`storyboard.mjs`): reads the lesson, resolves the `{piece}` placeholders as
-   the app does (`resolveText`, default character `kuzlata`) and turns every step into
-   segments:
+   the app does (`resolveText`, default character `kuzlata`), adapts them for a video
+   (`videoText`: „Klikni…“ sentences are dropped, „u tebe kůzle“ becomes „tady kůzle“) and
+   turns every step into segments:
    - `show`: the owl's text, the step's own arrows/circles/stars.
    - `move` / `collect` / `choose` tasks: **question** (the step's text; for text answers the
-     options are shown as buttons and read aloud) → **think** pause (2.5 s, a "Přemýšlej…"
-     progress bar) → **solution**. Nothing that gives the answer away is drawn before the
+     options are shown as buttons and read aloud) → **think** pause (3 s, 4.5 s for multi-move
+     `collect` tasks; a "Přemýšlej…" progress bar) → **solution**. Nothing that gives the answer away is drawn before the
      solution segment: question and pause show only the step's own shapes (which by the
      lesson contract never spoil) and the answer circles in neutral blue.
    - Solutions: `move` — green arrow on the position before the move, a 0.4 s slide
@@ -60,7 +61,7 @@ Never write the outputs into the repository. Nothing here uploads or publishes a
 2. **Narration** (`tts.ps1`): SAPI, voice Jakub, rate −1, 44.1 kHz mono. The narration text
    is the on-screen text passed through `pronounce.mjs` (TTS only): `e4` → „é čtyři“,
    `Jf3` → „jezdec na ef tři“, `Dxh7` → „dáma bere há sedm“, `c8D` → „cé osm v dámu“,
-   „sloupec d“ → „sloupec dé“, `O-O` → „krátká rošáda“, … WAVs are cached in
+   „sloupec d“ → „sloupec dé“, `O-O` → „krátká rošáda“, „od 1 do 8“ → „od jedné do osmi“, … WAVs are cached in
    `<out>/_cache/tts` by a hash of voice + rate + text, so re-runs only synthesise changed
    lines.
 3. **Timeline** (`build.mjs`): measured WAV lengths → frame-exact (30 fps) segment and shot

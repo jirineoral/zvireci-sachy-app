@@ -17,7 +17,8 @@ export const TIMING = {
   lead: 0.3, // silence before the owl speaks in a segment
   tail: 0.7, // silence after
   questionTail: 0.4,
-  think: 2.5, // the pause after a question, before the solution
+  think: 3.0, // the pause after a question, before the solution
+  thinkCollect: 4.5, // multi-move tasks need longer to plan
   arrowLead: 0.8, // solution arrow shown on the position before the move
   anim: 0.4, // one move animation
   collectArrow: 0.45,
@@ -30,6 +31,18 @@ const SUCCESS_DEFAULT = 'Výborně!';
 const COLLECT_DONE_DEFAULT = 'Všechny hvězdy jsou tvoje!';
 const MINI_NOTE = 'Tuhle hru si zahraj v aplikaci.';
 const ATTACK_WORDS = /napad|útok|útočí|vidlič|šach|hroz/i;
+
+/**
+ * The lesson texts are written for the interactive board. In a video nobody clicks, and the
+ * child's own piece set is unknown: drop "Klikni…" sentences and say "tady" instead of "u tebe".
+ */
+export function videoText(text) {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .filter((s) => !/^Klikni\b/.test(s))
+    .join(' ')
+    .replace(/\(u tebe /g, '(tady ');
+}
 
 export function levelTitle(level) {
   return COURSE.find((l) => l.level === level)?.title ?? '';
@@ -199,7 +212,7 @@ export function buildStoryboard(lessonId, opts = {}) {
 
   let lastBoard = null;
   lesson.steps.forEach((step, i) => {
-    const text = resolveText(step.text, ctx);
+    const text = videoText(resolveText(step.text, ctx));
     const counter = `Krok ${i + 1} z ${nSteps}`;
     const orientation = step.orientation ?? 'white';
     const base = { header, counter };
@@ -250,7 +263,7 @@ export function buildStoryboard(lessonId, opts = {}) {
       kind: 'think',
       step: step.id,
       voice: null,
-      shots: [{ kind: 'think', dur: T.think, view: qView }],
+      shots: [{ kind: 'think', dur: step.kind === 'collect' ? T.thinkCollect : T.think, view: qView }],
     });
 
     if (step.kind === 'move') {
@@ -353,7 +366,7 @@ export function buildStoryboard(lessonId, opts = {}) {
     throw new Error(`Unsupported step kind ${step.kind}`);
   });
 
-  const outro = resolveText(lesson.outro, ctx);
+  const outro = videoText(resolveText(lesson.outro, ctx));
   segments.push({
     id: 'outro',
     kind: 'outro',

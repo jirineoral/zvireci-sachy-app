@@ -20,6 +20,7 @@ const ORDINAL_F = [
   'jedenáctá', 'dvanáctá', 'třináctá', 'čtrnáctá', 'patnáctá', 'šestnáctá', 'sedmnáctá', 'osmnáctá', 'devatenáctá', 'dvacátá',
 ];
 const ORDINAL_INS = { 1: 'prvním', 2: 'druhým', 3: 'třetím', 4: 'čtvrtým', 5: 'pátým' };
+const GEN = { 1: 'jedné', 2: 'dvou', 3: 'tří', 4: 'čtyř', 5: 'pěti', 6: 'šesti', 7: 'sedmi', 8: 'osmi' };
 const ROMAN = { I: 'jedna', II: 'dva', III: 'tři', IV: 'čtyři', V: 'pět' };
 
 export const square = (sq) => `${LETTER[sq[0]]} ${DIGIT[sq[1]]}`;
@@ -57,6 +58,8 @@ export function pronounce(text) {
     re(`${B}(sloupec|sloupce|sloupci|sloupcem|sloupcích|písmeno|písmena|od|do)\\s+([a-h])(?:\\s+(ani|nebo|a|i)\\s+([a-h]))?${E}`, 'gi'),
     (_m, w, f, conj, g) => `${w} ${LETTER[f.toLowerCase()]}${conj ? ` ${conj} ${LETTER[g.toLowerCase()]}` : ''}`,
   );
+  // "od 1 do 8" -> "od jedné do osmi"
+  t = t.replace(/\bod ([1-8]) do ([1-8])\b/g, (_m, a, b) => `od ${GEN[a]} do ${GEN[b]}`);
   // "Mat 3. tahem"
   t = t.replace(/(\d)\.\s+tahem/g, (m, n) => (ORDINAL_INS[n] ? `${ORDINAL_INS[n]} tahem` : m));
   // Roman numeral at the end of a title: "Matové obrazce II."

@@ -133,7 +133,7 @@ class Board:
         # drawn last, over the pieces, as chessground does
         d = ImageDraw.Draw(im)
         q = self.q
-        cf = font(max(14, round(q * 0.2)), 'bold')
+        cf = font(max(16, round(q * 0.27)), 'bold')  # bigger than the app: read on a phone
         files = 'abcdefgh' if orientation == 'white' else 'hgfedcba'
         ranks = '87654321' if orientation == 'white' else '12345678'
         for i in range(8):
@@ -194,11 +194,7 @@ class Board:
                 continue
             x, y = self.xy(sq, o)
             im.alpha_composite(self.piece(ch), (round(x), round(y)))
-        for ch, a, b in moving or []:
-            xa, ya = self.xy(a, o)
-            xb, yb = self.xy(b, o)
-            e = t * t * (3 - 2 * t)
-            im.alpha_composite(self.piece(ch), (round(xa + (xb - xa) * e), round(ya + (yb - ya) * e)))
+
         occupied = {sq for sq, _ in placement_squares(view['placement']) if sq not in hide}
         shapes = view.get('shapes', [])
         if shapes:
@@ -213,6 +209,11 @@ class Board:
             a = layer.getchannel('A').point(lambda v: int(v * SHAPE_ALPHA))
             layer.putalpha(a)
             im.alpha_composite(layer)
+        for ch, a, b in moving or []:  # the moving piece rides above its arrow
+            xa, ya = self.xy(a, o)
+            xb, yb = self.xy(b, o)
+            e = t * t * (3 - 2 * t)
+            im.alpha_composite(self.piece(ch), (round(xa + (xb - xa) * e), round(ya + (yb - ya) * e)))
         self.coords(im, o)
         return im.convert('RGB')
 

@@ -57,6 +57,8 @@ export interface GameControllerElements {
   evalBar: HTMLElement;
   /** `Vzdát`: shown during a game against the computer; two clicks end it as a loss. */
   resignButton: HTMLButtonElement;
+  /** U1: the big `▶ Hrát` over the empty middle of the board, shown only before the game starts. */
+  startButton: HTMLButtonElement;
 }
 
 export interface GameControllerOptions {
@@ -243,6 +245,12 @@ export class GameController {
       } else void this.newGame().catch((err) => console.error('newGame failed', err));
     });
     els.resignButton.addEventListener('click', () => this.resignClicked());
+    els.startButton.addEventListener('click', () => this.startPlaying());
+    // Playing white the child may simply move: while a piece is picked up the button lets
+    // taps through to the squares under it (e4, d4…) instead of catching them.
+    els.board.addEventListener('pointerdown', () => {
+      window.requestAnimationFrame(() => els.startButton.classList.toggle('see-through', this.board.api.state.selected !== undefined));
+    });
     els.undoButton.addEventListener('click', () => {
       void this.undo().catch((err) => console.error('undo failed', err));
     });
@@ -518,6 +526,11 @@ export class GameController {
     return this.lessonStatus !== null;
   }
 
+  /** U1: a game is set up and waits for `Hrát` (or the human's first move). */
+  get preGame(): boolean {
+    return !this.started && this.lessonStatus === null;
+  }
+
   /** Phase 21a: leaves the lesson for a fresh pre-game (the view detached the lesson board first). */
   async leaveLesson(): Promise<void> {
     await this.newGame(); // newGame ends lesson mode and re-syncs the board
@@ -536,7 +549,8 @@ export class GameController {
     renderStatus(this.els.status, { status, engine: 'ready', puzzle: this.lessonStatus });
     this.renderControls();
     this.els.newGameButton.textContent = 'Nová hra';
-    this.els.newGameButton.classList.remove('start');
+    this.els.newGameButton.classList.remove('pregame');
+    this.els.startButton.hidden = true;
     this.renderResign(status);
     this.els.reviewButton.hidden = true;
     renderReviewControls(this.els.reviewControls, { active: false, ply: 0, plies: 0 });
@@ -1328,9 +1342,15 @@ export class GameController {
       puzzle: this.puzzle ? this.puzzleStatusText() : this.starting ? 'Figurky nastupují…' : this.remote && this.remoteWaiting && !status.over ? 'Čekám na kamaráda…' : null,
     });
     this.renderControls();
+    // U1: before the game the only start control is `▶ Hrát` on the board; `Nová hra` in the
+    // button row steps aside (a class, not `hidden`: the endgame panel owns that attribute).
     const preGame = !this.started;
-    this.els.newGameButton.textContent = preGame ? 'Hrát!' : 'Nová hra';
-    this.els.newGameButton.classList.toggle('start', preGame);
+    this.els.newGameButton.textContent = 'Nová hra';
+    this.els.newGameButton.classList.toggle('pregame', preGame);
+    this.els.startButton.hidden = !preGame;
+    if (!preGame) this.els.startButton.classList.remove('see-through');
+    // Take-backs never apply to a puzzle or an ending (each has its own `Znovu`).
+    this.els.undoButton.hidden = this.puzzle !== null || this.training;
     this.renderResign(status);
     this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null && this.puzzle === null);
     renderReviewControls(this.els.reviewControls, {

@@ -46,6 +46,7 @@ app.innerHTML = `
       <div class="eval-bar" hidden><div class="eval-fill"></div><span class="eval-text"></span></div>
       <div class="board"></div>
       <div class="announce" hidden></div>
+      <button type="button" class="board-start" hidden><span class="board-start-icon" aria-hidden="true">▶</span> Hrát</button>
     </div>
     <div class="spectator spectator-bottom cg-wrap"><piece class="king white"></piece><div class="captured" hidden></div><div class="bubble" hidden></div></div>
   </div>
@@ -198,6 +199,7 @@ controller = new GameController(
     analyseButton: requireElement<HTMLButtonElement>(app, '.analyse'),
     evalBar: requireElement<HTMLElement>(app, '.eval-bar'),
     resignButton: requireElement<HTMLButtonElement>(app, '.resign'),
+    startButton: requireElement<HTMLButtonElement>(app, '.board-start'),
   },
   engine,
   {

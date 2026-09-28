@@ -879,3 +879,102 @@ owner item 1 is done (or consciously skipped); items 2–3 are hardening that ca
   npm script also runs `build-sw.mjs`. `npx tsc --noEmit` and `npm run check:lessons` /
   `npm run test:lessons` were run after the `engine.ts` change; see the commit for their
   result. Not merged to `main`, not deployed anywhere.
+
+### 2026-09-28 — PWA fixes from independent review (same branch, after merge with `integ-2026-09-28`)
+An independent review of the PWA work above found one blocker and several should-fix
+issues. All addressed here, same branch.
+
+- **BLOCKER, fixed — first-visit / other-tab auto-reload.** `clients.claim()` in the
+  worker's `activate` hands every open tab a controller as soon as any worker activates,
+  which fires `controllerchange` on that tab - including a tab's very first install
+  (nothing to "update" away from) and every OTHER tab still open when one tab's player
+  clicks "Obnovit". `src/pwa.ts` reloaded unconditionally on that event, which (a) reloaded
+  a first-time visit for no reason - interrupting it, and able to drop a `#hra=` invite
+  already in the address bar if storage was blocked (nothing to remember it across the
+  reload with), and double-counting the analytics beacon - and (b) reloaded every other
+  open tab's game the moment one tab's player clicked the banner. Fixed with a
+  tab-local flag: `location.reload()` in the `controllerchange` handler now only runs when
+  *this* tab's banner button was clicked (`updateRequestedInThisTab`); other tabs simply
+  get a new controller silently (their own banner, if any, is unaffected) and pick up the
+  new version on their own next navigation. Verified with two tabs sharing one browser
+  context and a real rebuilt `dist/sw.js` (see below): a fresh first visit loads exactly
+  once, and after a rebuild, clicking "Obnovit" in tab 1 reloads tab 1 exactly once while
+  tab 2 does not reload at all.
+- **Should-fix 1, done — response/key hygiene.** `cacheableResponse()` gates every
+  `cache.put` on `response.ok && status === 200 && type === 'basic'` (same-origin, not
+  opaque, not an error page); every put goes through `putInCache()`, wrapped in
+  `try/catch` so a quota error or an already-consumed body can never surface as an
+  unhandled rejection. Navigations are now keyed by `navigationKey()` - `pathname` alone,
+  no query string - so `/`, `/soukromi.html` and any accidental `?...` variant of either
+  cannot spawn unbounded cache entries or collide with each other.
+- **Should-fix 2, done — a failed precache now fails the install.** Removed the
+  `.catch(...)` that used to swallow a precache failure and let the worker activate with a
+  hole in its shell cache; `install` now rejects on any failed file, which is the standard
+  and correct behaviour - the browser keeps the previous worker (and its intact cache) in
+  charge instead.
+- **Should-fix 3, done — precache bypasses the HTTP cache.** Precache requests are built
+  with `new Request(url, { cache: 'reload' })`, so `cache.addAll` always fetches the
+  bytes this exact build shipped rather than whatever GitHub Pages' `max-age=600` left in
+  the browser's HTTP cache.
+- **Should-fix 4, done — the runtime cache is no longer wiped on every deploy.** Split one
+  versioned cache into three, each with its own lifetime (see the header comment in
+  `scripts/sw-template.js`): `skm-cache-<CACHE_VERSION>` (the app shell, precached,
+  versioned by the shell's own content - a new deploy replaces this one, as before);
+  `skm-engine-<ENGINE_VERSION>` (the Stockfish `.wasm`, cached on first use, versioned by
+  the *engine files'* own content only - computed separately in `scripts/build-sw.mjs` by
+  hashing `dist/engine/**`, so an ordinary deploy that doesn't touch Stockfish leaves this
+  cache alone and does not force a 7 MB re-download on mobile data); `skm-runtime`
+  (piece-sets/lessons/puzzles/sounds/splash, cached on first use, not versioned at all -
+  survives every deploy indefinitely, refreshed file-by-file by stale-while-revalidate
+  when a file does change). `activate` deletes stale `skm-cache-*`/`skm-engine-*` by name
+  but never touches `skm-runtime`. "Bounded where sensible": `skm-runtime` is bounded by
+  construction rather than by an eviction policy - only the fixed, finite set of static
+  content directories are ever written there (tens of MB total today), not an open-ended
+  set of URLs. Verified: after simulating a new deploy, `caches.keys()` showed
+  `skm-runtime` and `skm-engine-<same version>` both still present alongside the new
+  `skm-cache-<new version>`, with only the old shell cache gone.
+- **Should-fix 5, done — offline pre-check consults Cache Storage instead of guessing.**
+  `src/engine.ts`'s `precheckWasm`, on a `fetch()` rejection with no network at all, now
+  calls a new `checkCachedWasm()` helper: `caches.match(wasmUrl, { ignoreMethod: true })`.
+  A cached copy of the right size (or no way to tell - no Cache Storage, or a response
+  with no content-length) resolves (proceed offline, same as the other "cannot tell"
+  cases); nothing cached, or a cached copy that is clearly the wrong size, throws - the
+  same fail-fast, two-player-fallback path as a genuinely missing file, rather than
+  making the caller sit through the full 90 s handshake timeout for a search that was
+  never going to start. Not separately isolated in an automated test (the app warms the
+  engine up - and so populates `skm-engine-*` - on every load it can reach the network
+  for, which makes the "cached shell but no cached wasm" state hard to reach through
+  normal navigation); reasoned through and exercised indirectly by the offline-play test
+  below, which does go through this exact function on the "cached copy present" branch.
+- **Nits, done.** `registration.update()` is called on `visibilitychange` (so a
+  backgrounded tab picks up a deploy without needing a fresh navigation). The update
+  banner no longer closes over a `ServiceWorker` reference captured whenever the banner
+  was first shown; the click handler re-reads `registration.waiting` at click time
+  instead. `apple-mobile-web-app-status-bar-style` changed from `black-translucent` to
+  `default` (translucent needs `viewport-fit=cover` + safe-area-inset CSS to not draw
+  under the notch, and neither exists yet).
+- **A regression found and fixed while re-verifying.** `npm run test:ui` (added to this
+  branch by the merge with `integ-2026-09-28`) failed 8 of 14 tests with `TypeError:
+  Cannot read properties of undefined (reading 'waiting')`: Playwright's `serviceWorkers:
+  'block'` context option (used by that suite's `newPage()`) resolves
+  `navigator.serviceWorker.register()` with `undefined` instead of rejecting it, which
+  `registerServiceWorker()` did not guard against. Added `if (!registration) return;`
+  right after the `register()` call. Not a real browser's behaviour, but cheap to guard
+  regardless.
+- **Re-verified.** `npx tsc --noEmit` clean. `npm run build:pages` clean, `dist/sw.js`
+  carries both `CACHE_VERSION` and the new `ENGINE_VERSION`. `npm run test:ui`: all 14
+  passed. `npm run test:lessons`: 163 passed. `npm run check:lessons`: run, see the commit
+  for its result (a real Stockfish search per lesson step; slow, does not touch anything
+  changed here). A one-off Playwright script (not committed) against a real, rebuilt
+  `dist/`, two tabs in one browser context, Edge, headless, confirmed: a first visit loads
+  exactly once and ends up controlled by an activated worker; after producing a genuinely
+  different `dist/sw.js` (a real content-hash change, via `build-sw.mjs`, not a mock), an
+  update banner appears, clicking "Obnovit" in tab 1 reloads tab 1 exactly once while tab
+  2 does not reload at all, and afterwards exactly one `skm-cache-*` remains alongside the
+  untouched `skm-runtime` and `skm-engine-*`; and, offline (`browserContext.setOffline`,
+  after one prior online visit so the engine had a chance to warm up and cache its wasm),
+  the app shell renders and a full move exchange with the engine (`1. e4 a5`) completes
+  with no re-added console errors (only the expected cross-origin CORS failure from the
+  analytics beacon, unrelated to any of this). Not verified: the "cached shell, wasm never
+  cached" fail-fast branch specifically (see should-fix 5 above); real installability on
+  an Android/iOS device; `build:dev-site` in a browser.

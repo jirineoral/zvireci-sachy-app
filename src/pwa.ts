@@ -5,8 +5,8 @@
  * Production only: `import.meta.env.PROD` is false in `vite` (the dev server), so nothing
  * here runs during development - a service worker caching `vite`'s own dev responses
  * would be its own source of confusing bugs. `scripts/build-sw.mjs` writes `dist/sw.js`
- * (from `scripts/sw-template.js`) with a cache name derived from the build, so every
- * deploy replaces the old cache instead of adding to it - see that file for the caching
+ * (from `scripts/sw-template.js`) with cache names derived from the build, so a deploy
+ * replaces the old shell cache instead of adding to it - see that file for the caching
  * strategy.
  *
  * Update flow: the browser installs a new worker in the background and parks it
@@ -18,16 +18,39 @@
 export function registerServiceWorker(): void {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
 
+  // `clients.claim()` in the worker's `activate` (scripts/sw-template.js) hands every open
+  // tab a controller as soon as any worker activates - including this tab's very first
+  // install, and including every OTHER tab still open when one tab's player clicks
+  // "Obnovit". `controllerchange` fires in all of those cases, not just "the update this
+  // tab asked for". Reloading unconditionally on it used to: reload a first-time visit
+  // for no reason (interrupting it, and dropping a `#hra=` invite already in the address
+  // bar if storage was blocked so nothing could remember it across the reload, and
+  // double-counting the analytics beacon); and reload every other open tab mid-game the
+  // moment one tab's player clicked the banner. Only reload when THIS tab is the one that
+  // asked for the update - other tabs just keep (or get) their own banner instead.
+  let updateRequestedInThisTab = false;
+  let reloaded = false;
+
   window.addEventListener('load', async () => {
-    let registration: ServiceWorkerRegistration;
+    let registration: ServiceWorkerRegistration | undefined;
     try {
       registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
     } catch (err) {
       console.error('sw: registration failed', err);
       return;
     }
+    // Some environments (e.g. Playwright's `serviceWorkers: 'block'`, used by the UI smoke
+    // suite) resolve `register()` with `undefined` instead of rejecting - not a real
+    // browser's behaviour, but cheap to guard rather than assume.
+    if (!registration) return;
 
-    if (registration.waiting && registration.active) showUpdateBanner(registration.waiting);
+    const requestUpdate = (): void => {
+      updateRequestedInThisTab = true;
+    };
+    // Always read `registration.waiting` fresh at the point we act on it (on load, and
+    // again on every statechange below) rather than holding on to a ServiceWorker
+    // reference captured earlier, which a fast second update could make stale.
+    if (registration.waiting && registration.active) showUpdateBanner(registration, requestUpdate);
 
     registration.addEventListener('updatefound', () => {
       const installing = registration.installing;
@@ -37,23 +60,27 @@ export function registerServiceWorker(): void {
         // update, not the very first install (which needs no banner - there is nothing to
         // switch away from).
         if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-          showUpdateBanner(installing);
+          showUpdateBanner(registration, requestUpdate);
         }
       });
     });
+
+    // A backgrounded tab can sit on an old version for a long time without ever
+    // navigating again; re-check whenever the player comes back to it. Cheap: the browser
+    // only refetches sw.js (a byte-for-byte compare) and does nothing if it is unchanged.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registration.update().catch(() => undefined);
+    });
   });
 
-  // A new worker taking control (after we sent SKIP_WAITING below) means the reload is
-  // finally safe to do - the old cached shell is gone, so reload picks up the new one.
-  let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return;
+    if (!updateRequestedInThisTab || reloaded) return;
     reloaded = true;
     location.reload();
   });
 }
 
-function showUpdateBanner(worker: ServiceWorker): void {
+function showUpdateBanner(registration: ServiceWorkerRegistration, requestUpdate: () => void): void {
   if (document.querySelector('.skm-update-banner')) return; // already shown
 
   const banner = document.createElement('div');
@@ -78,7 +105,11 @@ function showUpdateBanner(worker: ServiceWorker): void {
   button.addEventListener('click', () => {
     button.disabled = true;
     button.textContent = 'Obnovuji…';
-    worker.postMessage('SKIP_WAITING');
+    requestUpdate();
+    // Re-read `.waiting` now rather than trusting a reference from whenever the banner was
+    // shown - it is still the same worker in practice, but this is the one place a stale
+    // reference would actually matter (posting to the wrong/gone worker silently no-ops).
+    registration.waiting?.postMessage('SKIP_WAITING');
   });
   banner.append(button);
 

@@ -126,6 +126,25 @@ const PRECHECK_TIMEOUT_MS = 5_000;
 const WASM_SIZE_TOLERANCE = 0.05;
 
 /**
+ * Offline fallback for `precheckWasm`: no network reached the server at all, so the only
+ * thing left to check is whatever the service worker's Cache Storage already holds under
+ * this exact URL. Resolves (proceed) when a cached copy exists and its size looks right,
+ * or there is no way to tell (no Cache Storage, or a response with no content-length);
+ * throws (fail fast, same as a genuinely missing file) when there is nothing cached, or
+ * what is cached is clearly the wrong size.
+ */
+async function checkCachedWasm(wasmUrl: string, expectedBytes: number): Promise<void> {
+  if (typeof caches === 'undefined') return; // no Cache Storage (old browser): can't tell, proceed
+  const cached = await caches.match(wasmUrl, { ignoreMethod: true }).catch(() => undefined);
+  if (!cached) throw new Error(`Engine wasm unreachable (offline) and nothing cached for ${wasmUrl}`);
+  const length = Number(cached.headers.get('content-length'));
+  if (!Number.isFinite(length) || length <= 0) return; // unknown, proceed
+  if (Math.abs(length - expectedBytes) > expectedBytes * WASM_SIZE_TOLERANCE) {
+    throw new Error(`Cached engine wasm has unexpected size ${length} (expected ~${expectedBytes}) for ${wasmUrl}`);
+  }
+}
+
+/**
  * HEAD request for the .wasm before the worker is created. Resolves when the file looks
  * reachable (or the server cannot tell us: 405/501, missing content-length, no network at
  * all - see below); rejects when a server actually answered and the answer is wrong
@@ -133,11 +152,14 @@ const WASM_SIZE_TOLERANCE = 0.05;
  *
  * Offline (PWA, R12 step 1): with no network at all, `fetch()` itself rejects before any
  * response exists - that's a different case from a server answering "no" and must not be
- * treated as "the file is wrong". It resolves instead, exactly like the other "cannot
- * tell, proceed" cases below: `startWorker` then loads the worker script and .wasm the
- * normal way, which a service worker can serve from its cache, and a truly unreachable
- * engine still surfaces through the unchanged handshake timeout. A response the server
- * *did* send - wrong status, an HTML fallback, a bad content-length - still fails closed.
+ * treated as "the file is wrong". A service worker's Cache Storage is checked directly
+ * (the service worker itself is never asked - a HEAD would just reach real network and
+ * reject again the same way, and cross-process round-trips would only add latency): a
+ * cached copy of the right size lets `startWorker` proceed offline, exactly like the
+ * other "cannot tell, proceed" cases below; no cached copy fails fast, the same as a
+ * truly missing file, rather than making the caller sit through the full handshake
+ * timeout for a search that was never going to start. A response the server *did* send -
+ * wrong status, an HTML fallback, a bad content-length - still fails closed either way.
  */
 async function precheckWasm(wasmUrl: string, expectedBytes: number): Promise<void> {
   const controller = new AbortController();
@@ -149,7 +171,8 @@ async function precheckWasm(wasmUrl: string, expectedBytes: number): Promise<voi
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error(`Engine wasm pre-check timed out after ${PRECHECK_TIMEOUT_MS} ms`);
     }
-    return; // fetch() rejected before any response: no network, not a wrong answer - proceed
+    await checkCachedWasm(wasmUrl, expectedBytes); // no network: fall back to Cache Storage
+    return;
   } finally {
     clearTimeout(timer);
   }

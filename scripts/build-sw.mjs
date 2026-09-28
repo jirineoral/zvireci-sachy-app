@@ -44,32 +44,48 @@ function walk(dir, base = dir, out = []) {
   return out;
 }
 
-function main() {
-  const allFiles = walk(DIST);
-  const precacheFiles = allFiles.filter(shouldPrecache).sort();
-  if (!precacheFiles.includes('index.html')) throw new Error('build-sw: dist/index.html missing - run vite build first');
-
+/** Hashes a set of dist-relative files' own contents (order-independent path+bytes), first 12 hex chars. */
+function hashFiles(relPaths) {
   const hash = createHash('sha256');
   let totalBytes = 0;
-  for (const relPath of precacheFiles) {
+  for (const relPath of [...relPaths].sort()) {
     const buf = readFileSync(join(DIST, relPath));
     hash.update(relPath);
     hash.update(buf);
     totalBytes += buf.length;
   }
-  const version = hash.digest('hex').slice(0, 12);
+  return { version: hash.digest('hex').slice(0, 12), totalBytes };
+}
+
+function main() {
+  const allFiles = walk(DIST);
+  const precacheFiles = allFiles.filter(shouldPrecache).sort();
+  if (!precacheFiles.includes('index.html')) throw new Error('build-sw: dist/index.html missing - run vite build first');
+
+  const { version, totalBytes } = hashFiles(precacheFiles);
+
+  // The engine files get their OWN version, hashed from their own content only - so a
+  // deploy that doesn't touch Stockfish (nearly every deploy) does not bump this, and the
+  // runtime-cached .wasm (see scripts/sw-template.js) is never force-refetched for no
+  // reason. It only changes when the engine actually does (a stockfish package bump).
+  const engineFiles = allFiles.filter((f) => f.startsWith('engine/'));
+  const { version: engineVersion } = hashFiles(engineFiles);
 
   // '/' is what an actual navigation requests; '/index.html' is the literal file. Both
   // point at the same bytes, so precache both under the URLs a request could plausibly use.
   const urls = ['/', ...precacheFiles.map((p) => `/${p}`)];
 
   const template = readFileSync(TEMPLATE, 'utf-8');
-  const sw = template.replace('__CACHE_VERSION__', version).replace('__PRECACHE_URLS__', JSON.stringify(urls));
+  const sw = template
+    .replace('__CACHE_VERSION__', version)
+    .replace('__ENGINE_VERSION__', engineVersion)
+    .replace('__PRECACHE_URLS__', JSON.stringify(urls));
   writeFileSync(OUT, sw);
 
   const wasmPath = allFiles.find((f) => f.endsWith('.wasm'));
   const wasmBytes = wasmPath ? statSync(join(DIST, wasmPath)).size : 0;
   console.log(`build-sw: dist/sw.js written - version ${version}, ${precacheFiles.length} files precached (${(totalBytes / 1024).toFixed(0)} kB)`);
+  console.log(`build-sw: engine version ${engineVersion} (${engineFiles.length} files) - not precached, cached on first use`);
   if (wasmPath) {
     console.log(`build-sw: NOT precached - ${wasmPath} (${(wasmBytes / 1024 / 1024).toFixed(1)} MB); cached on first use instead`);
   }

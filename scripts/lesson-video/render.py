@@ -205,6 +205,20 @@ class Board:
         d.polygon([(sx + px * hw, sy + py * hw), (bx + px * hw, by + py * hw), (bx - px * hw, by - py * hw), (sx - px * hw, sy - py * hw)], fill=color)
         d.polygon([(tip_x, tip_y), (bx + px * head_w / 2, by + py * head_w / 2), (bx - px * head_w / 2, by - py * head_w / 2)], fill=color)
 
+    def labels(self, im, shapes, orientation):
+        """Shape labels (e.g. piece values) as solid badges in the square's top-right corner."""
+        d = ImageDraw.Draw(im)
+        r = self.q * 0.21
+        f = font(max(14, round(self.q * 0.26)), 'bold')
+        for s in shapes:
+            if not s.get('label'):
+                continue
+            x, y = self.xy(s.get('to') or s['from'], orientation)
+            cx, cy = x + self.q - r - 2, y + r + 2
+            c = BRUSH.get(s.get('brush') or 'green', BRUSH['green'])
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=c, outline=(255, 255, 255), width=2)
+            d.text((cx, cy), s['label'], font=f, fill=(255, 255, 255), anchor='mm')
+
     def ring(self, d, sq, color, orientation):
         x, y = self.xy(sq, orientation)
         lw = max(4, round(self.q * 0.085))
@@ -244,6 +258,7 @@ class Board:
             a = layer.getchannel('A').point(lambda v: int(v * SHAPE_ALPHA))
             layer.putalpha(a)
             im.alpha_composite(layer)
+            self.labels(im, shapes, o)
         for ch, a, b in moving or []:  # the moving piece rides above its arrow
             xa, ya = self.xy(a, o)
             xb, yb = self.xy(b, o)
@@ -295,12 +310,11 @@ def piece_at(placement, sq):
 # Layouts
 # ---------------------------------------------------------------------------------------
 LAYOUT = {
-    # 9:16 keeps the board and the bubble clear of the Shorts/Reels UI (top ~150 px, bottom ~300 px, right ~90 px)
-    # full-width board (24 px margins); title/step above it below the top ~150 px, the bubble
-    # ends above the bottom ~260 px caption zone; only the lowest board ranks at the far right
-    # can sit beside the Shorts action rail (it covers x > ~990 from y ~1100).
-    '9x16': dict(header=(540, 150), counter=(540, 214), board=(36, 270, 1008), owl=(36, 1318, 136),
-                 bubble=(196, 1310, 1044, 1680), brand=None, compact=True, sizes=(56, 54, 52, 50, 48, 46, 44, 42, 40, 38)),
+    # 9:16 (Shorts/Reels/TikTok safe zones: top ~150 px, bottom ~260 px, right ~90 px beside the
+    # action rail): a near-full-width board from x 38 to 990 (the h-file stays left of the rail),
+    # title/step above it, the owl's bubble below it ending at y 1640.
+    '9x16': dict(header=(514, 150), counter=(514, 212), board=(38, 262, 952), owl=(38, 1250, 132),
+                 bubble=(190, 1242, 990, 1640), brand=None, compact=True, sizes=(56, 54, 52, 50, 48, 46, 44, 42, 40, 38)),
     '16x9': dict(header=(1470, 70), counter=(1470, 150), board=(60, 60, 960), owl=(1090, 250, 140),
                  bubble=(1250, 236, 1860, 900), brand=(1470, 1000)),
 }
@@ -434,7 +448,7 @@ class Renderer:
         L = self.L
         hx, hy = L['header']
         hf = font(54 if self.fmt == '9x16' else 50, 'bold')
-        maxw = (self.W - 80) if self.fmt == '9x16' else (self.W - L['board'][0] - L['board'][2] - 80)
+        maxw = 920 if self.fmt == '9x16' else (self.W - L['board'][0] - L['board'][2] - 80)
         while d.textlength(view.get('header', ''), font=hf) > maxw and hf.size > 28:  # long lesson titles
             hf = font(hf.size - 2, 'bold')
         centered(d, view.get('header', ''), hf, hx, hy + (50 - hf.size) / 2, (255, 255, 255))

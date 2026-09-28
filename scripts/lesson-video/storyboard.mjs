@@ -17,12 +17,12 @@ export const TIMING = {
   lead: 0.3, // silence before the owl speaks in a segment
   tail: 0.7, // silence after
   questionTail: 0.4,
-  think: 3.0, // the pause after a question, before the solution
-  thinkCollect: 4.5, // multi-move tasks need longer to plan
+  think: 4.0, // the pause after a question, before the solution (a 6–9-year-old also reads the options)
+  thinkCollect: 5.0, // multi-move tasks need longer to plan
   arrowLead: 0.8, // solution arrow shown on the position before the move
   anim: 0.4, // one move animation
-  collectArrow: 0.45,
-  collectAnim: 0.35,
+  collectArrow: 0.6,
+  collectAnim: 0.45,
   solutionTail: 1.0,
   endCard: 4.0,
 };
@@ -41,7 +41,8 @@ export function videoText(text) {
     .split(/(?<=[.!?])\s+/)
     .filter((s) => !/^Klikni\b/.test(s))
     .join(' ')
-    .replace(/\(u tebe /g, '(tady ');
+    .replace(/\(u tebe /g, '(tady ')
+    .replace(/, klidně ji přeskoč\./g, '.');
 }
 
 export function levelTitle(level) {
@@ -95,6 +96,48 @@ function explainedAttacks(fen, text) {
         const p = chess.get(from);
         if (types.length && !types.includes(p.type)) continue;
         out.push({ from, to: sq, brush: 'red' });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The move shown as the solution: accept[0], but when the text asks to take ("vzít",
+ * "vezmi", "seber") and a capture is accepted, the capture.
+ */
+function pickSolution(step) {
+  if (step.accept.length > 1 && isLegalPosition(step) && /vzít|vezmi|seber/i.test(step.text)) {
+    const chess = new Chess(step.fen);
+    const cap = step.accept.find((u) => chess.get(u.slice(2, 4)));
+    if (cap) return cap;
+  }
+  return step.accept[0];
+}
+
+/**
+ * A question that says an own piece is attacked ("černý pěšec útočí na tvého jezdce"):
+ * red arrows from the named enemy kind to the named own kind (chess.js attackers).
+ */
+function questionAttacks(fen, text) {
+  if (!/útočí|napad/i.test(text)) return [];
+  const chess = new Chess(fen);
+  const us = chess.turn();
+  const them = us === 'w' ? 'b' : 'w';
+  const kinds = (s) => NOUN_TYPE.filter(([re]) => re.test(s)).map(([, t]) => t);
+  const out = [];
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    const m = sentence.match(/(.*?)(útočí|napad\S*)(.*)/i);
+    if (!m) continue;
+    const attackerKinds = kinds(m[1]);
+    const targetKinds = kinds(m[3]);
+    if (!attackerKinds.length || !targetKinds.length) continue;
+    for (const row of chess.board()) {
+      for (const p of row) {
+        if (!p || p.color !== us || !targetKinds.includes(p.type)) continue;
+        for (const from of chess.attackers(p.square, them)) {
+          if (attackerKinds.includes(chess.get(from).type)) out.push({ from, to: p.square, brush: 'red', derived: 'attack (chess.js)' });
+        }
       }
     }
   }
@@ -269,8 +312,10 @@ export function buildStoryboard(lessonId, opts = {}) {
 
     // ---- tasks: question -> think -> solution -------------------------------------------
     // The problem itself, not its solution: a king in check gets its check arrows from the start.
-    const problem = step.kind === 'move' && isLegalPosition(step) && !authored(step).some((s) => s.to) ? checkArrows(step.fen) : [];
-    problem.forEach((d) => notes.push(`derived check in the question: ${d.from}->${d.to} (chess.js)`));
+    // (check arrows only for a move task: in a choose task "šach, mat, nebo pat?" they would be the answer)
+    const plain = isLegalPosition(step) && !authored(step).some((s) => s.to);
+    const problem = plain && step.kind === 'move' ? [...checkArrows(step.fen), ...questionAttacks(step.fen, step.text)] : plain && step.kind === 'choose' ? questionAttacks(step.fen, step.text) : [];
+    problem.forEach((d) => notes.push(`derived ${d.derived.startsWith('check') ? 'check' : 'attack'} in the question: ${d.from}->${d.to} (chess.js)`));
     const qShapes = [...authored(step), ...problem, ...(step.kind === 'choose' ? optionShapes(step, () => 'blue') : [])];
     const qBoard = boardView(step.fen, orientation, { shapes: qShapes, stars });
     const qChips = step.kind === 'choose' ? chips(step, false) : [];
@@ -295,12 +340,12 @@ export function buildStoryboard(lessonId, opts = {}) {
     });
 
     if (step.kind === 'move') {
-      const uci = step.accept[0];
+      const uci = pickSolution(step);
       const played = playMove(step, uci);
       const arrow = { from: uci.slice(0, 2), to: uci.slice(2, 4), brush: 'green' };
       notes.push(`solution ${uci} (${played.san}) played by ${isLegalPosition(step) ? 'chess.js' : 'geometry'}${step.accept.length > 1 ? `; other accepted: ${step.accept.slice(1).join(', ')}` : ''}`);
       const successText = step.success ?? SUCCESS_DEFAULT;
-      const shapesAfter = [arrow];
+      const shapesAfter = [arrow, ...played.moves.slice(1).map((m) => ({ from: m.from, to: m.to, brush: 'green' }))]; // castling: the rook too
       if (ATTACK_WORDS.test(successText)) {
         for (const t of attackedEnemies(played.fenAfter, arrow.to, !isLegalPosition(step))) {
           shapesAfter.push({ from: arrow.to, to: t, brush: 'red' });

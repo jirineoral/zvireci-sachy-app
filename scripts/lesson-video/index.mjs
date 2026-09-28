@@ -47,11 +47,11 @@ const md = [
   '',
   '| # | id | title | duration | 16:9 MB | 9:16 MB | folder |',
   '|---|---|---|---|---|---|---|',
-  ...rows.map((r) => `| ${r.number} | ${r.id} | ${r.title} | ${mmss(r.d)} | ${mb(r.s169)} | ${mb(r.s916)} | \`${r.dir}\` |`),
+  ...rows.map((r) => `| ${r.number} | ${r.id} | ${r.title} | ${mmss(r.d)} | ${mb(r.s169)} | ${mb(r.s916)} | \`${r.id}/\` |`),
   '',
   'Each folder: `<id>-16x9.mp4`, `<id>-9x16.mp4`, `<id>-poster-{16x9,9x16}.jpg`, `<id>-contact-{16x9,9x16}.jpg`, `<id>-script.txt`.',
 ];
-if (skipped.length) md.push('', `Not rendered: ${skipped.map((s) => `${s.id} (${s.title})`).join(', ')}.`);
+if (skipped.length) md.push('', `Not rendered: ${skipped.map((s) => `${s.id} (${s.title})`).join(', ')}. Level tests are skipped on purpose: a video would show the answers to the exact tasks that earn the badge and diploma.`);
 writeFileSync(join(OUT, `level${level}-index.md`), md.join('\n') + '\n', 'utf8');
 
 const sheet = join(OUT, `level${level}-overview.jpg`);

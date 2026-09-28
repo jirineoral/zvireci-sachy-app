@@ -809,4 +809,101 @@ test('l5-kombinace: both forced queen mates are accepted (Df6+ as played, Dxf7 t
   }
 });
 
+// Level 4 lessons 8–11 and level 5 lessons 3, 5, 8, 11, 12 (Phase 22, tablebase batch).
+const moveAt = (lessonId, stepId, from, to, promotion) => {
+  const lesson = byId(lessonId);
+  const r = createLessonRunner(lesson, { animalId: null }, stepIndex(lesson, stepId));
+  return r.dispatch({ type: 'move', from, to, promotion });
+};
+
+test('l4-zachrana: both drawing queen sacrifices are accepted, a quiet move is explained', () => {
+  for (const to of ['g8', 'h8']) assert.equal(moveAt('l4-zachrana', 'evans-queen', 'c8', to).phase, 'stepDone', `Dc8-${to}`);
+  const v = moveAt('l4-zachrana', 'evans-queen', 'c8', 'c7');
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /Obětuj dámu se šachem/);
+});
+
+test('l4-zachrana: the final position is stalemate, not mate', () => {
+  assert.match(chooseAt('l4-zachrana', 'evans-stalemate', 'mat').feedback.text, /není v šachu/);
+  assert.equal(chooseAt('l4-zachrana', 'evans-stalemate', 'pat').phase, 'stepDone');
+});
+
+test('l4-klicova-pole: only the opposition wins; another king move is explained', () => {
+  assert.equal(moveAt('l4-klicova-pole', 'take-opposition', 'e2', 'd3').phase, 'stepDone');
+  const v = moveAt('l4-klicova-pole', 'take-opposition', 'e2', 'e3');
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /výhru pustí/);
+});
+
+test('l4-trojuhelnik: Kd4 guards c5; another king move is explained', () => {
+  assert.equal(moveAt('l4-trojuhelnik', 'triangle-move', 'e5', 'd4').phase, 'stepDone');
+  assert.match(moveAt('l4-trojuhelnik', 'triangle-move', 'e5', 'e4').feedback.text, /napadá pěšce c5/);
+});
+
+test('l4-prulom: an edge pawn first is explained; b6 is accepted', () => {
+  assert.match(moveAt('l4-prulom', 'break', 'a5', 'a6').feedback.text, /prostředním pěšcem/);
+  assert.equal(moveAt('l4-prulom', 'break', 'b5', 'b6').phase, 'stepDone');
+});
+
+test('l5-tarrasch: the side-on winning rook move is explained kindly', () => {
+  const v = moveAt('l5-tarrasch', 'behind-own', 'c1', 'c5');
+  assert.notEqual(v.phase, 'stepDone');
+  assert.match(v.feedback.text, /I to vyhrává/);
+  assert.equal(chooseAt('l5-tarrasch', 'behind-theirs', 'b1').phase, 'stepDone');
+});
+
+test('l5-volny-pesec: Kc4 is explained as a draw; both central king moves win', () => {
+  assert.match(moveAt('l5-volny-pesec', 'centre', 'd3', 'c4').feedback.text, /remíza/);
+  for (const to of ['d4', 'e4']) assert.equal(moveAt('l5-volny-pesec', 'centre', 'd3', to).phase, 'stepDone');
+});
+
+test('l5-nestejnobarevni: only Sg7 builds the fortress', () => {
+  assert.equal(moveAt('l5-nestejnobarevni', 'build', 'h6', 'g7').phase, 'stepDone');
+  assert.notEqual(moveAt('l5-nestejnobarevni', 'build', 'h6', 'f8').phase, 'stepDone');
+});
+
+const exam4 = byId('l4-zkouska');
+test('l4 test: 10/10, 8/10 pass; 7/10 fails with its own outro and no practice; restart', () => {
+  let { r, v } = takeExam([], exam4);
+  assert.deepEqual(v.test, { correct: 10, answered: 10, total: 10, passScore: 8, passed: true });
+  assert.equal(v.outro, exam4.outro);
+  ({ v } = takeExam(['t-clearance', 't-greek'], exam4));
+  assert.equal(v.test.correct, 8);
+  assert.equal(v.test.passed, true);
+  ({ r, v } = takeExam(['t-clearance', 't-greek', 't-key'], exam4));
+  assert.deepEqual(v.test, { correct: 7, answered: 10, total: 10, passScore: 8, passed: false });
+  assert.equal(v.outro, exam4.test.failOutro);
+  assert.deepEqual(v.practice, []);
+  v = r.dispatch({ type: 'restart' });
+  assert.equal(v.stepIndex, 0);
+  assert.deepEqual(v.test, { correct: 0, answered: 0, total: 10, passScore: 8, passed: null });
+});
+
+const exam5 = byId('l5-zkouska');
+test('l5 test: 11/11, 9/11 pass; 8/11 fails with its own outro and no practice; restart', () => {
+  let { r, v } = takeExam([], exam5);
+  assert.deepEqual(v.test, { correct: 11, answered: 11, total: 11, passScore: 9, passed: true });
+  assert.equal(v.outro, exam5.outro);
+  ({ v } = takeExam(['t-lucena', 't-outside'], exam5));
+  assert.equal(v.test.correct, 9);
+  assert.equal(v.test.passed, true);
+  ({ r, v } = takeExam(['t-lucena', 't-outside', 't-exchange'], exam5));
+  assert.deepEqual(v.test, { correct: 8, answered: 11, total: 11, passScore: 9, passed: false });
+  assert.equal(v.outro, exam5.test.failOutro);
+  assert.deepEqual(v.practice, []);
+  v = r.dispatch({ type: 'restart' });
+  assert.equal(v.stepIndex, 0);
+  assert.deepEqual(v.test, { correct: 0, answered: 0, total: 11, passScore: 9, passed: null });
+});
+
+test('progress: passing the level 4 and 5 tests stores their own badges', () => {
+  const s = fakeStorage();
+  let p = progress.readLessonProgress(s);
+  p = progress.markTestPassed(s, p, exam4);
+  p = progress.markTestPassed(s, p, exam5);
+  const got = progress.readLessonProgress(s);
+  assert.deepEqual(got.badges, { l4: true, l5: true });
+  assert.deepEqual(got.tests, { l4: true, l5: true });
+});
+
 console.log(`test-lesson-runner: ${passed} passed${process.exitCode ? ', FAILURES above' : ''}`);

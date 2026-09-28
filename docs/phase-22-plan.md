@@ -141,4 +141,16 @@ dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloup
   pěšec · vzdálený volný pěšec (kdo vyhraje) · špatný střelec · dvě věže na sedmé (mat 2.
   tahem) · mat dvěma střelci · oběť (mat 2. tahem) · nestejnobarevní střelci (kdo vyhraje) ·
   oběť kvality. 11 tasks, pass 9.
-- L6–L7: see the coach review (session 2026-09-26) — to be written when those levels are.
+- L6 (2026-09-28, on branch): mat 4. tahem · poslední řada (odlákání) · klíčové pole pěšce na
+  6. řadě · Réti (mirrored) · podproměna (Saavedra mirrored) · Vančura (choose, tbmoves) ·
+  jezdec proti pěšci (kdo vyhraje) · roh pro mat S+J (choose) · obranný tah · vzájemná
+  nevýhoda tahu (kdo vyhraje) · chycená dáma. 11 tasks, pass 9. The coach review's list is
+  kept except „distant opposition (move)“ (Lasker–Reichhelm needs a 9-piece engine check; the
+  key-square task replaces it).
+- L6 open doubts for a strong player: the wording of the *why* in Lasker–Reichhelm (taught as
+  korespondující pole, kid-level); Vančura's „bílý král se před šachy nemá kam schovat“
+  (Wikipedia's explanation, not a tablebase fact); „Střelci obvykle stačí hlídat jedno pole“;
+  the rook-pawn key squares b7/b8 are taught with the pawn safe (the strict bitbase test does
+  not hold when the black king catches or blocks the pawn).
+- L7: see the coach review (session 2026-09-26, subagent transcript; recorded in this plan's
+  curriculum and test lines) — to be written when that level is.

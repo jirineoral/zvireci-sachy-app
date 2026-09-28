@@ -38,7 +38,6 @@ const BR_3 = '1R3rk1/6pp/p1p5/3nP3/8/P6B/2q2PPP/5RK1 w - - 1 23';
 const BR_4 = '1R3r1k/6pp/p1p1B3/3nP3/8/P7/2q2PPP/5RK1 w - - 3 24';
 const OV_1 = '3Rnrk1/1p3ppp/2p5/5NQ1/2b5/6P1/5P1P/4qBK1 w - - 6 29';
 const OV_2 = '3R1rk1/1p3pnp/2p5/5N2/2b5/6P1/5P1P/4qBK1 w - - 0 30';
-const OV_3 = '3R1r1k/1p3pnp/2p4N/8/2b5/6P1/5P1P/4qBK1 w - - 2 31';
 
 // ---- Lesson 4: Rétiho studie (1921) — tablebase: every white move below is the only draw ----
 const RETI_START = '7K/8/k1P5/7p/8/8/8/8 w - - 0 1';
@@ -587,7 +586,7 @@ export const LEVEL6: readonly Lesson[] = [
         id: 'trick',
         kind: 'choose',
         fen: SAAV_STALEMATE,
-        text: 'Černý zahrál Vd4! Kdybys proměnil v dámu, přijde Vc4+ a Dxc4. Co je to za pozici?',
+        text: 'Černý zahrál Vd4! Po proměně v dámu přijde Vc4+ a Dxc4. Co je to za pozici?',
         options: [
           { id: 'sach', label: 'Šach' },
           { id: 'mat', label: 'Mat' },
@@ -610,8 +609,8 @@ export const LEVEL6: readonly Lesson[] = [
         success: 'Věž! Hrozí Va8 mat. A pat po Vc4+ už nehrozí.',
         wrong: {
           c7c8q: 'Po Vc4+ Dxc4 je pat. Dáma dá jen remízu.',
-          c7c8b: 'Po Vc4+ věž sebere střelce na c8. Pak bys prohrál.',
-          c7c8n: 'Po Vc4+ věž sebere jezdce na c8. Pak bys prohrál.',
+          c7c8b: 'Po Vc4+ věž sebere střelce na c8. To prohrává.',
+          c7c8n: 'Po Vc4+ věž sebere jezdce na c8. To prohrává.',
         },
         wrongDefault: 'Proměň pěšce ve věž. Dáma by po Vc4+ Dxc4 dala pat.',
         tbNarrow: 'Only the pawn may move (Kb3 and Kc3 win too, more slowly).',
@@ -1046,7 +1045,7 @@ export const LEVEL6: readonly Lesson[] = [
         completeness: { kind: 'tablebase' },
         text: 'Bílý je na tahu. Jeden tah vyhraje, všechny ostatní prohrají. Najdi ho.',
         success: 'Výborně! Teď je v nevýhodě tahu černý. Musí odejít a pěšec d5 padne.',
-        wrong: { c6d6: 'Napadl jsi pěšce d5, ale nehlídáš d4. Po Kxd4 prohraješ.' },
+        wrong: { c6d6: 'Král teď napadá pěšce d5, ale nehlídá d4. Po Kxd4 prohraješ.' },
         wrongDefault: 'Tenhle tah prohrává. Postav krále tak, aby na tahu byl černý.',
       },
     ],
@@ -1085,13 +1084,13 @@ export const LEVEL6: readonly Lesson[] = [
         fen: START,
         text: 'Co si máš u své chyby zeptat nejdřív?',
         options: [
-          { id: 'prehledl', label: 'Co jsem přehlédl: šach, braní, nebo hrozbu?' },
+          { id: 'prehledl', label: 'Co mi uniklo: šach, braní, nebo hrozba?' },
           { id: 'smula', label: 'Proč mám takovou smůlu?' },
           { id: 'rychle', label: 'Jak dohrát partii rychleji?' },
         ],
         correct: ['prehledl'],
         explain: 'Ano! Většina chyb je přehlédnutý šach, braní nebo hrozba.',
-        wrongDefault: 'Nejvíc pomůže zjistit, co jsi přehlédl.',
+        wrongDefault: 'Nejvíc pomůže zjistit, co ti uniklo.',
       },
       {
         id: 'note',

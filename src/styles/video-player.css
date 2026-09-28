@@ -1,0 +1,47 @@
+/* Lesson video overlay (src/video-player.ts). Its own file so it stays isolated from
+   src/styles/lessons.css while another change is in flight there. */
+
+.video-player-dialog {
+  width: min(94vw, 720px);
+  max-height: 92vh;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1c1c1c;
+  color: #eee;
+}
+
+.video-player-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.video-player-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.video-player-close {
+  align-self: flex-end;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #2e2e2e;
+  color: #eee;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.video-player-close:hover,
+.video-player-close:focus-visible {
+  background: #3a3a3a;
+}
+
+.video-player-video {
+  width: 100%;
+  max-height: 80vh;
+  border-radius: 6px;
+  background: #000;
+}

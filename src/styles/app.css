@@ -28,6 +28,14 @@ body {
   flex: none;
 }
 
+/* U1 F2: on the laptop the board column stays in view while the panel scrolls. */
+@media (min-width: 900px) {
+  .stage {
+    position: sticky;
+    top: 24px;
+  }
+}
+
 .board {
   width: 560px;
   height: 560px;

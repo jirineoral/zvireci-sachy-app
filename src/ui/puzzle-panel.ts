@@ -44,7 +44,7 @@ export function buildPuzzlePanel(deps: PuzzlePanelDeps): PuzzlePanel {
   themeSelect.className = 'puzzle-theme';
   const nextBtn = button('Další úloha', 'puzzle-next');
   const hintBtn = button('Nápověda', 'puzzle-hint');
-  const leaveBtn = button('Zpět do hry', 'puzzle-leave');
+  const leaveBtn = button('Konec úloh', 'puzzle-leave');
   const info = el('div', '', 'puzzle-info');
   const progress = el('div', '', 'puzzle-progress');
   const message = el('div', '', 'puzzle-msg');

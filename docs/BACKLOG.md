@@ -729,3 +729,14 @@ Návrh postupu:
 - **Vizuální konzistence:** barvy, typografie, okraje; dark/light.
 - Výstup: seznam změn seřazený podle dopadu, pak implementace po malých krocích, každý krok
   ověřený v prohlížeči a otestovaný se synem.
+
+## S1 — TikTok posting automation (owner, 2026-09-28) — PARKED
+
+Web upload in TikTok Studio via Claude in Chrome stalls after the file is sent (chunks return
+200, the UI spinner never ends). Likely cause: the automation tab is `visibilityState: hidden`
+(Edge window minimised / tab group in the background); spoofing visibility was refused by the
+auto-mode classifier. Options: (a) owner keeps the tab group window in the foreground during the
+upload; (b) one scheduler for all networks (Buffer / Metricool — verify free-tier limits);
+(c) TikTok Content Posting API (unaudited apps post private-only — verify in the docs).
+Instagram meanwhile goes out by manual web posting (works in a background tab) until Instagram
+is linked in Meta Business Suite.

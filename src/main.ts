@@ -35,6 +35,7 @@ import { buildDiplomaDialog } from './ui/diploma';
 import { createChessgroundLessonBoard, type ChessgroundLessonBoard } from './ui/lesson-board';
 import { buildLessonPanel, OWL, teacherInfo } from './ui/lesson-panel';
 import { promptPromotion } from './ui/promotion-dialog';
+import { initUiVersion } from './ui-version';
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 
@@ -145,6 +146,9 @@ const ENGINE_WASM_BYTES = 7_295_411;
 const FEEDBACK_STORAGE_KEY = 'skm.moveFeedback';
 const UNDO_LIMIT_STORAGE_KEY = 'skm.undoLimit';
 const DIFFICULTY_STORAGE_KEY = 'skm.difficulty';
+// U1 §8.1: beginner defaults for genuinely new users only — decided before any setting is
+// read (localStorage at once; a browser with no `skm.*` key also asks IndexedDB for saved games).
+const uiVersion = initUiVersion(safeLocalStorage());
 /** What the board holds, for the matchup line (a puzzle or an ending is never "two players"). */
 let boardMode: 'play' | 'puzzle' | 'training' | 'lesson' = 'play';
 
@@ -554,6 +558,14 @@ void openGameStore().then((store) => {
 
 const game: GameController = controller;
 
+// The controller read the difficulty before IndexedDB answered: a new user's beginner level
+// (written by initUiVersion) applies now, still before any game has started.
+if (uiVersion.sync === null) {
+  void uiVersion.done.then((kind) => {
+    if (kind === 'new') void game.setDifficulty(readDifficultySetting()).catch((err) => console.error('setDifficulty failed', err));
+  });
+}
+
 // Intro + splash (Phase 8): the overlay is a sibling of #app (which becomes inert while the
 // overlay is up — it must not be inside it); the game boots underneath.
 const introOverlay = document.createElement('div');
@@ -600,6 +612,7 @@ void openUserSetStore()
       console.warn('Could not read user piece sets', err);
       return [];
     });
+    await uiVersion.done; // the colour default of a new user is written before it is read
     const manager = await initPieceSets({ baseUrl: import.meta.env.BASE_URL, boardEl, storage: safeLocalStorage(), userSets });
     pieceSets = manager;
     const rerender = wirePieceSetSelects(manager);

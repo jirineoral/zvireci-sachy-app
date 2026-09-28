@@ -185,11 +185,98 @@ the existing sheet is the safe option.
 ## Later-phase candidates recorded from the Phase 2 review
 *Parked by the owner 2026-09-26; bring up when he asks what is left.*
 - Undo as black at move 1: disable the button when the resulting position would be the
-  engine's turn at ply 0 (R6).
+  engine's turn at ply 0 (R6). **DONE 2026-09-28.** `GameController.undoBlockedAtEngineOpening()`
+  (`src/game-controller.ts`) disables `Zpět` exactly when the board has one ply on it and it
+  is the human's turn — i.e. that one ply was the engine's opening move, so undoing it would
+  land back on the start position with the engine to move again (the "does nothing but let
+  the engine re-open" loop the review flagged). Two-player mode and the failed-engine
+  fallback are excluded from the rule (no "engine's turn" concept applies there) and keep
+  undoing one ply whenever one exists, per B7. Existing undo limits (0 / 3× / unlimited, the
+  counter on the button) are unaffected — this is an additional condition, not a replacement.
+  Verified by hand in the browser: playing black, the button shows disabled right after the
+  engine's first move and re-enables the instant the human replies; in two-player mode it
+  stays enabled after either side's first move.
 - Promotion dialog: keep the pawn on the destination square while choosing, as Lichess
-  does (R5).
+  does (R5). **DONE 2026-09-28.** `BoardBridge.lock()` (`src/board-bridge.ts`) freezes the
+  board's movability without re-syncing the position from chess.js. chessground has already
+  moved the dragged pawn onto the destination square (and removed a captured piece, if any)
+  by the time our `after` handler runs — the old bug was that `handleUserMove` immediately
+  called a full `sync()` from chess.js's pre-move FEN, snapping the pawn straight back. Now
+  `handleUserMove` (`src/game-controller.ts`) calls `board.lock()` instead, so the dropped
+  pawn stays visible on the destination square while `<dialog class="promotion-dialog">` is
+  open; cancelling (Esc / "Zrušit") still runs the normal `afterPositionChange()`, which
+  re-syncs from chess.js's untouched FEN and puts the pawn back on its origin square cleanly.
+  The fix is orientation- and piece-set-agnostic (it never touches `fen`/`orientation`, only
+  `movable`), so it applies unchanged to both colours, custom piece sets, and two-player
+  games. Friend games (`src/friend.ts`) already only send the move after the promotion
+  choice resolves (`onRemoteMove` is called from `handleUserMove` after `chess.move()`), so
+  no change was needed there. Puzzles and lessons do **not** use this dialog at all — puzzle
+  promotions are resolved directly from the puzzle's recorded move
+  (`GameController.handlePuzzleMove`) before the dialog branch is ever reached, and lessons
+  drive chessground directly through `src/ui/lesson-board.ts` without going through
+  `handleUserMove` — so nothing else needed touching.
+  Verified by hand in the browser (dev server, two-player mode so the position could be
+  engineered quickly): promoting as white, confirmed via the live chessground piece map that
+  the pawn sits on the destination square and the captured piece is gone while the dialog is
+  open; cancelling restores the origin square and the captured piece with no move recorded;
+  completing the promotion (queen) applies normally. Re-tested with the built-in "Klasické"
+  (classic) piece set as well as the default "Hlavy" set. Not separately re-verified as
+  black (the code path is colour-symmetric and takes `chess.turn()` for the dialog's colour
+  class, so there is no black-specific branch to miss, but it was not clicked through by hand
+  in this session) or with a user-uploaded custom set (same reasoning: the dialog only reads
+  `.cg-wrap piece.<color>.<role>`, the same CSS hook the live board uses, so a set that
+  renders correctly on the board renders correctly here too).
 - Strong opponent levels via `UCI_LimitStrength`/`UCI_Elo` (review item R3 of the
   Phase 2 plan — not the player's R3 below; `UCI_Elo` self-play is also option (a) of R1).
+  **Proposal recorded 2026-09-28 (below); not built — the ladder and `Bilance` are the
+  owner's call.**
+
+### R3 proposal — `UCI_LimitStrength` / `UCI_Elo` strong levels (not built)
+
+**What the shipped engine build supports.** `node_modules/stockfish/bin/stockfish-18-lite-single.js`
+(the exact file `scripts/copy-engine.mjs` copies into `public/engine/`) lists both
+`UCI_LimitStrength` (bool) and `UCI_Elo` among its recognised `setoption` names (visible in
+the glue script's own CLI-completion string table: `setoption name UCI_LimitStrength value
+true/false`, `setoption name UCI_Elo value `). `src/engine.ts` already sends
+`setoption name UCI_LimitStrength value false` once during the handshake and never touches
+it again (decision 3 of `docs/phase-2-plan.md`); `UCI_Elo` is never sent today. The numeric
+range this build accepts (Stockfish's usual 1320–3190 for this NNUE version line) is
+carried over from the "verified facts" list in `docs/phase-2-plan.md` (checked 2026-09-12) —
+**not independently re-confirmed in this session**: the min/max are compiled into the
+`.wasm`'s own option table, not present as text in the `.js` glue, so re-check them against
+Stockfish 18's release notes/`options.md` before relying on the exact bounds.
+
+**How it would map to the ladder.** Levels 1–6 (`src/difficulty.ts`, `DIFFICULTIES`) are
+tuned for children and stay on `Skill Level` + a depth cap — one mechanism, as decision 3
+deliberately chose. `UCI_Elo` would be a **new, separate mechanism** for levels above the
+current ceiling (today's level 7 "Velmistr" is just `Skill Level 20` + `depth 14`, i.e.
+"as strong as this cheap search gets," not a calibrated rating). The natural shape: extend
+`DifficultyLevel` past 7 (e.g. 8–10) and give each new level `UCI_LimitStrength: true` +
+a specific `UCI_Elo` target (say 1400 / 1800 / 2200) instead of a `Skill Level`/depth pair.
+`EngineOptions` would need an optional `elo?: number` field, `engine.ts`'s option-sending
+code would need to send `UCI_LimitStrength true` + `UCI_Elo <n>` for those levels and
+`UCI_LimitStrength false` for the existing ones (today's "set once, never touched again"
+invariant from decision 3 would have to change to "set per level," which is exactly the
+kind of change this plan reserved for a deliberate decision rather than an implementation
+detail).
+
+**Impact on `Bilance` and the campaign.** `Bilance` (Phase 14) keys the child's win/loss
+record by level number; adding levels above 7 only adds new, empty rows — it does not
+disturb the existing 1–7 records. The campaign's interpolation
+(`interpolateDifficulty`, `CAMPAIGN_MAX_LEVEL = 6`) already stops at level 6 and would be
+untouched. The one real risk is honesty: an `UCI_Elo`-targeted level *sounds* like a
+measured rating (which is exactly what R1 rejected doing for the existing ladder, on the
+grounds that inventing a number for a tournament-playing child is worse than showing none).
+Shipping "Elo 1800" as a label without having verified Stockfish's self-reported strength
+against anything would repeat that mistake one level up — R1's option (a) (self-play
+measurement) is the honest way to validate the number before showing it, and is real,
+separate work (dozens of games per level), not a side effect of wiring the option.
+
+**Effort.** Wiring the mechanism (new levels, `EngineOptions.elo`, `engine.ts` sending it
+conditionally, UI labels, a DoD-style sanity check that the levels are monotonic in
+practice): roughly half a day. Validating the actual strength before showing any number to
+the child (R1 option (a)): materially more — self-play or external-engine matches, which is
+its own task, not a rounding error on top of the wiring.
 
 ---
 

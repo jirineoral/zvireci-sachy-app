@@ -76,6 +76,31 @@ function checkArrows(fen) {
   return chess.attackers(king, them).map((from) => ({ from, to: king, brush: 'red', derived: 'check (chess.js)' }));
 }
 
+const NOUN_TYPE = [[/věž/i, 'r'], [/dám/i, 'q'], [/střel/i, 'b'], [/jezd/i, 'n'], [/pěš/i, 'p'], [/král/i, 'k']];
+
+/**
+ * Squares named in a choose explanation ("Král by šel přes pole f1 a to napadá černá věž")
+ * that the opponent of the side to move attacks: red arrows from those attackers, limited
+ * to the piece kinds the sentence names (chess.js attackers).
+ */
+function explainedAttacks(fen, text) {
+  const chess = new Chess(fen);
+  const them = chess.turn() === 'w' ? 'b' : 'w';
+  const out = [];
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if (!/napad|útočí|hlídá/i.test(sentence)) continue;
+    const types = NOUN_TYPE.filter(([re]) => re.test(sentence.replace(/král(e|i)?\s+by|král\s+(jde|šel|smí)/gi, ''))).map(([, t]) => t);
+    for (const [sq] of sentence.matchAll(/\b[a-h][1-8]\b/g)) {
+      for (const from of chess.attackers(sq, them)) {
+        const p = chess.get(from);
+        if (types.length && !types.includes(p.type)) continue;
+        out.push({ from, to: sq, brush: 'red' });
+      }
+    }
+  }
+  return out;
+}
+
 /** The move of a `move` step, played with chess.js (or geometry for a diagram). */
 function playMove(step, uci) {
   const from = uci.slice(0, 2);
@@ -200,7 +225,7 @@ export function buildStoryboard(lessonId, opts = {}) {
   const nSteps = lesson.steps.length;
 
   segments.push({
-    id: 'title',
+    id: '_title', // underscore: never collides with a step id (a step may be called 'end')
     kind: 'title',
     step: null,
     voice: { screen: `${ordinalF(lesson.number)[0].toUpperCase()}${ordinalF(lesson.number).slice(1)} lekce: ${lesson.title}.`, tts: pronounce(`${ordinalF(lesson.number)} lekce: ${lesson.title}.`) },
@@ -236,14 +261,17 @@ export function buildStoryboard(lessonId, opts = {}) {
         voiceLead: T.lead,
         tail: T.tail,
         notes,
-        shots: [{ kind: 'still', fill: true, view: { ...base, board, bubble: { text, feedback: isMini ? MINI_NOTE : null } } }],
+        shots: [{ kind: 'still', fill: true, view: { ...base, board, bubble: { text, feedback: isMini ? MINI_NOTE : null, note: isMini } } }],
       });
       lastBoard = board;
       return;
     }
 
     // ---- tasks: question -> think -> solution -------------------------------------------
-    const qShapes = [...authored(step), ...(step.kind === 'choose' ? optionShapes(step, () => 'blue') : [])];
+    // The problem itself, not its solution: a king in check gets its check arrows from the start.
+    const problem = step.kind === 'move' && isLegalPosition(step) && !authored(step).some((s) => s.to) ? checkArrows(step.fen) : [];
+    problem.forEach((d) => notes.push(`derived check in the question: ${d.from}->${d.to} (chess.js)`));
+    const qShapes = [...authored(step), ...problem, ...(step.kind === 'choose' ? optionShapes(step, () => 'blue') : [])];
     const qBoard = boardView(step.fen, orientation, { shapes: qShapes, stars });
     const qChips = step.kind === 'choose' ? chips(step, false) : [];
     const textOptions = step.kind === 'choose' ? step.options.filter((o) => o.label).map((o) => o.label) : [];
@@ -279,7 +307,7 @@ export function buildStoryboard(lessonId, opts = {}) {
           notes.push(`derived attack ${arrow.to}->${t} (${isLegalPosition(step) ? 'chess.js attackers' : 'geometry'})`);
         }
       }
-      const before = boardView(step.fen, orientation, { shapes: [...authored(step), arrow], stars });
+      const before = boardView(step.fen, orientation, { shapes: [...authored(step), ...problem, arrow], stars });
       const after = boardView(played.fenAfter, orientation, {
         shapes: shapesAfter,
         stars,
@@ -348,6 +376,12 @@ export function buildStoryboard(lessonId, opts = {}) {
       }
       if (!sp && step.correct.includes('ano') && reachesStar && step.stars?.length) notes.push('WARNING: answer "ano" but no star path found');
       if (sp && step.correct.includes('ne')) notes.push(`WARNING: answer "ne" but a star path exists: ${JSON.stringify(sp)}`);
+      if (isLegalPosition(step) && /napad|útočí|hlídá/i.test(step.explain)) {
+        for (const a of explainedAttacks(step.fen, step.explain)) {
+          shapes.push(a);
+          notes.push(`derived attack from the explanation: ${a.from}->${a.to} (chess.js attackers)`);
+        }
+      }
       const explain = lesson.test ? `Správně! ${step.explain}` : step.explain;
       const board = boardView(step.fen, orientation, { shapes, stars });
       segments.push({
@@ -368,7 +402,7 @@ export function buildStoryboard(lessonId, opts = {}) {
 
   const outro = videoText(resolveText(lesson.outro, ctx));
   segments.push({
-    id: 'outro',
+    id: '_outro',
     kind: 'outro',
     step: null,
     voice: say(outro),
@@ -376,7 +410,7 @@ export function buildStoryboard(lessonId, opts = {}) {
     tail: T.tail + 0.3,
     shots: [{ kind: 'still', fill: true, view: { header, counter: 'Hotovo', board: lastBoard ? { ...lastBoard, shapes: [], highlights: [] } : null, bubble: { text: outro, feedback: null } } }],
   });
-  segments.push({ id: 'end', kind: 'end', step: null, voice: null, shots: [{ kind: 'card', card: 'end', dur: T.endCard }] });
+  segments.push({ id: '_end', kind: 'end', step: null, voice: null, shots: [{ kind: 'card', card: 'end', dur: T.endCard }] });
 
   return {
     lesson: { id: lesson.id, level: lesson.level, number: lesson.number, title: lesson.title, levelTitle: levelTitle(lesson.level), test: !!lesson.test },

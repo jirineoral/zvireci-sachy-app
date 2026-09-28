@@ -68,6 +68,8 @@ export function pronounce(text) {
   t = t.replace(re(`(^|\\s)[?!]{1,2}(?=\\s|$)`), '$1');
   t = t.replace(/(^|\s)\+(?=[\s.,]|$)/g, '$1plus');
   t = t.replace(/(^|\s)#(?=[\s.,]|$)/g, '$1křížek');
+  // Emphasis in capitals ("král JE v šachu", "NENÍ"): SAPI would spell it letter by letter.
+  t = t.replace(/(?<![\p{L}])(\p{Lu}{2,})(?![\p{L}])/gu, (w) => w.toLowerCase());
   return t.replace(/\s{2,}/g, ' ').trim();
 }
 

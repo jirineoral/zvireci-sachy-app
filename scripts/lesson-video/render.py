@@ -154,9 +154,26 @@ class Board:
         dist = math.hypot(dx, dy)
         if dist < 1:
             return
+        if sorted([round(abs(dx) / q), round(abs(dy) / q)]) == [1, 2]:
+            # knight jump: an "L" (long leg first), as lichess draws it — the shape the lesson teaches
+            cx, cy = (x1, y0) if abs(dx) > abs(dy) else (x0, y1)
+            w = q * 10 / 64 * 1.15
+            lx, ly = cx - x0, cy - y0
+            ll = math.hypot(lx, ly)
+            sx, sy = x0, y0
+            if a in occupied:
+                sx, sy = x0 + lx / ll * q * 0.32, y0 + ly / ll * q * 0.32
+            ex, ey = cx + lx / ll * w / 2, cy + ly / ll * w / 2
+            hw = w / 2
+            if abs(lx) > abs(ly):
+                d.rectangle([min(sx, ex), sy - hw, max(sx, ex), sy + hw], fill=color)
+            else:
+                d.rectangle([sx - hw, min(sy, ey), sx + hw, max(sy, ey)], fill=color)
+            self._head_leg(d, (cx, cy), (x1, y1), color, b in occupied)
+            return
         ux, uy = dx / dist, dy / dist
         # keep the children's pieces visible: start/stop at the edge of an occupied square
-        if a in occupied:
+        if a in occupied and dist > 1.5 * q:  # a one-square arrow keeps its full length
             x0, y0 = x0 + ux * q * 0.32, y0 + uy * q * 0.32
         if b in occupied:
             x1, y1 = x1 - ux * q * 0.3, y1 - uy * q * 0.3
@@ -168,6 +185,24 @@ class Board:
         hw = w / 2
         d.polygon([(x0 + px * hw, y0 + py * hw), (bx + px * hw, by + py * hw), (bx - px * hw, by - py * hw), (x0 - px * hw, y0 - py * hw)], fill=color)
         d.ellipse([x0 - hw, y0 - hw, x0 + hw, y0 + hw], fill=color)
+        d.polygon([(tip_x, tip_y), (bx + px * head_w / 2, by + py * head_w / 2), (bx - px * head_w / 2, by - py * head_w / 2)], fill=color)
+
+    def _head_leg(self, d, p0, p1, color, occupied_end):
+        """The second leg of an L arrow: from the corner p0 to p1, with the head."""
+        q = self.q
+        (x0, y0), (x1, y1) = p0, p1
+        dist = math.hypot(x1 - x0, y1 - y0)
+        ux, uy = (x1 - x0) / dist, (y1 - y0) / dist
+        w = q * 10 / 64 * 1.15
+        hw = w / 2
+        if occupied_end:
+            x1, y1 = x1 - ux * q * 0.22, y1 - uy * q * 0.22
+        tip_x, tip_y = x1 - ux * q * 0.08, y1 - uy * q * 0.08
+        head_len, head_w = w * 2.6, w * 3.6
+        bx, by = tip_x - ux * head_len, tip_y - uy * head_len
+        sx, sy = x0 - ux * hw, y0 - uy * hw  # square joint with the first leg
+        px, py = -uy, ux
+        d.polygon([(sx + px * hw, sy + py * hw), (bx + px * hw, by + py * hw), (bx - px * hw, by - py * hw), (sx - px * hw, sy - py * hw)], fill=color)
         d.polygon([(tip_x, tip_y), (bx + px * head_w / 2, by + py * head_w / 2), (bx - px * head_w / 2, by - py * head_w / 2)], fill=color)
 
     def ring(self, d, sq, color, orientation):
@@ -216,6 +251,24 @@ class Board:
             im.alpha_composite(self.piece(ch), (round(xa + (xb - xa) * e), round(ya + (yb - ya) * e)))
         self.coords(im, o)
         return im.convert('RGB')
+
+
+def chip_rows(d, chips, size, width):
+    """Answer buttons wrapped into rows that fit the bubble: [[(chip, width), ...], ...]."""
+    cf = font(round(size * 0.95), 'bold')
+    rows, row, used = [], [], 0.0
+    for c in chips:
+        cw = d.textlength(c['label'], font=cf) + size * 1.4
+        need = cw + (size * 0.5 if row else 0)
+        if row and used + need > width:
+            rows.append(row)
+            row, used = [], 0.0
+            need = cw
+        row.append((c, cw))
+        used += need
+    if row:
+        rows.append(row)
+    return rows
 
 
 def placement_squares(placement):
@@ -315,15 +368,19 @@ class Renderer:
             f = font(size, 'semibold')
             ff = font(size, 'bold')
             # compact (9:16): once the answer is shown, the bubble holds the answer only
-            lines = [] if (feedback and self.L.get('compact')) else wrap(d, b['text'], f, width)
+            lines = [] if (feedback and self.L.get('compact') and not b.get('note')) else wrap(d, b['text'], f, width)
             flines = wrap(d, feedback, ff, width) if feedback else []
             lh = round(size * 1.28)
             h = pad * 2 + lh * len(lines)
             if flines:
                 h += (round(size * 0.5) if lines else 0) + lh * len(flines)
+            rows = chip_rows(d, chips, size, width)
+            chh = round(size * 1.7)
             if chips:
-                h += round(size * 0.6) + round(size * 1.7)
-            if think is not None and not chips:  # with buttons the timer sits in their row
+                h += round(size * 0.6) + len(rows) * chh + (len(rows) - 1) * round(size * 0.4)
+            last_w = sum(cw for _, cw in rows[-1]) + size * 0.5 * len(rows[-1]) if rows else 0
+            inline = bool(chips) and last_w + size * 0.3 + 160 <= width  # timer fits in the last button row
+            if think is not None and not inline:
                 h += round(size * 0.5) + lh + 22
             if y0 + h <= y1max:
                 break
@@ -344,24 +401,24 @@ class Renderer:
                 y += lh
         if chips:
             y += round(size * 0.6)
-            cx = x0 + pad
-            chh = round(size * 1.7)
             cf = font(round(size * 0.95), 'bold')
-            for c in chips:
-                tw = d.textlength(c['label'], font=cf)
-                cw = tw + size * 1.4
-                ok = c['state'] == 'correct'
-                d.rounded_rectangle([cx, y, cx + cw, y + chh], radius=chh // 2, fill=GOOD if ok else (255, 255, 255),
-                                    outline=GOOD if ok else (150, 160, 175), width=4)
-                d.text((cx + cw / 2, y + chh / 2), c['label'], font=cf, fill=(255, 255, 255) if ok else INK, anchor='mm')
-                cx += cw + size * 0.5
-            if think is not None:
+            for ri, row in enumerate(rows):
+                if ri:
+                    y += chh + round(size * 0.4)
+                cx = x0 + pad
+                for c, cw in row:
+                    ok = c['state'] == 'correct'
+                    d.rounded_rectangle([cx, y, cx + cw, y + chh], radius=chh // 2, fill=GOOD if ok else (255, 255, 255),
+                                        outline=GOOD if ok else (150, 160, 175), width=4)
+                    d.text((cx + cw / 2, y + chh / 2), c['label'], font=cf, fill=(255, 255, 255) if ok else INK, anchor='mm')
+                    cx += cw + size * 0.5
+            if think is not None and inline:
                 bx0, bx1, by = cx + size * 0.3, x1 - pad, y + chh / 2 - 8
                 d.rounded_rectangle([bx0, by, bx1, by + 16], radius=8, fill=(222, 226, 232))
                 if think > 0:
                     d.rounded_rectangle([bx0, by, bx0 + (bx1 - bx0) * think, by + 16], radius=8, fill=(255, 193, 7))
             y += chh
-        if think is not None and not chips:
+        if think is not None and not inline:
             y += round(size * 0.5)
             d.text((x0 + pad, y), 'Přemýšlej…', font=ff, fill=(90, 100, 115))
             bx0 = x0 + pad + d.textlength('Přemýšlej…', font=ff) + 24
@@ -376,7 +433,11 @@ class Renderer:
         d = ImageDraw.Draw(img)
         L = self.L
         hx, hy = L['header']
-        centered(d, view.get('header', ''), font(54 if self.fmt == '9x16' else 50, 'bold'), hx, hy, (255, 255, 255))
+        hf = font(54 if self.fmt == '9x16' else 50, 'bold')
+        maxw = (self.W - 80) if self.fmt == '9x16' else (self.W - L['board'][0] - L['board'][2] - 80)
+        while d.textlength(view.get('header', ''), font=hf) > maxw and hf.size > 28:  # long lesson titles
+            hf = font(hf.size - 2, 'bold')
+        centered(d, view.get('header', ''), hf, hx, hy + (50 - hf.size) / 2, (255, 255, 255))
         if view.get('counter'):
             centered(d, view['counter'], font(36 if self.fmt == '9x16' else 34, 'regular'), L['counter'][0], L['counter'][1], MUTED)
         bx, by, bs = L['board']
@@ -516,7 +577,9 @@ def cmd_audio(tl_path, work):
         s = int(round(v['start'] * SR))
         e = min(n, s + len(a))
         voice[s:e] += a[: e - s]
-    mix = voice * tl['audio']['voiceGain'] + music_bed(total) * tl['audio']['musicGain']
+    bed = music_bed(total)[:n]
+    bed = np.pad(bed, (0, n - len(bed)))
+    mix = voice * tl['audio']['voiceGain'] + bed * tl['audio']['musicGain']
     peak = float(np.max(np.abs(mix))) or 1.0
     mix = mix * min(1.0, 0.95 / peak)
     out = os.path.join(work, 'mix.wav')
@@ -588,6 +651,24 @@ def cmd_qc(tl_path, fmt, video, out):
     print(f'qc {fmt}: {len(tiles)} moments -> {out}')
 
 
+def cmd_overview(out, *pairs):
+    """Posters of a level on one sheet: overview <out.jpg> <poster> <caption> ..."""
+    items = list(zip(pairs[0::2], pairs[1::2]))
+    tw, cols, cap = 480, 4, 40
+    th = 270
+    rows = math.ceil(len(items) / cols)
+    sheet = Image.new('RGB', (cols * (tw + 10) + 10, rows * (th + cap + 10) + 10), (18, 18, 18))
+    d = ImageDraw.Draw(sheet)
+    f = font(22, 'bold')
+    for i, (poster, caption) in enumerate(items):
+        x = 10 + (i % cols) * (tw + 10)
+        y = 10 + (i // cols) * (th + cap + 10)
+        sheet.paste(Image.open(poster).convert('RGB').resize((tw, th), Image.LANCZOS), (x, y))
+        d.text((x, y + th + 8), caption, font=f, fill=(255, 235, 59))
+    sheet.save(out, quality=86)
+    print('overview', out)
+
+
 if __name__ == '__main__':
     cmd, *a = sys.argv[1:]
-    {'frames': cmd_frames, 'audio': cmd_audio, 'poster': cmd_poster, 'qc': cmd_qc}[cmd](*a)
+    {'frames': cmd_frames, 'audio': cmd_audio, 'poster': cmd_poster, 'qc': cmd_qc, 'overview': cmd_overview}[cmd](*a)

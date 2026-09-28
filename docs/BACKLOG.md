@@ -740,3 +740,13 @@ upload; (b) one scheduler for all networks (Buffer / Metricool — verify free-t
 (c) TikTok Content Posting API (unaudited apps post private-only — verify in the docs).
 Instagram meanwhile goes out by manual web posting (works in a background tab) until Instagram
 is linked in Meta Business Suite.
+
+## V1 — Lesson explainer videos (owner, 2026-09-28) — IN PROGRESS (pilot)
+
+A narrated video for every lesson (SAPI voice "Jakub" for now), built by a deterministic
+script from the lesson data (no hand-made edits per lesson). Hosting decided by the owner:
+self-hosted MP4 (Cloudflare R2) played in the app from a "▶ Video" button in the lesson —
+keeps "bez cookies" and "bez reklam"; the same videos also go to YouTube (made for kids) as
+playlists per level for discovery. Pilot: pipeline + the first 2–3 level-1 lessons, shown to
+the owner before scaling. Open: R2 bucket on the owner's Cloudflare account (owner sets it up
+or explicitly allows it), social-content-review before every YouTube upload.

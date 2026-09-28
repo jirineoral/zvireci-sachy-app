@@ -1058,10 +1058,16 @@ and the pilot is extended from level 1 to all five levels (1226 texts, ~79 MB).
   any). `public/soukromi.html` now names `videa.zvirecisachy.cz` for read-aloud too (it
   already did for lesson videos).
 - **Verified.** `npx tsc --noEmit` and `npm run build` clean (JSON import resolves). Wrangler
-  authenticated via existing OAuth session (`npx wrangler whoami`); uploaded 2381 new files
-  (71 already present from a manual spot-check upload), `r2-upload.mjs` reports 0 failed.
-  `npm run test:lessons` (163 passed) and `npm run test:ui` (14 passed) unaffected. Browser
-  check against the **live** R2 endpoint (not a local fixture): a level-1 and a level-3 step
-  both fetch their clip from `videa.zvirecisachy.cz` (network tab 200, `Access-Control-Allow-
-  Origin` present) and play with no console errors; a text with no recorded audio still
-  hides the button. Not merged to `main`, not deployed.
+  authenticated via existing OAuth session (`npx wrangler whoami`); `r2-upload.mjs` uploaded
+  all 2452 files across two runs (a transient batch of 4 failed the first pass — a re-run,
+  which is idempotent by design, picked them up; the final run reports `uploaded 0, failed 0,
+  already present 2452`). `npm run test:lessons` (186 passed, after the `main` merge added
+  level 6) and `npm run test:ui` (17 passed) unaffected. Browser check against the **live** R2
+  endpoint on `vite preview` (not a local fixture, and on the CORS-listed `localhost:4173`
+  origin — an arbitrary dev port is *not* covered by the CORS rule and correctly gets a CORS
+  error, confirming the rule is doing its job): a level-1 and a level-3 step both fetch their
+  clip from `videa.zvirecisachy.cz` (network tab 200, `Access-Control-Allow-Origin` present)
+  and play (verified via a `window.fetch` spy — the call fires and resolves — since headless
+  audio output cannot be heard) with no new console errors; a level-6 step (not part of this
+  recording pass) correctly hides the button, `.lesson-speak.hidden === true`, no error. Not
+  merged to `main`, not deployed.

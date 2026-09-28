@@ -933,7 +933,7 @@ test('l6-vancura: the side-on check is explained kindly, the rook behind the paw
   const v = moveAt('l6-vancura', 'build', 'f1', 'f4');
   assert.notEqual(v.phase, 'stepDone');
   assert.match(v.feedback.text, /drží remízu/);
-  assert.match(moveAt('l6-vancura', 'build', 'f1', 'a1').feedback.text, /prohrává/);
+  assert.match(moveAt('l6-vancura', 'build', 'f1', 'a1').feedback.text, /nestačí/);
   assert.equal(moveAt('l6-vancura', 'check', 'f6', 'f5').phase, 'stepDone');
 });
 

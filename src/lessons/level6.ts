@@ -110,9 +110,9 @@ export const LEVEL6: readonly Lesson[] = [
         orientation: 'black',
         accept: ['h8h1'],
         completeness: { kind: 'best' },
-        text: 'Hraješ za černé a dáš mat 4. tahem. Začni šachem, po kterém se otevře bílý král.',
+        text: 'Hraješ za černé a dáš mat 4. tahem. Obětuj věž na h1 se šachem. Vlákej bílého krále na otevřený sloupec h.',
         success: 'Výborně! Oběť věže. Bílý musí vzít: Kxh1.',
-        wrongDefault: 'Tohle mat nedá. Hledej šach, po kterém bílý král vyjde do otevřeného pole.',
+        wrongDefault: 'Tohle mat nedá. Hledej šach, po kterém se bílý král dostane na otevřený sloupec h.',
       },
       {
         id: 'ex2',
@@ -199,7 +199,7 @@ export const LEVEL6: readonly Lesson[] = [
           { from: 'f8', to: 'b8', brush: 'red' },
           { from: 'f8', to: 'f7', brush: 'red' },
         ],
-        text: 'Věž f8 má dva úkoly. Kryje věž b8 a hlídá pole f7. Obojí najednou nezvládne.',
+        text: 'Věž f8 má dva úkoly. Kryje věž b8 a pěšce f7. Obojí najednou nezvládne.',
       },
       {
         id: 'br1',
@@ -288,7 +288,7 @@ export const LEVEL6: readonly Lesson[] = [
     id: 'l6-klicova-pole',
     level: 6,
     number: 3,
-    title: 'Klíčová pole: daleký a krajní pěšec',
+    title: 'Klíčová pole II: pokročilý a krajní pěšec',
     steps: [
       {
         id: 'fifth',
@@ -333,7 +333,7 @@ export const LEVEL6: readonly Lesson[] = [
         text: 'Postav krále na klíčové pole. Vyhraješ.',
         success: 'Výborně! Tvůj král stojí na klíčovém poli. Černý ho odtud nevyžene.',
         wrong: { e5e6: 'Pěšec spěchá a král zůstal pozadu. To je jen remíza.' },
-        wrongDefault: 'Tenhle tah výhru pustí. Klíčová pole jsou d6, e6 a f6 a o řadu dál.',
+        wrongDefault: 'Tenhle tah výhru pustí. Klíčová pole jsou d6, e6, f6, d7, e7 a f7.',
       },
       {
         // Tablebase: white to move wins (Kd6 / Kf6).
@@ -363,7 +363,7 @@ export const LEVEL6: readonly Lesson[] = [
           { from: 'd8', brush: 'green' },
           { from: 'e8', brush: 'green' },
         ],
-        text: 'Pěšec na šesté řadě má klíčová pole na sedmé a osmé řadě. U pěšců b a g jsou jen čtyři, pozor na pat.',
+        text: 'Pěšec na šesté řadě má klíčová pole na sedmé a osmé řadě. U pěšce b6 jsou jen čtyři: a7, b7, a8, b8. Z c7 nebo c8 by po Ka8 byl pat.',
       },
       {
         // Tablebase: only Ke7 wins; d7+ Kd8 is a draw.
@@ -400,13 +400,13 @@ export const LEVEL6: readonly Lesson[] = [
         fen: '8/3k4/K7/P7/8/8/8/8 w - - 0 1',
         accept: ['a6b7'],
         completeness: { kind: 'tablebase' },
-        text: 'Klíčová pole krajního pěšce a jsou b7 a b8. Zavři černého krále dřív, než doběhne do rohu.',
+        text: 'Klíčová pole krajního pěšce a jsou b7 a b8. Platí to, když černý král pěšce nesebere ani nestojí před ním. Zavři ho dřív, než doběhne do rohu.',
         success: 'Výborně! Černý král už k rohu nesmí. Pěšec dojde do dámy.',
         wrong: { a6b6: 'Černý král doběhne na c8 a pole b7 a b8 ti zavře. Remíza.' },
         wrongDefault: 'Tenhle tah výhru pustí. Tvůj král musí hned na b7.',
       },
     ],
-    outro: 'Čím dál pěšec je, tím víc klíčových polí má. Krajní pěšec je výjimka: tam musíš na b7 nebo b8.',
+    outro: 'Pěšec na páté a šesté řadě má šest klíčových polí. Pěšec b nebo g na šesté řadě jen čtyři. Krajní pěšec je výjimka. Pěšec a má klíčová pole b7 a b8, pěšec h pole g7 a g8.',
     practice: [
       { kind: 'endgame', id: 'kral-pesec-1', label: 'Koncovky: král a pěšec 1/7' },
       { kind: 'endgame', id: 'kp-win', label: 'Koncovky: král a pěšec 3/7' },
@@ -513,7 +513,7 @@ export const LEVEL6: readonly Lesson[] = [
         completeness: { kind: 'best', marginCp: 100, depth: 24 },
         text: 'Jen jeden tah vyhraje, ostatní vedou k remíze. Najdi ho.',
         success: 'Výborně! Kb1 je jediný vyhrávající tah. Černý odpověděl Kb7.',
-        wrongDefault: 'Tohle je jen remíza. Tady rozhoduje přesné pole, ne jen směr.',
+        wrongDefault: 'Tohle je jen remíza. Tady rozhoduje přesné pole. Zkus krok po první řadě doprava.',
       },
       {
         id: 'kc1',
@@ -529,13 +529,13 @@ export const LEVEL6: readonly Lesson[] = [
         id: 'pairs',
         kind: 'show',
         fen: LR_KB7,
-        text: 'Každému poli černého krále odpovídá jedno pole bílého krále. Tomu se říká korespondující pole.',
+        text: 'Každému poli černého krále odpovídá správné pole bílého krále. Tomu se říká korespondující pole.',
       },
       {
         id: 'why',
         kind: 'show',
         fen: LR_KB7,
-        text: 'Bílý vždy vstoupí na to pole, které odpovídá černému. Černý nakonec musí ustoupit a pustí bílého krále k pěšci.',
+        text: 'Bílý vždy vstoupí na pole, které odpovídá černému. Černý tak nakonec musí táhnout jinam, než chce. Je to jako u trojúhelníku v úrovni 4. Pak pustí bílého krále k pěšci.',
       },
     ],
     outro: 'Korespondující pole: na každý tah černého krále má bílý jedno správné pole. Opozice je jejich nejjednodušší případ.',
@@ -594,7 +594,7 @@ export const LEVEL6: readonly Lesson[] = [
           { id: 'nic', label: 'Nic z toho' },
         ],
         correct: ['pat'],
-        explain: 'Pat! Černý král nemá žádný tah. Dáma by vyhrála jen remízu.',
+        explain: 'Pat! Černý král nemá žádný tah. S dámou je to jen remíza.',
         wrongDefault: 'Černý král není v šachu. Má ale vůbec nějaký tah?',
         verify: { kind: 'state' },
       },
@@ -694,7 +694,7 @@ export const LEVEL6: readonly Lesson[] = [
         success: 'Výborně! Věž napadá pěšce a6 ze strany.',
         wrong: {
           f1f4: 'I šach drží remízu, ale věž patří na šestou řadu. Zkus f6.',
-          f1a1: 'Za pěšcem tady věž prohrává. Bílý král dojde k pěšci a pomůže mu.',
+          f1a1: 'Tady věž za pěšcem nestačí. Pěšec je teprve na a6 a bílý král mu dojde pomoct. U krajního pěšce má Tarraschovo pravidlo výjimku.',
         },
         wrongDefault: 'Věž má napadnout pěšce a6 ze strany, po šesté řadě.',
       },
@@ -707,7 +707,7 @@ export const LEVEL6: readonly Lesson[] = [
         accept: ['f6f5'],
         completeness: { kind: 'tablebase' },
         text: 'Bílý král se přiblížil na b5. Jen jeden tah drží remízu.',
-        success: 'Výborně! Šach ze strany. Bílý král se před šachy nemá kam schovat.',
+        success: 'Šach ze strany! Když bílý král uteče k věži, vezmeš pěšce a6.',
         wrong: { f6b6: 'Po Vb6+ vezme král věž: Kxb6.' },
         wrongDefault: 'Tenhle tah prohrává. Šachuj bílého krále ze strany.',
       },
@@ -716,7 +716,7 @@ export const LEVEL6: readonly Lesson[] = [
         kind: 'show',
         fen: VANCURA_A7,
         shapes: [{ from: 'a1', to: 'a7', brush: 'red' }],
-        text: 'Když pěšec dojde na a7, jde černá věž za něj na sloupec a. Černý král zůstane na g7 nebo h7.',
+        text: 'Když pěšec dojde na a7, jde černá věž za něj na sloupec a. Černý král musí zůstat na g7 nebo h7. Z f7 by přišel trik Vh8 a po Vxa7 šach Vh7+.',
       },
     ],
     outro: 'Vančurova pozice: věž napadá krajního pěšce ze strany a šachuje krále, když se přiblíží.',
@@ -728,7 +728,7 @@ export const LEVEL6: readonly Lesson[] = [
     id: 'l6-lehka-figura-pesec',
     level: 6,
     number: 8,
-    title: 'Jezdec a střelec proti pěšci',
+    title: 'Jezdec nebo střelec proti pěšci',
     steps: [
       {
         id: 'idea',
@@ -790,7 +790,7 @@ export const LEVEL6: readonly Lesson[] = [
         text: 'Nejtěžší je pro jezdce krajní pěšec. Na kraji šachovnice jezdec hlídá málo polí.',
       },
     ],
-    outro: 'Střelci obvykle stačí hlídat jedno pole na cestě pěšce. Jezdec to má těžší, hlavně proti krajnímu pěšci.',
+    outro: 'Střelci stačí hlídat jedno pole na cestě pěšce. Soupeřův král mu ale může úhlopříčku zastoupit. Jezdec to má těžší, hlavně proti krajnímu pěšci.',
     practice: [{ kind: 'puzzles', band: 'tezsi', theme: 'knightEndgame', count: 3, label: 'Úlohy: jezdcová koncovka' }],
   },
 
@@ -899,7 +899,7 @@ export const LEVEL6: readonly Lesson[] = [
         fen: 'rnb1kb1r/pp1ppppp/5n2/q3P3/8/5Q2/PB3PPP/RN2KBNR w KQkq - 1 7',
         accept: ['b2c3'],
         completeness: { kind: 'best' },
-        text: 'Zakryj šach tak, abys zároveň napadl dámu.',
+        text: 'Zakryj šach a zároveň napadni dámu.',
         success: 'Výborně! Dáma musí uhnout. Pak pěšec e5 vezme jezdce f6.',
         wrong: {
           b1c3: 'Jezdec šach zakryje, ale dámu nenapadne. Černý pak zachrání jezdce f6.',
@@ -952,7 +952,7 @@ export const LEVEL6: readonly Lesson[] = [
           { from: 'g1', to: 'g3', brush: 'blue' },
           { from: 'e3', to: 'f2', brush: 'blue' },
         ],
-        text: 'Pole h1, g2 a g3 hlídá věž g1. Pole f2, d2 a h3 hlídá dáma e3.',
+        text: 'Pole h1, g2 a g3 hlídá věž g1. Pole f4, f2, e2, d2 a h3 hlídá dáma e3. Pěšce c2 kryje král.',
       },
       {
         // Lichess puzzle JqGpn, after 14...Je7.
@@ -1034,7 +1034,7 @@ export const LEVEL6: readonly Lesson[] = [
         id: 'name',
         kind: 'show',
         fen: TREBUCHET_B,
-        text: 'Tomu se říká vzájemná nevýhoda tahu. Kdo je na tahu, prohraje. Trénuj si správné načasování.',
+        text: 'Tomu se říká vzájemná nevýhoda tahu. Kdo je na tahu, dopadne hůř. Tady dokonce prohraje.',
       },
       {
         // Tablebase: only Kc5 wins; every other move loses.
@@ -1049,7 +1049,7 @@ export const LEVEL6: readonly Lesson[] = [
         wrongDefault: 'Tenhle tah prohrává. Postav krále tak, aby na tahu byl černý.',
       },
     ],
-    outro: 'Vzájemná nevýhoda tahu: prohraje ten, kdo musí táhnout. Snaž se, aby to byl soupeř.',
+    outro: 'Vzájemná nevýhoda tahu: kdo musí táhnout, dopadne hůř. Snaž se, aby to byl soupeř.',
     practice: [{ kind: 'endgame', id: 'kp-far', label: 'Koncovky: král a pěšec 5/7' }],
   },
 
@@ -1076,7 +1076,7 @@ export const LEVEL6: readonly Lesson[] = [
         id: 'before',
         kind: 'show',
         fen: START,
-        text: 'U té chyby se ještě nedívej na šipku. Nejdřív sám najdi lepší tah a propočítej ho.',
+        text: 'U té chyby se ještě nedívej na šipku. Nejdřív najdi lepší tah bez nápovědy a propočítej ho.',
       },
       {
         id: 'question',
@@ -1099,7 +1099,7 @@ export const LEVEL6: readonly Lesson[] = [
         text: 'Po každém rozboru si zapamatuj jednu věc. Příště na ni dej pozor.',
       },
     ],
-    outro: 'Rozbor: najdi zlom partie, sám hledej lepší tah a teprve pak se podívej na šipku.',
+    outro: 'Rozbor: najdi zlom partie a bez nápovědy hledej lepší tah. Teprve pak se podívej na šipku.',
     practice: [{ kind: 'play', level: 6, label: 'Zahraj si partii a pak ji rozeber' }],
   },
 
@@ -1177,7 +1177,7 @@ export const LEVEL6: readonly Lesson[] = [
         movable: ['f7'],
         accept: ['f7f8r'],
         completeness: { kind: 'promote', from: 'f7', to: 'f8', piece: 'r' },
-        text: 'Proměň pěšce tak, abys vyhrál.',
+        text: 'Proměň pěšce ve figuru, se kterou vyhraješ.',
         success: 'Správně! Věž. Po dámě by přišlo Vf4+ Dxf4 a pat.',
         wrongDefault: 'Vyhraje jen věž. Dáma dá po Vf4+ Dxf4 pat, střelce nebo jezdce věž sebere.',
         tbNarrow: 'Only the pawn may move (Kf3 and Kg3 win too, more slowly).',

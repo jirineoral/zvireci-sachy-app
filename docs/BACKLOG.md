@@ -757,6 +757,20 @@ friend bar's waiting state. Analysis: `docs/security-review.md`, 2026-09-17.
 
 ## R12 — Native apps (Android, iOS) — long road, decision pending
 *2026-09-26: still after the web.*
+*2026-09-28: step 1 (PWA) DONE on branch — installable manifest (icons generated from the
+goat king's artwork, `scripts/make-icons.py`) + a hand-written service worker
+(`scripts/sw-template.js` + `scripts/build-sw.mjs`, registered from `src/pwa.ts`,
+production builds only). App shell precached (<1 MB); the Stockfish `.wasm` (~7 MB) and
+piece-sets/lessons/puzzles/sounds/splash cache on first use — offline play against the
+engine works once the engine has loaded at least once online. Versioned cache name, old
+cache deleted on activate, small Czech "Je tu nová verze hry" banner instead of an
+automatic reload. CSP gained `manifest-src 'self'`. Fixed a real bug found along the way:
+`src/engine.ts`'s wasm HEAD pre-check used to treat "no network at all" the same as "the
+server answered wrong" and permanently fell back to two-player mode — it now proceeds
+when `fetch()` itself can't reach the network (offline), while still failing closed on an
+actual bad answer (wrong status, SPA-fallback HTML, wrong size). See README "Instalace /
+offline" and `docs/security-review.md`, 2026-09-28, for the write-up and what was/wasn't
+verified. Step 2 (a store wrapper) is unstarted and stays a later decision.
 
 Owner (2026-09-14): counted on, but far off; pros and cons to be weighed, above all the
 legal frame. Notes to make that weighing cheaper when it comes:

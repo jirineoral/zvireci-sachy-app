@@ -6,6 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Zvířecí šachy (nejen) pro děti</title>
     <meta name="description" content="Šachy se zvířecími figurkami: počítačový soupeř od úplných začátků po velmistra, kampaň, úlohy, koncovky, hra s kamarádem přes odkaz. Bez registrace, pro děti napořád zdarma." />
+    <!-- PWA (backlog R12, step 1): installable, offline app shell + engine (docs/security-review.md, 2026-09-28). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#2b2b2b" />
+    <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- 'default' (not 'black-translucent'): translucent draws the page under the status
+         bar, which needs viewport-fit=cover + safe-area-inset CSS to not overlap content -
+         neither is in place yet, so 'default' (opaque bar, no overlap) is correct here. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Zvířecí šachy" />
     <!-- Link previews (WhatsApp, SMS, Messenger…): a shared game link should look like this site, not like anything else. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Zvířecí šachy" />

@@ -36,6 +36,9 @@ import { createChessgroundLessonBoard, type ChessgroundLessonBoard } from './ui/
 import { buildLessonPanel, OWL, teacherInfo } from './ui/lesson-panel';
 import { promptPromotion } from './ui/promotion-dialog';
 import { initUiVersion } from './ui-version';
+import { registerServiceWorker } from './pwa';
+
+registerServiceWorker(); // PWA (R12 step 1): production builds only, see src/pwa.ts
 
 const app = requireElement<HTMLDivElement>(document, '#app');
 

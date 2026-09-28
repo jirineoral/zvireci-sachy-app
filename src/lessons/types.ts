@@ -71,7 +71,13 @@ export type Completeness =
   | { kind: 'legal'; from?: Square }
   | { kind: 'safe'; from: Square }
   /** The task names the promotion piece („proměň v dámu“): exactly that promotion is the answer. */
-  | { kind: 'promote'; from: Square; to: Square; piece: 'q' | 'r' | 'b' | 'n' };
+  | { kind: 'promote'; from: Square; to: Square; piece: 'q' | 'r' | 'b' | 'n' }
+  /**
+   * Endgames with at most 7 pieces: every move (of the movable pieces) that keeps the
+   * position's result by the Lichess tablebase — a win stays a win, a draw stays a draw.
+   * Checked at authoring time only (scripts/tablebase.mjs, cached), never at runtime.
+   */
+  | { kind: 'tablebase' };
 
 /**
  * Play the move. The board offers the movable pieces' *pseudo-legal* moves too, so a move
@@ -93,6 +99,13 @@ export interface MoveStep extends StepBase {
   wrong?: Record<string, string>;
   /** Why an unlisted wrong move is wrong — mandatory, explains the idea. */
   wrongDefault: string;
+  /**
+   * Authoring note, never shown. From level 4 on, a position with at most 7 pieces is
+   * checked against the tablebase: every accepted move must keep the result, and every
+   * other move that keeps it must either have a `wrong` text („I to vyhrává, ale…“) or be
+   * excluded by the task's wording — this note says how (e.g. „the task asks for a check“).
+   */
+  tbNarrow?: string;
 }
 
 /** One piece eats all the stars; other pieces are obstacles (own colour, never taken). */
@@ -115,8 +128,17 @@ export type ChooseOption = { id: string; label: string; square?: undefined } | {
  *  - `state`: option ids among 'sach' | 'mat' | 'pat' | 'nic' — the side to move's state.
  *  - `castle`: option ids 'ano' | 'ne' — may the side to move castle on that side now?
  *  - `reachable`: square options — correct = those the piece on `from` may legally go to.
+ *  - `outcome` (tablebase, ≤ 7 pieces): option ids among 'bily' | 'cerny' | 'remiza' — who
+ *    wins with best play from this position (side to move as in the FEN).
+ *  - `tbmoves` (tablebase, ≤ 7 pieces): each option stands for a move (option id → UCI);
+ *    correct = exactly the options whose move keeps the position's result.
  */
-export type ChooseFact = { kind: 'state' } | { kind: 'castle'; side: 'k' | 'q' } | { kind: 'reachable'; from: Square };
+export type ChooseFact =
+  | { kind: 'state' }
+  | { kind: 'castle'; side: 'k' | 'q' }
+  | { kind: 'reachable'; from: Square }
+  | { kind: 'outcome' }
+  | { kind: 'tbmoves'; moves: Record<string, string> };
 
 /** Pick one of 2–4 answers. */
 export interface ChooseStep extends StepBase {

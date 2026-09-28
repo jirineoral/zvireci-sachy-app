@@ -93,9 +93,32 @@ Structure: volný pěšec (krytý, vzdálený) · izolovaný · zdvojení pěšc
 visící pěšci · pěšcová většina · pěšcový řetěz · slabé pole ⚑ · forpost ⚑ ·
 dobrý/špatný střelec · dvojice střelců · otevřený/polootevřený sloupec · sedmá řada.
 
+## Progress (checkpoint, 2026-09-28)
+- **Done:** tablebase checker (`scripts/tablebase.mjs`, cache `scripts/tablebase-cache.json`;
+  `check-lessons.mjs`: `tablebase` completeness, audit of every ≤ 7-piece move task from
+  level 4 on with `tbNarrow`, choose facts `outcome` / `tbmoves`; `node
+  scripts/check-lessons.mjs <id-prefix>` for quick runs). L4 lessons 8–11 (záchrana,
+  klíčová pole, trojúhelník, průlom) + L4 test; L5 lessons 3, 5, 8, 11, 12 + L5 test; L5
+  reordered to the plan's order.
+- **Done (review):** test-lesson-runner cases; adversarial review (Opus, club player /
+  junior coach role, tools: tablebase, Stockfish) — 3 errors (a wrong "forced" reply, a
+  misdescribed outside-passer idea, „vyhru“ → „výhru“, now linted) and 15 wording/pedagogy
+  points fixed. Evans–Reshevsky verified against chessgames.com (gid 1252040).
+- **Owner decisions (2026-09-28):** the exchange-sacrifice lesson keeps the desperado Vxd4
+  opening (owner indifferent). Key squares of 5th/6th-rank pawns and of rook pawns: yes,
+  teach them later — add a lesson in L6. No strong player is available for now, so the
+  planned strong-player read (tablebase lessons, Evans–Reshevsky, L5 structure lessons 4, 6,
+  7) stays open; the Opus club-player review is the substitute until then.
+- **Next:** L6–L7 (not started; include the key-squares follow-up above).
+
 ## Level tests (same rules as L1/L2: no hints, one attempt, ~10 tasks, ≤2 mistakes)
 - L3: odstranění obránce · přetížení (choose) · odlákání · vlákání · rentgen · mezitah ·
   named mate pattern (choose) · mate in 2 ×2 · kdo má opozici (choose) · chytí král pěšce (choose).
 - L4: uvolnění · přerušení · mlýn/dvojšach · řecký dar funguje? · tichý tah · mat 3. tahem ·
-  záchrana věčným šachem/patem · klíčové pole · průlom · věž proti pěšci.
-- L5–L7: see the coach review (session 2026-09-26) — to be written when those levels are.
+  záchrana věčným šachem/patem · klíčové pole · průlom · věž proti pěšci (shipped as dáma
+  proti pěšci: the king step — the rook-check task had no unique answer). 10 tasks, pass 8.
+- L5 (shipped 2026-09-28): Lucena (most) · Philidor (choose) · Tarrasch (choose) · izolovaný
+  pěšec · vzdálený volný pěšec (kdo vyhraje) · špatný střelec · dvě věže na sedmé (mat 2.
+  tahem) · mat dvěma střelci · oběť (mat 2. tahem) · nestejnobarevní střelci (kdo vyhraje) ·
+  oběť kvality. 11 tasks, pass 9.
+- L6–L7: see the coach review (session 2026-09-26) — to be written when those levels are.

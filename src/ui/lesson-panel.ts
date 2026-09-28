@@ -1,7 +1,7 @@
 /**
  * Lesson panel (Phase 21a): sits under the status line while a lesson runs (like the
  * puzzle/endgame panels). Title, step x/y, the teacher's avatar and bubble, feedback,
- * answer buttons, and Zpět / Zkusit znovu / Dál / Tohle umím / Zpět do lekcí / Zpět do hry;
+ * answer buttons, and Krok zpět / Zkusit znovu / Dál / Tohle umím / Seznam lekcí / Konec lekcí;
  * at the end the outro, practice pointers and the next lesson.
  *
  * Phase 21b: mini-games (a scoreboard; the opponent's reply is sent after a short pause)
@@ -53,9 +53,9 @@ export interface LessonPanelDeps {
   onDiploma?: (level: number) => void;
   /** „Tohle umím“: mark done; the panel then calls `onBackToMap`. */
   onKnowIt: (lesson: Lesson) => void;
-  /** „Zpět do lekcí“ (and after „Tohle umím“): show the course map. */
+  /** „Seznam lekcí“ (and after „Tohle umím“): show the course map. */
   onBackToMap: () => void;
-  /** „Zpět do hry“: leave lessons (the caller restores the game board). */
+  /** „Konec lekcí“: leave lessons (the caller restores the game board). */
   onLeave: () => void;
   /** A practice pointer at the end of the lesson was chosen. */
   onPractice: (pointer: PracticePointer) => void;
@@ -63,6 +63,8 @@ export interface LessonPanelDeps {
   onNextLesson: (lesson: Lesson) => void;
   /** Sound effects: a new feedback message just appeared ('good' → a step answered correctly, 'bad' → a wrong try). 'info' (e.g. "the opponent cannot move") stays silent. */
   onFeedback?: (tone: Feedback['tone']) => void;
+  /** U1: a new step is showing; `boardTask` = the child has to act on the board (not read or tap an answer). */
+  onStep?: (boardTask: boolean) => void;
 }
 
 export interface LessonPanel {
@@ -107,13 +109,13 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   result.setAttribute('role', 'status');
   const practice = el('div', '', 'lesson-practice');
 
-  const backStepBtn = button('◀ Zpět', 'lesson-prev');
+  const backStepBtn = button('◀ Krok zpět', 'lesson-prev');
   backStepBtn.setAttribute('aria-label', 'Předchozí krok');
   const retryBtn = button('Zkusit znovu', 'lesson-retry');
   const nextBtn = button('Dál ▶', 'lesson-next');
   const knowBtn = button('Tohle umím', 'lesson-know');
-  const mapBtn = button('Zpět do lekcí', 'lesson-map');
-  const leaveBtn = button('Zpět do hry', 'lesson-leave');
+  const mapBtn = button('Seznam lekcí', 'lesson-map');
+  const leaveBtn = button('Konec lekcí', 'lesson-leave');
   const actions = el('div', '', 'lesson-actions');
   actions.append(backStepBtn, retryBtn, nextBtn);
   const secondary = el('div', '', 'lesson-actions lesson-actions-secondary');
@@ -128,6 +130,7 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
   let busy = false; // a promotion question is open
   let replyTimer: ReturnType<typeof setTimeout> | null = null;
   let lastFeedbackSig: string | null = null; // sound: fire only when a *new* feedback message appears
+  let lastStepSig: string | null = null; // U1: onStep fires once per step shown
 
   const cancelReply = (): void => {
     if (replyTimer !== null) clearTimeout(replyTimer);
@@ -224,6 +227,11 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     }
     if (!finished) doneReported = false; // a restarted test reports again
     scheduleReply(view);
+    const stepSig = `${lesson.id}:${view.stepIndex}:${finished}`;
+    if (stepSig !== lastStepSig) {
+      lastStepSig = stepSig;
+      deps.onStep?.(!finished && view.phase === 'task' && view.stepKind !== 'show' && !view.choices.some((c) => c.label !== undefined));
+    }
   };
 
   const renderResult = (view: LessonView): void => {
@@ -322,6 +330,7 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
       runner = createLessonRunner(l, ctx);
       doneReported = false;
       busy = false;
+      lastStepSig = null;
       paintTeacher();
       container.hidden = false;
       render(runner.view);

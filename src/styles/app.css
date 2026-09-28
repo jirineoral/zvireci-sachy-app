@@ -28,6 +28,15 @@ body {
   flex: none;
 }
 
+/* U1 F2: on the laptop the board column stays in view while the panel scrolls — only when
+   the whole stage (≈ 700 px + 24 px) fits, or rank 1 would stay hidden under the fold. */
+@media (min-width: 900px) and (min-height: 740px) {
+  .stage {
+    position: sticky;
+    top: 24px;
+  }
+}
+
 .board {
   width: 560px;
   height: 560px;
@@ -525,6 +534,47 @@ body {
   color: #b8bec8;
 }
 
+/* U1 F9: the parent's first question answered near the top. */
+.trust {
+  margin: -6px 0 0;
+  font-size: 0.875rem;
+  color: #b8bec8;
+}
+
+.trust a {
+  color: #7fd17a;
+}
+
+/* U1: the globe on the buttons that go online (Kamarád, Turnaje). */
+.online-badge {
+  margin-left: 0.35em;
+  vertical-align: -0.1em;
+  opacity: 0.85;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* U1 Q7: Kamarád's safety card before a room is created. */
+.friend-bar.friend-card {
+  padding: 10px 12px;
+  border: 1px solid #7fd17a;
+  border-radius: 8px;
+  background: #242a24;
+}
+
+.friend-bar.friend-card .friend-text {
+  flex: 1 1 100%;
+  line-height: 1.4;
+}
+
 /* "Jak poznat figurky?" (pilot feedback P1) */
 .legend {
   font-size: 0.8rem;
@@ -722,20 +772,71 @@ body {
   font-size: 0.72rem;
 }
 
-.new-game.start {
+/* U1 F1: before the game the one start control is `▶ Hrát` drawn over the empty middle of
+   the board (ranks 3–6 are always empty in the start position), so it is in the first
+   viewport on every phone. `Nová hra` in the button row steps aside meanwhile. */
+.board-start {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  min-height: 56px;
+  padding: 0.35em 1.3em;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #2e7d32;
+  color: #fff;
+  font: inherit;
+  font-size: clamp(1.4rem, 5.5vmin, 2.1rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
   animation: start-pulse 1.6s ease-in-out infinite;
+}
+
+.board-start[hidden] {
+  display: none;
+}
+
+.board-start:hover {
+  background: #1b5e20;
+}
+
+.board-start:focus-visible {
+  outline: 3px solid #ffd84a;
+  outline-offset: 3px;
+}
+
+/* Playing white, a picked-up piece must reach e4 / d4 under the button. */
+.board-start.see-through {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.board-start-icon {
+  font-size: 0.8em;
 }
 
 @keyframes start-pulse {
   50% {
     filter: brightness(1.18);
+    box-shadow: 0 4px 22px rgba(127, 209, 122, 0.55);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .new-game.start {
+  .board-start {
     animation: none;
   }
+}
+
+.buttons .new-game.pregame {
+  display: none;
 }
 
 /* The button row: every button dark with light text (the review found white-on-light-grey

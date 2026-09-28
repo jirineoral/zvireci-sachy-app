@@ -1083,8 +1083,7 @@ export class GameController {
     if (candidates[0].promotion) {
       // chess.js says this is a promotion: ask which piece.
       this.promotionOpen = true;
-      this.board.lock(); // board locked; the just-dropped pawn stays on the destination square (R5)
-      this.render(this.status()); // controls/status disabled; syncBoard is skipped on purpose
+      this.refreshView(); // syncBoard() sees promotionOpen and locks instead of re-syncing (R5)
       let choice: PromotionPiece | null = null;
       try {
         choice = await promptPromotion(this.els.promotionDialog, this.chess.turn());
@@ -1332,6 +1331,13 @@ export class GameController {
   }
 
   private syncBoard(status: GameStatus): void {
+    if (this.promotionOpen) {
+      // R5: any redraw that lands while the dialog is open (engine-ready, engineFailed,
+      // a friend's move arriving...) must not re-sync from chess.js's pre-move FEN — that
+      // would snap the just-dropped pawn back to its origin out from under the dialog.
+      this.board.lock();
+      return;
+    }
     if (this.reviewPly !== null) {
       const shown = positionAt(this.startFen(), this.chess.history(), this.reviewPly);
       this.board.sync(shown, {

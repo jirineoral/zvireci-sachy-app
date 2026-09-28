@@ -117,7 +117,7 @@ app.innerHTML = `
       <button type="button" class="friend" title="Přes internet">Kamarád${ONLINE_BADGE}</button>
     </div>
     <footer class="credits">
-      <p class="mission">Pro děti napořád zdarma, bez reklam a bez registrace. Nic o tobě neposíláme na žádný server:
+      <p class="mission">Pro děti napořád zdarma, bez reklam a bez registrace. Žádné osobní údaje nesbíráme:
       nastavení, postup i partie zůstávají jen v tomhle prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
       Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
       a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
@@ -312,6 +312,7 @@ const endgamePanel = buildEndgamePanel({
   leave: () => {
     void game.setDifficultyOverride(campaignHooks?.currentDifficulty() ?? null).catch((err) => console.error('setDifficultyOverride failed', err));
     void game.newGame().catch((err) => console.error('newGame failed', err));
+    unfoldSettings(); // back to the pre-game: settings matter again (0 → 0 plies does not reopen them)
   },
 });
 // The endgame panel has its own `Hrát` / `Konec koncovek`: the green `Nová hra` beside them
@@ -459,6 +460,7 @@ const lessonPanel = buildLessonPanel({
   onLeave: () => {
     endLessonView();
     void game.leaveLesson().catch((err) => console.error('leaveLesson failed', err));
+    unfoldSettings();
   },
   onPractice: (pointer) => void practise(pointer),
   onNextLesson: (lesson) => void openLesson(lesson),
@@ -508,6 +510,11 @@ async function openLesson(lesson: Lesson): Promise<void> {
   settingsPanel.open = false; // room for the teacher's bubble
   lessonPanel.start(lesson, lessonBoard, { animalId: lessonAnimalId() });
   revealBoard();
+  // Laptop: the board is sticky, but closing the course map returned focus (and the scroll)
+  // to `Lekce` far down the panel — bring the teacher's bubble back up.
+  if (!window.matchMedia('(max-width: 899px)').matches) {
+    window.requestAnimationFrame(() => requireElement<HTMLElement>(app, '.lesson-panel').scrollIntoView({ block: 'nearest' }));
+  }
 }
 
 /** Lesson view off: the board's own handlers back, the panel hidden (idempotent). */
@@ -584,7 +591,8 @@ const game: GameController = controller;
 // (written by initUiVersion) applies now, still before any game has started.
 if (uiVersion.sync === null) {
   void uiVersion.done.then((kind) => {
-    if (kind === 'new') void game.setDifficulty(readDifficultySetting()).catch((err) => console.error('setDifficulty failed', err));
+    // Only while nothing has started yet (a slow IndexedDB must not change a running game).
+    if (kind === 'new' && game.preGame) void game.setDifficulty(readDifficultySetting()).catch((err) => console.error('setDifficulty failed', err));
   });
 }
 
@@ -654,7 +662,9 @@ void openUserSetStore()
     // The controller opened its first game before the preferences were known: draw again
     // (no move has been played yet; a new game is what a colour change means anyway) —
     // unless a game over a link (`#hra=`) is already on: then only align the characters.
-    if (game.isRemote) {
+    // A friend connection still on its way (`#hra=`, rejoin) must not be superseded by a
+    // computer game either: its `startRemoteGame` would come back 'broken'.
+    if (game.isRemote || friendPanel.active) {
       manager.startGame(game.humanSide);
       renderMatchup();
     } else {
@@ -997,6 +1007,11 @@ function confirmDiscard(anchor: Element): Promise<boolean> {
     anchor.after(bar);
     bar.scrollIntoView({ block: 'nearest' });
     no.focus({ preventScroll: true });
+    // Asked from inside a modal (Kampaň) that closes right after: focus the answer once the
+    // dialog has handed focus back to its opener.
+    window.requestAnimationFrame(() => {
+      if (bar.isConnected) no.focus({ preventScroll: true });
+    });
   });
 }
 /**
@@ -1022,6 +1037,12 @@ function revealBoard(): void {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 4), behavior: smooth ? 'smooth' : 'auto' });
   });
+}
+
+/** Leaving a mode for the pre-game (Konec koncovek / lekcí): the settings open again. */
+function unfoldSettings(): void {
+  const settings = app.querySelector<HTMLDetailsElement>('details.settings');
+  if (settings) settings.open = true;
 }
 
 /** A game, puzzle, ending or review starts: settings fold away and the board comes into view. */

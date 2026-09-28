@@ -54,6 +54,16 @@ async function clickSquare(page, square, black = false) {
   await page.mouse.click(box.x + (col + 0.5) * size, box.y + (row + 0.5) * size);
 }
 
+/** A click-click move; waits until ▶ Hrát (if shown) lets the second tap through. */
+async function move(page, from, to) {
+  await clickSquare(page, from);
+  await page.waitForFunction(() => {
+    const b = document.querySelector('.board-start');
+    return !b || b.hidden || b.classList.contains('see-through');
+  });
+  await clickSquare(page, to);
+}
+
 async function load(page, url) {
   await page.goto(url);
   // The piece sets (and with them the first real game) are ready once the side select is filled.
@@ -198,8 +208,7 @@ test('existing user known only by a saved game (IndexedDB): old defaults kept', 
 test('mid-game Úlohy asks first; "Ne" keeps the game, "Ano" starts a puzzle (no undo, board in view)', async ({ browser, url }) => {
   const { page, context, errors } = await newPage(browser, 'mobile');
   await load(page, url);
-  await clickSquare(page, 'e2');
-  await clickSquare(page, 'e4');
+  await move(page, 'e2', 'e4');
   await page.waitForFunction(() => document.querySelectorAll('.move-list li > span.san').length >= 2, null, { timeout: 20000 });
   const before = await plies(page);
   await page.click('.buttons .puzzles');
@@ -270,6 +279,57 @@ test('Kamarád: safety card with Vytvořit odkaz / Zrušit (no room is created)'
   assert(await visible(page, '.friend-bar .friend-create'), 'no Vytvořit odkaz');
   await page.click('.friend-bar .friend-cancel');
   await page.waitForSelector('.friend-bar', { state: 'hidden' });
+  await context.close();
+});
+
+test('▶ Hrát never stays see-through after the pre-game is set up again', async ({ browser, url }) => {
+  const { page, context } = await newPage(browser, 'desktop');
+  await load(page, url);
+  await clickSquare(page, 'g1'); // a knight picked up
+  await page.waitForSelector('.board-start.see-through');
+  await page.selectOption('select.side', 'b'); // a new pre-game
+  await page.waitForTimeout(300);
+  assert(!(await page.locator('.board-start').evaluate((b) => b.classList.contains('see-through'))), 'button stuck see-through');
+  await page.click('.board-start', { timeout: 3000 });
+  await page.waitForSelector('.board-start', { state: 'hidden' });
+  await context.close();
+});
+
+test('short laptop viewport 1280×600: the whole stage is reachable (no sticky board hiding rank 1)', async ({ browser, url }) => {
+  const { page, context } = await newPage(browser, 'desktop');
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await load(page, url);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(200);
+  await page.evaluate(() => window.scrollTo(0, 150));
+  await page.waitForTimeout(200);
+  const r = await rectOf(page, '.stage');
+  assert((await page.locator('.stage').evaluate((s) => getComputedStyle(s).position)) !== 'sticky', 'stage sticky on a short viewport');
+  assert(r.top < 0, `stage did not scroll with the page (${JSON.stringify(r)})`);
+  await context.close();
+});
+
+test('mid-game Kampaň asks first; Konec koncovek reopens the settings', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'desktop');
+  await load(page, url);
+  await move(page, 'e2', 'e4');
+  await page.waitForFunction(() => document.querySelectorAll('.move-list li > span.san').length >= 2, null, { timeout: 20000 });
+  await page.click('.buttons .campaign');
+  await page.click('dialog.campaign-dialog[open] .campaign-play');
+  await page.waitForSelector('.confirm-bar');
+  await page.waitForTimeout(100);
+  assert(await page.evaluate(() => document.activeElement?.classList.contains('confirm-no')), 'focus not on „Ne, hrát dál“');
+  await page.click('.confirm-bar .confirm-no');
+  assert((await plies(page)) >= 2, 'game lost after "Ne"');
+  assert(!(await visible(page, '.campaign-bar')), 'campaign started after "Ne"');
+  await page.click('.buttons .endgames');
+  await page.click('.confirm-bar .confirm-yes');
+  await page.waitForSelector('.endgame-panel:not([hidden])');
+  await page.click('.endgame-panel .puzzle-leave');
+  await page.waitForTimeout(300);
+  assert(await page.locator('details.settings').evaluate((d) => d.open), 'settings folded after Konec koncovek');
+  assert(await visible(page, '.board-start'), '▶ Hrát missing after Konec koncovek');
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
   await context.close();
 });
 

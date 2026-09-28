@@ -248,8 +248,9 @@ export class GameController {
     els.startButton.addEventListener('click', () => this.startPlaying());
     // Playing white the child may simply move: while a piece is picked up the button lets
     // taps through to the squares under it (e4, d4…) instead of catching them.
-    els.board.addEventListener('pointerdown', () => {
-      window.requestAnimationFrame(() => els.startButton.classList.toggle('see-through', this.board.api.state.selected !== undefined));
+    // Recomputed on any tap (a tap outside the board also drops the selection) and on every render.
+    document.addEventListener('pointerdown', () => {
+      window.requestAnimationFrame(() => this.syncStartSeeThrough());
     });
     els.undoButton.addEventListener('click', () => {
       void this.undo().catch((err) => console.error('undo failed', err));
@@ -526,6 +527,12 @@ export class GameController {
     return this.lessonStatus !== null;
   }
 
+  /** `▶ Hrát` lets taps through only while it shows and a piece is picked up. */
+  private syncStartSeeThrough(): void {
+    const btn = this.els.startButton;
+    btn.classList.toggle('see-through', !btn.hidden && this.lessonStatus === null && this.board.api.state.selected !== undefined);
+  }
+
   /** U1: a game is set up and waits for `Hrát` (or the human's first move). */
   get preGame(): boolean {
     return !this.started && this.lessonStatus === null;
@@ -551,6 +558,7 @@ export class GameController {
     this.els.newGameButton.textContent = 'Nová hra';
     this.els.newGameButton.classList.remove('pregame');
     this.els.startButton.hidden = true;
+    this.syncStartSeeThrough();
     this.renderResign(status);
     this.els.reviewButton.hidden = true;
     renderReviewControls(this.els.reviewControls, { active: false, ply: 0, plies: 0 });
@@ -1348,8 +1356,8 @@ export class GameController {
     this.els.newGameButton.textContent = 'Nová hra';
     this.els.newGameButton.classList.toggle('pregame', preGame);
     this.els.startButton.hidden = !preGame;
-    if (!preGame) this.els.startButton.classList.remove('see-through');
-    // Take-backs never apply to a puzzle or an ending (each has its own `Znovu`).
+    this.syncStartSeeThrough();
+    // Take-backs never apply to a puzzle or an ending (an ending has `Znovu`, a puzzle `Další úloha`).
     this.els.undoButton.hidden = this.puzzle !== null || this.training;
     this.renderResign(status);
     this.els.reviewButton.hidden = !(status.over && sans.length > 0 && this.reviewPly === null && this.puzzle === null);

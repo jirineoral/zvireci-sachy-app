@@ -28,8 +28,9 @@ body {
   flex: none;
 }
 
-/* U1 F2: on the laptop the board column stays in view while the panel scrolls. */
-@media (min-width: 900px) {
+/* U1 F2: on the laptop the board column stays in view while the panel scrolls — only when
+   the whole stage (≈ 700 px + 24 px) fits, or rank 1 would stay hidden under the fold. */
+@media (min-width: 900px) and (min-height: 740px) {
   .stage {
     position: sticky;
     top: 24px;

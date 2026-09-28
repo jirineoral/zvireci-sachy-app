@@ -49,10 +49,12 @@ export function classifyFromStorage(storage: Storage | null): UiUser | null {
 export function applyDefaults(storage: Storage | null, kind: 'existing' | 'new'): void {
   if (!storage) return;
   try {
+    // The marker first: a write that fails halfway leaves the code defaults (the old ones)
+    // in force, never a half-new state that a later visit would misread as "existing".
+    storage.setItem(UI_VERSION_KEY, UI_VERSION);
     for (const d of DEFAULTS) {
       if (storage.getItem(d.key) === null) storage.setItem(d.key, kind === 'new' ? d.fresh : d.old);
     }
-    storage.setItem(UI_VERSION_KEY, UI_VERSION);
   } catch (err) {
     console.warn('Could not record the UI version', err);
   }
@@ -69,10 +71,11 @@ async function hasSavedGames(): Promise<boolean | null> {
   });
   const count = transact<number>(STORE_GAMES, 'readonly', (s) => s.count())
     .then((n) => n > 0)
-    .catch((err: unknown) => {
-      // Blocked or failing storage: games could not have been kept there either.
+    .catch((err: unknown): null => {
+      // A transient failure (Safari's "connection lost", a blocked open) must not turn a
+      // player known only by saved games into a new one: decide on a later visit.
       console.warn('Saved games could not be counted', err);
-      return false;
+      return null;
     });
   try {
     return await Promise.race([count, timeout]);

@@ -20,6 +20,8 @@ import { createLessonRunner, needsPromotion, renderToBoard, type Feedback, type 
 import { animalSingular, type TextContext } from '../lessons/text';
 import type { Lesson, PieceType, PracticePointer } from '../lessons/types';
 import type { Teacher } from '../lessons/progress';
+import { hasLessonVideo, lessonVideoLabel } from '../lessons/videos';
+import { openLessonVideo } from '../video-player';
 
 export interface TeacherInfo {
   name: string;
@@ -87,8 +89,11 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
 
   const title = el('div', '', 'lesson-title');
   const stepInfo = el('div', '', 'lesson-step');
+  const videoBtn = button('▶ Video', 'lesson-video-btn');
+  videoBtn.hidden = true;
+  videoBtn.addEventListener('click', () => lesson && openLessonVideo(lesson.id, videoBtn));
   const head = el('div', '', 'lesson-head');
-  head.append(title, stepInfo);
+  head.append(title, videoBtn, stepInfo);
 
   const avatar = el('div', '', 'lesson-avatar');
   avatar.setAttribute('aria-hidden', 'true');
@@ -151,6 +156,8 @@ export function buildLessonPanel(deps: LessonPanelDeps): LessonPanel {
     if (!lesson || !board) return;
     renderToBoard(board, view);
     title.textContent = `Lekce ${lesson.number}: ${lesson.title}`;
+    videoBtn.hidden = !hasLessonVideo(lesson.id);
+    videoBtn.textContent = lessonVideoLabel(lesson.id) ?? '▶ Video';
     const finished = view.phase === 'lessonDone';
     stepInfo.textContent = finished ? 'Hotovo!' : `Krok ${view.stepIndex + 1} z ${view.stepCount}`;
     bubbleText.textContent = finished ? (view.outro ?? '') : view.text;

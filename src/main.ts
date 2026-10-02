@@ -64,8 +64,8 @@ app.innerHTML = `
   </div>
   <aside class="panel">
     <h1>Zvířecí šachy <small class="subtitle">(nejen) pro děti</small></h1>
-    <p class="trust">Zdarma · bez reklam · bez registrace · <a href="soukromi.html" target="_blank" rel="noopener">Soukromí</a></p>
-    <details class="settings" open>
+    <p class="trust">Zdarma · bez reklam · bez registrace · <a href="/soukromi.html" target="_blank" rel="noopener">Soukromí</a></p>
+    <details class="settings">
       <summary>⚙ Nastavení</summary>
       <div class="controls">
         <label>Hraju za <select class="animal"></select></label>
@@ -126,18 +126,18 @@ app.innerHTML = `
       nastavení, postup i partie zůstávají jen v tomhle prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
       Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
       a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
-      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
+      <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="/soukromi.html">Soukromí</a> <span class="build"></span></p>
       <p class="social-line">Sleduj nás: <a href="https://www.facebook.com/zvirecisachy" target="_blank" rel="noopener">Facebook</a> · <a href="https://www.youtube.com/@zvirecisachy" target="_blank" rel="noopener">YouTube</a> · <a href="https://www.instagram.com/zvirecisachy/" target="_blank" rel="noopener">Instagram</a></p>
       Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
-      <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
+      <a href="/engine/LICENSE-GPL-3.0.txt">licence</a>) ·
       deska <a href="https://github.com/lichess-org/chessground">chessground</a> ·
       pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a> ·
       zvířecí figurky jsou vygenerované umělou inteligencí ·
       klasické figurky © <a href="https://en.wikipedia.org/wiki/User:Cburnett" rel="noopener">Colin M.L. Burnett</a>
       (<a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="noopener">CC BY-SA 3.0</a>) ·
       <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0) ·
-      <a href="THIRD-PARTY-NOTICES.txt">licence třetích stran</a>
+      <a href="/THIRD-PARTY-NOTICES.txt">licence třetích stran</a>
     </footer>
   </aside>
   <dialog class="promotion-dialog"></dialog>
@@ -1060,10 +1060,12 @@ function revealBoard(): void {
   });
 }
 
-/** Leaving a mode for the pre-game (Konec koncovek / lekcí): the settings open again. */
+/** Leaving a mode for the pre-game (Konec koncovek / lekcí): the settings open again, if the player keeps them open. */
+let settingsWanted = false;
+
 function unfoldSettings(): void {
   const settings = app.querySelector<HTMLDetailsElement>('details.settings');
-  if (settings) settings.open = true;
+  if (settings) settings.open = settingsWanted;
 }
 
 /** A game, puzzle, ending or review starts: settings fold away and the board comes into view. */
@@ -1107,6 +1109,20 @@ function safeLocalStorage(): Storage | null {
 // too; a new game unfolds the settings again. Pure view logic driven by the rendered move
 // list, so the controller stays unaware of it.
 const settingsPanel = requireElement<HTMLDetailsElement>(app, '.settings');
+// The settings start folded (a new player sees the board, not ten drop-downs); one tap on
+// the summary opens them and the choice is remembered (`settingsWanted` is what the
+// pre-game shows). Only a tap before the first move counts: peeking mid-game does not.
+const SETTINGS_OPEN_KEY = 'skm.settingsOpen';
+settingsWanted = safeLocalStorage()?.getItem(SETTINGS_OPEN_KEY) === '1';
+requireElement<HTMLElement>(settingsPanel, 'summary').addEventListener('click', () => {
+  if (lastPlies > 0) return;
+  settingsWanted = !settingsPanel.open; // the click has not toggled it yet
+  try {
+    safeLocalStorage()?.setItem(SETTINGS_OPEN_KEY, settingsWanted ? '1' : '0');
+  } catch {
+    // blocked storage: the choice just lasts for this visit
+  }
+});
 const movesPanel = requireElement<HTMLDetailsElement>(app, '.moves');
 const movesSummary = requireElement<HTMLElement>(app, '.moves-summary');
 const moveListEl = requireElement<HTMLElement>(app, '.move-list');
@@ -1127,7 +1143,7 @@ function syncPanels(): void {
     } else if (plies === 0 && boardMode === 'play' && game.preGame) {
       // A new game waiting for `Hrát`: settings matter again. (Not an ending that starts
       // with no moves, nor a game already started — U1 F6.)
-      settingsPanel.open = true;
+      settingsPanel.open = settingsWanted;
       if (narrow.matches) movesPanel.open = false;
     }
   }
@@ -1137,10 +1153,10 @@ function syncPanels(): void {
 new MutationObserver(syncPanels).observe(moveListEl, { childList: true, subtree: true, characterData: true });
 narrow.addEventListener('change', () => {
   if (!narrow.matches) {
-    settingsPanel.open = lastPlies <= 0;
+    settingsPanel.open = lastPlies <= 0 && settingsWanted;
     movesPanel.open = true; // the wide layout always shows the moves
   } else {
-    settingsPanel.open = lastPlies === 0;
+    settingsPanel.open = lastPlies === 0 && settingsWanted;
     movesPanel.open = false;
   }
 });

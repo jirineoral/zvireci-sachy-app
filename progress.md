@@ -21,3 +21,4 @@ test:lessons 186, test:ui 17.
 - Not verified: install on real Android/iOS, Safari audio, L6 by a strong player (lessons 3–8).
 
 - 2026-10-21 social audit 12.–25. 10.: weeks 12–18 published on FB/IG/YT (verified), 19–25 empty, no prepared content; nothing published this run. See assets/social/audit-2026-10-21.md.
+- 2026-10-21 social queue 22. 10.-7. 11. (8 posts, FB/IG/YT Shorts) in assets/social/tyden-2026-10-19, -10-26, -11-02; reviewed (4 Opus + re-check); awaiting owner yes per week (SCHVALENI-2026-10-22.md). Routine proposal RUTINA-NAVRH.md, not created. Builders: scripts/social/.

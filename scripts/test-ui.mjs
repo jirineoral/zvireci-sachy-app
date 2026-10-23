@@ -287,6 +287,7 @@ test('▶ Hrát never stays see-through after the pre-game is set up again', asy
   await load(page, url);
   await clickSquare(page, 'g1'); // a knight picked up
   await page.waitForSelector('.board-start.see-through');
+  await page.click('details.settings > summary'); // settings start folded
   await page.selectOption('select.side', 'b'); // a new pre-game
   await page.waitForTimeout(300);
   assert(!(await page.locator('.board-start').evaluate((b) => b.classList.contains('see-through'))), 'button stuck see-through');
@@ -309,6 +310,30 @@ test('short laptop viewport 1280×600: the whole stage is reachable (no sticky b
   await context.close();
 });
 
+test('settings: folded for a new player, one tap opens, the choice is remembered', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'phone');
+  await load(page, url);
+  const isOpen = () => page.locator('details.settings').evaluate((d) => d.open);
+  assert(!(await isOpen()), 'settings open for a new player');
+  assert(!(await visible(page, 'select.animal')), 'settings drop-downs visible while folded');
+  await page.click('details.settings > summary');
+  assert(await isOpen(), 'one tap on Nastavení did not open it');
+  assert(await visible(page, 'select.animal'), 'drop-downs not visible after opening');
+  await load(page, url); // reload: remembered
+  assert(await isOpen(), 'open choice not remembered');
+  await page.click('details.settings > summary');
+  assert(!(await isOpen()), 'one tap did not fold it');
+  await load(page, url);
+  assert(!(await isOpen()), 'folded choice not remembered');
+  // opened, then a game: still folds for the game; leaving it brings back the remembered state
+  await page.click('details.settings > summary');
+  await page.click('.board-start');
+  await page.waitForSelector('.board-start', { state: 'hidden' });
+  assert(!(await isOpen()), 'settings not folded after Hrát');
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  await context.close();
+});
+
 test('mid-game Kampaň asks first; Konec koncovek reopens the settings', async ({ browser, url }) => {
   const { page, context, errors } = await newPage(browser, 'desktop');
   await load(page, url);
@@ -327,7 +352,7 @@ test('mid-game Kampaň asks first; Konec koncovek reopens the settings', async (
   await page.waitForSelector('.endgame-panel:not([hidden])');
   await page.click('.endgame-panel .puzzle-leave');
   await page.waitForTimeout(300);
-  assert(await page.locator('details.settings').evaluate((d) => d.open), 'settings folded after Konec koncovek');
+  assert(!(await page.locator('details.settings').evaluate((d) => d.open)), 'settings open after Konec koncovek for a player who never opened them');
   assert(await visible(page, '.board-start'), '▶ Hrát missing after Konec koncovek');
   assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
   await context.close();

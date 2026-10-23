@@ -144,7 +144,8 @@ export function roomFromLocation(hash: string): string | null {
 }
 
 export function roomLink(room: string): string {
-  return `${location.origin}${location.pathname}#hra=${room}`;
+  // Always the site root, never `location.pathname`: a visit that came in on a channel path (/li/, /fb/, /k/) must not leak it into links shared with friends.
+  return `${location.origin}/#hra=${room}`;
 }
 
 /**

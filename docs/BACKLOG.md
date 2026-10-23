@@ -668,6 +668,8 @@ Recorded verbatim in substance, without names. Items marked **P** are actionable
 
 ## Analytics — Cloudflare Web Analytics (DONE 2026-09-17)
 
+*2026-10-02: channel paths `/li/`, `/fb/`, `/k/` (copies of index.html written by `scripts/build-channels.mjs`) so the beacon's `requestPath` tells LinkedIn / Facebook / clubs apart; settings start folded for new players (`skm.settingsOpen` remembers the choice).*
+
 *2026-09-26: owner opt-out `#bezmereni` / `#mereni` in production (deploy 59671d4); days before it include the owner's own testing.*
 
 DNS for `zvirecisachy.cz` is on Cloudflare (Free, DNS only — GitHub Pages still

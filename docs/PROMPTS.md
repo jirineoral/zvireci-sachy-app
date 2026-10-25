@@ -41,3 +41,38 @@ podstavcích, od fáze 4 jen hlavy („busts, head and shoulders“), protože n
 políčko líp. Král dostal žezlo kvůli rozlišitelnosti na 40 px. Zbylých sedmnáct postav
 (fáze 6) je stejný prompt s jiným zvířetem, generovaný uživatelem; přesné znění per zvíře
 se nearchivovalo.
+
+## Původ hudby v social videích a lekčních videích
+
+Doplněno 2026-10-25 na základě licenčního auditu (`licence-zvireci-sachy.md`, bod E, v repu brain). Rozlišuji, co je
+**doložené** (soubor, kód, commit), a co je **vyvozené** nebo **neznámé**.
+
+**Doloženo**
+- Hudba není samostatný soubor. Je jen v audiostopě `assets/social/tyden-2026-09-28/1-zviratka/1-zviratka.mp4`
+  (AAC 44,1 kHz mono, 11,3 s). Stejná stopa je v `2-lekce.mp4` a `3-kamarad.mp4` téhož týdne.
+  `scripts/social/make_short.py` ji bere z `1-zviratka.mp4` (`ffmpeg -i`, ořez `atrim`, `afade`); tak má hudbu
+  každý short v `tyden-2026-10-19/`, `tyden-2026-10-26/` a `tyden-2026-11-02/`.
+- Vznik: 2026-09-27, commity `c6d92e4`, `86ba21c`, `63fa425` (finální stopa, popis „music bed“). Autor commitů
+  Jiří, ve všech `Co-Authored-By: Claude Opus 5.5`, tedy session Claude Code na Jiřího zadání. `REVIEW.md` týdne
+  28. 9. ji nazývá „vlastní tichá hudba“.
+- Způsob výroby: **vlastní syntéza kódem, bez samplů a bez AI hudebního generátoru.** Audiostopa odpovídá funkci
+  `music_bed()` ve `scripts/lesson-video/render.py` (commit `105a5bb`, 2026-09-28; docstring „own synthesis, as the
+  social posts“): arpeggio akordů C, Am, F, G, 96 bpm, sinusovky s exponenciálním útlumem (Python + numpy, výstup
+  přes ffmpeg/libx264, v souboru `Lavc62.28.100`). Ověřeno rozborem zvuku: výšky tónů po osminách (C5 E5 G5 E5 C5 G5
+  E5 G5, pak A4/C5/E5, F4/A4/C5, G4/B4/D5, basový tón C3) souhlasí s tím, co kód generuje, ve všech třech videích.
+- Stejná funkce dělá podkres lekčních videí (`musicGain` 0,056, `scripts/lesson-video/build.mjs`). Hlas „Sova čte
+  nahlas“ hudbu neobsahuje.
+- V repu není žádná zmínka o AI hudebním generátoru, knihovně hudby ani stock zdroji (hledáno podle názvů služeb).
+
+**Neznámé (nevím, ověř si)**
+- Skript, který hudbu vyrobil pro videa z 27. 9., **v gitu není** (verze `music_bed()` z 28. 9. je nejbližší
+  doložená). Mohl zůstat jen v lokální složce Chess nebo v některém worktree. Přesný skript a verze numpy: nevím.
+- Licenční prohlášení pro hudbu v repu chybí (u zvuků je v `scripts/make-sounds.py` prohlášeno „own work, GPL-3.0“).
+  Třetí strana se podle výše uvedeného nepodílela, takže se nevztahují licenční ani uživatelské podmínky žádného
+  hudebního nástroje. Zda je čistě strojově napsaný a generovaný výstup chráněný autorským dílem podle českého práva
+  (§ 2 zák. 121/2000 Sb.): nevím, ověř si (stejná otázka jako u AI artworku). Postup akordů C–Am–F–G je běžný.
+- Zda YouTube nebo Facebook u publikovaných videí hlásí shodu v Content ID / Rights Manageru: neověřeno. Zkontrolovat
+  ve YouTube Studiu (sloupec Copyright) a v Meta Business Suite.
+
+**Pravidlo do doložení:** hudbu z `1-zviratka.mp4` v nových videích nepoužívat (závěr auditu). Znamená to nespouštět
+`make_short.py` a nerenderovat lekční videa, dokud Jiří původ nepotvrdí.

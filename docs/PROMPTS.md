@@ -41,3 +41,47 @@ podstavcích, od fáze 4 jen hlavy („busts, head and shoulders“), protože n
 políčko líp. Král dostal žezlo kvůli rozlišitelnosti na 40 px. Zbylých sedmnáct postav
 (fáze 6) je stejný prompt s jiným zvířetem, generovaný uživatelem; přesné znění per zvíře
 se nearchivovalo.
+
+## Hudba ve videích na sítě (zjištěno 2026-10-25)
+
+Je hudba ve videích vlastní, nebo z licence? Je **vlastní,
+syntetizovaná kódem**, ne z knihovny ani z AI generátoru hudby. Ověřeno z přepisu session,
+která ji vyrobila, z commitů a z ffprobe zvukových stop.
+
+**Kdo, kdy, čím**
+- Vznikla 2026-09-27 kolem 11:20 v Claude Code session v tomto repu (model Claude Opus 5.5), při opravách po review příspěvků na týden od 28. 9. (nález
+  „videa nemají zvuk“). Commit `63fa425`.
+- Generátor: funkce `music()` ve skriptu `make_posts.py` ve scratchpadu té session. Skript
+  se necommitnul, funkce je proto 2026-10-25 beze změny obnovena z přepisu té session do
+  [scripts/social/make_music.py](../scripts/social/make_music.py). Kontrola 2026-10-25:
+  `python -I scripts/social/make_music.py out.wav 11.3` dá stopu, která se se zvukem
+  `1-zviratka.mp4` shoduje na 99,99 % (korelace vzorků 0,99993), tedy tutéž hudbu. Python 3.13 jen se
+  standardní knihovnou (`math`, `wave`, `struct`): čtyři akordy C, Am, F, G, 96 bpm, rozložené
+  akordy ze sinusovek s vyšší harmonickou a doznívající obálkou, pod tím basový tón. Žádné
+  samply, žádné stažené soubory. Mix a kódování přes ffmpeg 8, AAC 128 kb/s mono.
+- Stejný algoritmus je v repu jako `music_bed()` ve
+  [scripts/lesson-video/render.py](../scripts/lesson-video/render.py) (port do numpy, delší
+  dozvuk na konci), podklad pod lekčními videi.
+
+**Která videa co mají**
+
+| Videa | Zvuk |
+|---|---|
+| `tyden-2026-09-28/*/*.mp4` (3 videa, zveřejněná od 28. 9.) | hudba vygenerovaná zvlášť pro každé video funkcí `music()` |
+| 5 Shorts nahraných na YouTube 13. 10. (kampaň, sova, koncovky, úlohy, rozbor) | žádná hudba, tichá stopa (`anullsrc`); podle přepisu session, která je 13. 10. vyrobila, soubory v repu nejsou |
+| `tyden-2026-10-19/26/11-02/short-*.mp4` (8 Shorts, fronta 22. 10.–7. 11.) | stopa převzatá z `1-zviratka.mp4` skriptem [scripts/social/make_short.py](../scripts/social/make_short.py) |
+| lekční videa (`scripts/lesson-video/`, v appce) | `music_bed()` + vyprávění hlasem Microsoft Jakub (Windows SAPI) |
+
+**Licence pro YouTube a Facebook**
+- Hudbu nikdo třetí nevlastní: je to výstup kódu napsaného Claudem a spuštěného u nás.
+  Spotřebitelské podmínky Anthropicu (účinné od 8. 10. 2025, oddíl 4) převádějí na uživatele
+  všechna práva k výstupům, „if any“: https://www.anthropic.com/legal/consumer-terms
+- Python a ffmpeg si na výstupy nic nenárokují; jejich licence (PSF, LGPL/GPL) se týkají šíření
+  samotného softwaru: https://ffmpeg.org/legal.html
+- Sled akordů C–Am–F–G je běžný a sám o sobě chráněný není.
+- Jestli hudba vytvořená AI je autorské dílo podle českého práva (a tedy jestli ji autor projektu „vlastní“),
+  nevím, ověř si. Pro zveřejnění to nevadí, protože hudba nepatří nikomu jinému.
+- Že by ji Content ID na YouTube nebo Rights Manager na Facebooku chybně označil za cizí,
+  nevím, ověř si. Kdyby takový nárok přišel, podává se spor s odkazem sem.
+- Licenci hlasu Microsoft Jakub pro veřejné šíření nahrávek (lekční videa) jsem neověřoval,
+  nevím, ověř si. To je samostatná otázka, hudby se netýká.

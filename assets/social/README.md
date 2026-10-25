@@ -14,6 +14,25 @@ artwork (`LICENSE-ARTWORK.md`).
 
 Handles: facebook.com/zvirecisachy · youtube.com/@zvirecisachy · Instagram pending.
 
+## Music in the videos (2026-10-25)
+
+Own work, no licence needed: a quiet C–Am–F–G pluck loop synthesised in Python (stdlib only) by a
+Claude Code session on 2026-09-27 (commit `63fa425`). Generator: `scripts/social/make_music.py`
+(recovered unchanged; its output matches the audio of `1-zviratka.mp4`, sample correlation 0.99993). No samples, no music library, no AI music
+generator. Provenance, which video has which audio track, and licence notes:
+[docs/PROMPTS.md › Hudba ve videích](../../docs/PROMPTS.md#hudba-ve-videích-na-sítě-zjištěno-2026-10-25).
+
+How videos get made (no routine does it yet, `RUTINA-NAVRH.md` is only a proposal):
+
+1. An interactive session screenshots the live site and builds the story image with
+   `scripts/social/make_story.py`.
+2. `python -I scripts/social/make_short.py <story.jpg> <headline> <out.mp4>` makes the 9.5 s Short
+   (story + approved end card) and takes the audio from
+   `tyden-2026-09-28/1-zviratka/1-zviratka.mp4`. Keep that file; it is the music master.
+3. Review by the `social-content-review` skill, the owner's OK, then scheduling (`PUBLIKACE-LOG.md`).
+
+Never add music downloaded from the internet. Use this track or the platform's own library at upload time.
+
 ## Facebook bio (≤ 101 chars)
 
 Šachy se zvířecími figurkami. Bez registrace, pro děti napořád zdarma. Hraj na zvirecisachy.cz

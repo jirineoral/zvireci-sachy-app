@@ -14,6 +14,9 @@
  * runtime without waking the room) and a missed pong forces a reconnect, as do the page
  * becoming visible again and the network coming back. The room answers every reconnect
  * with its full `state`; a move of ours it has not seen is sent again then (friend-panel).
+ *
+ * Each player's character (`hello.animal`, later `{t:'animal'}`) goes to the other seat so
+ * both boards show the animals the two players picked themselves — a view hint only.
  */
 import type { Color } from 'chess.js';
 
@@ -23,6 +26,8 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // the room's own lifetime
 const ROOM_ID = /^[a-z2-7]{12}$/;
 const TOKEN = /^[a-z2-7]{16,32}$/;
 const SAN = /^[A-Za-z0-9=+#-]{2,10}$/;
+/** A character id (the piece library's own pattern); the panel still checks it against the library. */
+const ANIMAL = /^[a-z0-9-]{1,24}$/;
 const MAX_SANS = 1000;
 const RECONNECT_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 /** After a `rate` close the first retry waits this long (the flood guard is per second). */
@@ -40,9 +45,12 @@ export const FRIEND_WS: string = __FRIEND_WS__;
 
 export type ServerMessage =
   /** `rematch` = seats that asked for a rematch of this game (relay since 2026-09-26; absent from an older relay). */
-  | { t: 'state'; seat: Color; sans: string[]; game: number; peer: boolean; rematch?: Color[] }
+  /** `animal` = the friend's character (relay since 2026-09-30; absent from an older relay, which also refuses `{t:'animal'}`). */
+  | { t: 'state'; seat: Color; sans: string[]; game: number; peer: boolean; rematch?: Color[]; animal?: string | null }
   | { t: 'move'; san: string; ply: number }
-  | { t: 'peer'; online: boolean }
+  | { t: 'peer'; online: boolean; animal?: string | null }
+  /** The friend switched character. */
+  | { t: 'animal'; animal: string | null }
   | { t: 'rematch'; from: Color }
   /** No seat for our token; `taken` = we had one and another link-holder took it while we were away. */
   | { t: 'full'; taken: boolean }
@@ -74,6 +82,7 @@ export const REJOIN_MS = 2 * 60 * 60 * 1000;
 
 const isColor = (v: unknown): v is Color => v === 'w' || v === 'b';
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+const isAnimal = (v: unknown): v is string | null => v === null || (typeof v === 'string' && ANIMAL.test(v));
 
 /** Shape check of what the room sends; anything else is dropped (the room is ours, but the other seat is not). */
 export function isServerMessage(v: unknown): v is ServerMessage {
@@ -88,12 +97,15 @@ export function isServerMessage(v: unknown): v is ServerMessage {
         Array.isArray(m.sans) &&
         m.sans.length <= MAX_SANS &&
         m.sans.every((s) => typeof s === 'string' && SAN.test(s)) &&
-        (m.rematch === undefined || (Array.isArray(m.rematch) && m.rematch.length <= 2 && m.rematch.every(isColor)))
+        (m.rematch === undefined || (Array.isArray(m.rematch) && m.rematch.length <= 2 && m.rematch.every(isColor))) &&
+        (m.animal === undefined || isAnimal(m.animal))
       );
     case 'move':
       return typeof m.san === 'string' && SAN.test(m.san) && isInt(m.ply);
     case 'peer':
-      return typeof m.online === 'boolean';
+      return typeof m.online === 'boolean' && (m.animal === undefined || isAnimal(m.animal));
+    case 'animal':
+      return isAnimal(m.animal);
     case 'rematch':
       return isColor(m.from);
     case 'full':
@@ -118,7 +130,7 @@ export interface FriendEvents {
 export interface FriendClient {
   readonly session: FriendSession;
   /** Sends when the socket is open; otherwise nothing (the caller keeps a move pending and sends it again after `state`). */
-  send(msg: { t: 'move'; san: string; ply: number } | { t: 'rematch' }): void;
+  send(msg: { t: 'move'; san: string; ply: number } | { t: 'rematch' } | { t: 'animal'; animal: string | null }): void;
   /** Drops the socket and opens a new one at once: the room answers with `state`, which re-syncs the board. */
   resync(): void;
   /** Deliberate leave: tells the room (the seat is freed), no reconnect. */
@@ -221,7 +233,7 @@ const FINAL_REASONS = new Set(['full', 'taken', 'replaced', 'expired', 'policy',
  * Opens the socket and keeps it open: a drop reconnects with backoff and says `hello`
  * again with the same token; the room answers with the full state each time.
  */
-export function connectFriend(session: FriendSession, events: FriendEvents): FriendClient {
+export function connectFriend(session: FriendSession, events: FriendEvents, animal: () => string | null = () => null): FriendClient {
   let ws: WebSocket | null = null;
   let attempt = 0;
   let closed = false;
@@ -298,7 +310,7 @@ export function connectFriend(session: FriendSession, events: FriendEvents): Fri
     sock.addEventListener('open', () => {
       if (ws !== sock) return;
       attempt = 0;
-      sock.send(JSON.stringify({ t: 'hello', token: session.token, pref: session.pref }));
+      sock.send(JSON.stringify({ t: 'hello', token: session.token, pref: session.pref, animal: animal() }));
       events.onConnection('open');
       stopKeepAlive();
       pingTimer = window.setInterval(() => ping(PONG_TIMEOUT_MS), PING_MS);

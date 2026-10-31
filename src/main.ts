@@ -235,6 +235,7 @@ controller = new GameController(
       endgamePanel.close();
       pieceSets?.startGame(color);
       renderMatchup();
+      onBoardStart(); // the game is on at once (no `Hrát`): settings fold away as for any other start
     },
     onRemoteMove: (san, ply) => friendPanel.onMove(san, ply),
     onRemoteEnd: () => {
@@ -338,6 +339,8 @@ requireElement<HTMLButtonElement>(app, '.endgames').addEventListener('click', as
 });
 
 // Play with a friend over a link (Phase 20): the bar under the status line, the `Kamarád` button, `#hra=` on load.
+/** The friend's own character, as the room last said (may arrive before the piece sets load). */
+let friendAnimal: string | null = null;
 const friendPanel = buildFriendPanel({
   bar: requireElement<HTMLElement>(app, '.friend-bar'),
   button: requireElement<HTMLButtonElement>(app, '.friend'),
@@ -351,6 +354,13 @@ const friendPanel = buildFriendPanel({
   applyMove: (san, ply) => game.applyRemoteMove(san, ply),
   waiting: (on) => game.setRemoteWaiting(on),
   leave: () => void game.newGame().catch((err) => console.error('newGame failed', err)),
+  animal: () => (pieceSets?.isLibrary ? pieceSets.animal : null),
+  onPeerAnimal: (id) => {
+    friendAnimal = id;
+    if (!pieceSets) return; // applied once the piece sets have loaded
+    pieceSets.setRemoteOpponent(id);
+    renderMatchup();
+  },
 });
 
 // Feedback (pilot): a Google Form, opened in a new tab with the build stamp and the device
@@ -686,8 +696,10 @@ void openUserSetStore()
     // A friend connection still on its way (`#hra=`, rejoin) must not be superseded by a
     // computer game either: its `startRemoteGame` would come back 'broken'.
     if (game.isRemote || friendPanel.active) {
+      manager.setRemoteOpponent(friendAnimal);
       manager.startGame(game.humanSide);
       renderMatchup();
+      friendPanel.onAnimalChange(); // the `hello` may have gone out before our character was known
     } else {
       void game.newGame().catch((err) => console.error('newGame failed', err));
     }
@@ -707,7 +719,8 @@ function renderMatchup(): void {
   const them = manager.animalOf(manager.humanColor === 'w' ? 'b' : 'w');
   const other = manager.humanColor === 'w' ? 'b' : 'w';
   if (game.isRemote) {
-    matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · Kamarád (${COLOR_NAME[other]})`;
+    const friend = manager.remoteOpponent !== null && them?.id === manager.remoteOpponent ? `Kamarád: ${them.name}` : 'Kamarád';
+    matchupEl.textContent = `Ty: ${me?.name ?? '?'} (${COLOR_NAME[manager.humanColor]}) · ${friend} (${COLOR_NAME[other]})`;
     return;
   }
   if (boardMode === 'lesson') {
@@ -760,10 +773,12 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
 
   familySelect.addEventListener('change', () => {
     manager.setFamily(familySelect.value);
+    friendPanel.onAnimalChange();
     render();
   });
   animalSelect.addEventListener('change', () => {
     manager.setAnimal(animalSelect.value);
+    friendPanel.onAnimalChange();
     campaignHooks?.afterAnimalChange();
     render();
   });

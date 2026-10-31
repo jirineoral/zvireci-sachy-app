@@ -103,6 +103,13 @@ export interface PieceSetManager {
    * stored preference; null lifts it. Not persisted. Applies to the view at once.
    */
   forceOpponent(id: string | null): void;
+  /**
+   * Game with a friend (Phase 20): the other side shows the friend's own pick — even the
+   * same character as ours. Null lifts it; an id the current library lacks is ignored. Not persisted.
+   */
+  setRemoteOpponent(id: string | null): void;
+  /** The friend's character while one is set. */
+  readonly remoteOpponent: string | null;
   /** Same-origin URL of a character's piece image (library families only). */
   characterImage(id: string, variant: 'light' | 'dark', role: 'K' | 'Q' | 'R' | 'B' | 'N' | 'P'): string | null;
   /** Adds or replaces the player's own set as a family and selects it. */
@@ -153,6 +160,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   let humanColor: Color = 'w';
   let opponent: string | null = null; // the drawn/chosen opponent of the current game
   let forcedOpponent: string | null = null; // campaign: overrides the preference while set
+  let remoteOpponent: string | null = null; // a friend's own pick: overrides everything, may equal `animal`
   let appliedPairSet: PieceSet | null = null;
 
   const family = (): PieceFamily | null => families.find((f) => f.id === familyId) ?? null;
@@ -162,6 +170,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   const pickOpponent = (): string | null => {
     const lib = library();
     if (!lib) return null;
+    if (remoteOpponent !== null && findAnimal(remoteOpponent)) return remoteOpponent;
     if (forcedOpponent !== null && forcedOpponent !== animal && findAnimal(forcedOpponent)) return forcedOpponent;
     if (opponentPreference !== 'random' && findAnimal(opponentPreference)) return opponentPreference;
     const candidates = lib.animals.filter((a) => a.id !== animal);
@@ -273,7 +282,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
         return;
       }
       opponentPreference = pref;
-      if (pref !== 'random') opponent = pref; // an explicit choice applies at once (view-only)
+      if (pref !== 'random' && remoteOpponent === null) opponent = pref; // an explicit choice applies at once (view-only)
       apply();
       writeStored(opts.storage, OPPONENT_STORAGE_KEY, pref);
     },
@@ -287,7 +296,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     startGame(color: Color): void {
       humanColor = color;
-      if (opponentPreference === 'random' || forcedOpponent !== null) opponent = pickOpponent();
+      if (opponentPreference === 'random' || forcedOpponent !== null || remoteOpponent !== null) opponent = pickOpponent();
       apply();
     },
     forceOpponent(id: string | null): void {
@@ -298,6 +307,16 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       forcedOpponent = id;
       opponent = pickOpponent();
       apply();
+    },
+    setRemoteOpponent(id: string | null): void {
+      if (id === remoteOpponent) return;
+      remoteOpponent = id; // kept as given: a style switch to the library later still finds it
+      if (id !== null && findAnimal(id)) opponent = id;
+      else opponent = opponentPreference !== 'random' && findAnimal(opponentPreference) ? opponentPreference : pickOpponent();
+      apply();
+    },
+    get remoteOpponent() {
+      return remoteOpponent;
     },
     characterImage(id, variant, role): string | null {
       const f = family();

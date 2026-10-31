@@ -47,6 +47,10 @@ export interface FriendPanelDeps {
   waiting: (on: boolean) => void;
   /** `Odejít`: a fresh pre-game against the computer (the controller then calls `onLeft`). */
   leave: () => void;
+  /** Our own character id to show the friend (null outside a character library). */
+  animal: () => string | null;
+  /** The friend's character as the room says it (null = unknown / none; also on leaving). Called before `start`. */
+  onPeerAnimal: (id: string | null) => void;
 }
 
 export interface FriendPanel {
@@ -60,6 +64,8 @@ export interface FriendPanel {
   onMove: (san: string, ply: number) => void;
   /** The game on the board ended (the bar offers a rematch). */
   onGameOver: () => void;
+  /** The player picked another character (or style): tell the friend. */
+  onAnimalChange: () => void;
   readonly active: boolean;
 }
 
@@ -91,6 +97,8 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
   let game = 0;
   let sans: string[] = [];
   let peer = false;
+  /** The relay sends characters (and so takes `{t:'animal'}`; an older one would close us for it). */
+  let relayAnimals = false;
   let connection: Connection = 'closed';
   let reconnectReason: string | undefined;
   let over = false;
@@ -168,6 +176,8 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     game = 0;
     sans = [];
     peer = false;
+    relayAnimals = false;
+    deps.onPeerAnimal(null);
     over = false;
     rematchAsked = false;
     rematchOffered = false;
@@ -205,6 +215,9 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     if (msg.t === 'state') {
       if (client) touchSession(storage, client.session);
       peer = msg.peer;
+      relayAnimals = msg.animal !== undefined;
+      // Only a present friend's pick replaces the last one known (away = the room does not know it).
+      if (msg.animal !== undefined && (msg.peer || msg.animal !== null)) deps.onPeerAnimal(msg.animal);
       const roomSans = reconcile(msg);
       const sameGame = msg.game === game && msg.seat === seat && roomSans.length === sans.length && roomSans.every((s, i) => s === sans[i]);
       game = msg.game;
@@ -254,6 +267,9 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
       client?.resync();
     } else if (msg.t === 'peer') {
       peer = msg.online;
+      if (msg.online && msg.animal !== undefined) deps.onPeerAnimal(msg.animal);
+    } else if (msg.t === 'animal') {
+      deps.onPeerAnimal(msg.animal);
       if (client) touchSession(storage, client.session);
     } else if (msg.t === 'rematch') {
       rematchOffered = true;
@@ -291,7 +307,7 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
         }
         render();
       },
-    });
+    }, deps.animal);
     render();
   };
 
@@ -380,6 +396,9 @@ export function buildFriendPanel(deps: FriendPanelDeps): FriendPanel {
     onGameOver: () => {
       over = true;
       render();
+    },
+    onAnimalChange: () => {
+      if (client && relayAnimals) client.send({ t: 'animal', animal: deps.animal() }); // a closed socket: the next `hello` carries it
     },
     get active() {
       return client !== null;

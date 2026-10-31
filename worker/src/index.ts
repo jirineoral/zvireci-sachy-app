@@ -29,7 +29,8 @@ type Pref = 'w' | 'b' | 'random';
 
 /*
  * Client → room (every field is type-checked in webSocketMessage before use):
- *   { t: 'hello'; token: string; pref?: Pref }
+ *   { t: 'hello'; token: string; pref?: Pref; animal?: string | null }
+ *   { t: 'animal'; animal: string | null }   (the player picked another character mid-game)
  *   { t: 'move'; san: string; ply: number }
  *   { t: 'rematch' } | { t: 'leave' }
  *   {"t":"ping"} (exact text; answered by the runtime)
@@ -38,9 +39,12 @@ type Pref = 'w' | 'b' | 'random';
 /** Room → client. */
 type ServerMessage =
   /** `rematch` (added 2026-09-26): the seats that asked for a rematch of this game, so an offer made while the peer was away is not lost. Older clients ignore the field. */
-  | { t: 'state'; seat: Seat; sans: string[]; game: number; peer: boolean; rematch: Seat[] }
+  /** `animal` (added 2026-09-30): the other player's character (null = none/unknown), so each side shows the friend's own pick. Its presence also tells the client this relay takes `{t:'animal'}`. */
+  | { t: 'state'; seat: Seat; sans: string[]; game: number; peer: boolean; rematch: Seat[]; animal: string | null }
   | { t: 'move'; san: string; ply: number }
-  | { t: 'peer'; online: boolean }
+  | { t: 'peer'; online: boolean; animal?: string | null }
+  /** The other player switched character. */
+  | { t: 'animal'; animal: string | null }
   | { t: 'rematch'; from: Seat }
   /** No seat for this token; `taken` = it had one and another link-holder took it meanwhile. */
   | { t: 'full'; taken: boolean }
@@ -50,10 +54,14 @@ type ServerMessage =
 interface Attachment {
   token: string;
   seat: Seat;
+  /** The player's character id, as their browser said (a view hint only; lives with the socket, never stored). */
+  animal?: string | null;
 }
 
 const TOKEN = /^[a-z2-7]{16,32}$/;
 const SAN = /^[A-Za-z0-9=+#-]{2,10}$/; // e.g. e4, Nxf7+, O-O-O, e8=Q#
+/** A character id of the app's piece library (e.g. `mouchy`); anything else is dropped to null. */
+const ANIMAL = /^[a-z0-9-]{1,24}$/;
 const MAX_MESSAGE_CHARS = 200; // UTF-16 units; the accepted grammar is ASCII anyway
 const MAX_MESSAGES_PER_SECOND = 10;
 const MAX_PLIES = 1000;
@@ -152,7 +160,7 @@ export class Room extends DurableObject<Env> {
         ws.close(1008, POLICY);
         return;
       }
-      return this.hello(ws, att, { token: msg.token, pref: (msg.pref ?? undefined) as Pref | undefined });
+      return this.hello(ws, att, { token: msg.token, pref: (msg.pref ?? undefined) as Pref | undefined, animal: animalOf(msg.animal) });
     }
     if (!att) {
       ws.close(1008, 'hello first');
@@ -165,6 +173,12 @@ export class Room extends DurableObject<Env> {
         return;
       }
       return this.move(ws, att, { san: msg.san, ply: msg.ply });
+    }
+    if (msg.t === 'animal') {
+      const animal = animalOf(msg.animal);
+      ws.serializeAttachment({ ...att, animal } satisfies Attachment);
+      this.sendToOthers(ws, att.seat, { t: 'animal', animal });
+      return;
     }
     if (msg.t === 'rematch') return this.rematch(ws, att);
     if (msg.t === 'leave') return this.leave(ws, att);
@@ -200,7 +214,7 @@ export class Room extends DurableObject<Env> {
     await this.ctx.storage.deleteAll();
   }
 
-  private async hello(ws: WebSocket, current: Attachment | null, msg: { token: string; pref?: Pref }): Promise<void> {
+  private async hello(ws: WebSocket, current: Attachment | null, msg: { token: string; pref?: Pref; animal: string | null }): Promise<void> {
     if (!TOKEN.test(msg.token) || (current !== null && current.token !== msg.token)) {
       ws.close(1008, POLICY); // one browser, one seat
       return;
@@ -240,12 +254,12 @@ export class Room extends DurableObject<Env> {
     for (const other of this.ctx.getWebSockets()) {
       if (other !== ws && this.attachment(other)?.token === msg.token) other.close(1000, 'replaced');
     }
-    ws.serializeAttachment({ token: msg.token, seat } satisfies Attachment);
+    ws.serializeAttachment({ token: msg.token, seat, animal: msg.animal } satisfies Attachment);
     const sans = (await this.ctx.storage.get<string[]>('sans')) ?? [];
     const game = (await this.ctx.storage.get<number>('game')) ?? 1;
     const rematch = (await this.ctx.storage.get<Seat[]>('rematch')) ?? [];
-    this.send(ws, { t: 'state', seat, sans, game, peer: this.peerOnline(ws, seat), rematch });
-    this.sendToOthers(ws, seat, { t: 'peer', online: true });
+    this.send(ws, { t: 'state', seat, sans, game, peer: this.peerOnline(ws, seat), rematch, animal: this.peerAnimal(ws, seat) });
+    this.sendToOthers(ws, seat, { t: 'peer', online: true, animal: msg.animal });
   }
 
   private async move(ws: WebSocket, att: Attachment, msg: { san: string; ply: number }): Promise<void> {
@@ -292,11 +306,13 @@ export class Room extends DurableObject<Env> {
       const a = this.attachment(sock);
       if (!a) continue;
       const seat: Seat = a.seat === 'w' ? 'b' : 'w';
-      sock.serializeAttachment({ token: a.token, seat } satisfies Attachment);
+      sock.serializeAttachment({ ...a, seat } satisfies Attachment);
       swappedSeats.push([sock, seat]);
     }
     // All seats swapped first, then told — `peer` looks at the other socket's new seat.
-    for (const [sock, seat] of swappedSeats) this.send(sock, { t: 'state', seat, sans: [], game, peer: this.peerOnline(sock, seat), rematch: [] });
+    for (const [sock, seat] of swappedSeats) {
+      this.send(sock, { t: 'state', seat, sans: [], game, peer: this.peerOnline(sock, seat), rematch: [], animal: this.peerAnimal(sock, seat) });
+    }
   }
 
   /** `Odejít`: the seat is free at once for whoever opens the link next, and the leaver's rematch offer goes with them. */
@@ -351,6 +367,15 @@ export class Room extends DurableObject<Env> {
     });
   }
 
+  /** The character of the player on the other seat (null when they are away or sent none). */
+  private peerAnimal(ws: WebSocket, seat: Seat): string | null {
+    for (const s of this.ctx.getWebSockets()) {
+      const a = s !== ws ? this.attachment(s) : null;
+      if (a && a.seat !== seat) return a.animal ?? null;
+    }
+    return null;
+  }
+
   private sendToOthers(ws: WebSocket, seat: Seat, msg: ServerMessage): void {
     for (const sock of this.ctx.getWebSockets()) {
       if (sock === ws) continue;
@@ -377,4 +402,8 @@ export class Room extends DurableObject<Env> {
     r.n++;
     return r.n > MAX_MESSAGES_PER_SECOND;
   }
+}
+
+function animalOf(v: unknown): string | null {
+  return typeof v === 'string' && ANIMAL.test(v) ? v : null;
 }

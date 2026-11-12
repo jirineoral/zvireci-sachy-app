@@ -11,6 +11,7 @@ It does **not** cover the artwork, which is not a derivative of any GPL work:
 
 - `public/piece-sets/animals/*/light/*.png`, `public/piece-sets/animals/*/dark/*.png`
 - `public/piece-sets/farm/*.png`
+- `public/lessons/sova.webp` (the owl teacher)
 - `public/splash/*.jpg`, `public/og.jpg` (the link-preview image, cut from the splash)
 - `public/icons/*.png` (the PWA app icons, cut and recoloured from the goat king piece by
   `scripts/make-icons.py` — same artwork, same terms)
@@ -23,6 +24,10 @@ protected at all, all rights are reserved by Jiří Neoral. You may use them onl
 of this app (running it, forking it to fix or improve it); redistributing the images on
 their own, or using them in another product, needs a separate permission — write through
 the app's feedback form (linked in the footer; leave your e-mail there).
+
+Under GPL-3.0 section 7(e), no rights are granted under trademark law to the name
+"Zvířecí šachy" or the app's logo; a fork published elsewhere should use its own name
+and icon. This does not restrict your rights to the code.
 
 Exceptions that belong to others:
 

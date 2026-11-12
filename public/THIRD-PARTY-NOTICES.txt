@@ -5,14 +5,24 @@ The program is Copyright (C) 2026 Jiří Neoral and is free software under the G
 General Public License, version 3 or (at your option) any later version. Source:
 https://github.com/jirineoral/zvireci-sachy-app — LICENSE there; the GPL text also
 ships here as engine/LICENSE-GPL-3.0.txt. The animal artwork is not under the GPL
-(LICENSE-ARTWORK.md in the source repository).
+(LICENSE-ARTWORK.md in the source repository; see also item 6 below).
+
+Corresponding Source of the version you are using: the commit shown in the app's
+footer ("verze <commit>") in https://github.com/jirineoral/zvireci-sachy-app. The
+engine is built from
+Stockfish 18 (tag sf_18, https://github.com/official-stockfish/Stockfish) by
+stockfish.js 18.0.8 (tag v18.0.8, https://github.com/nmrugg/stockfish.js).
 
 This site bundles or ships the following third-party works:
 
-1. Stockfish 18 (chess engine), GPL-3.0 — https://github.com/official-stockfish/Stockfish
-   as compiled to WebAssembly by stockfish.js (Nathan Rugg), GPL-3.0 —
-   https://github.com/nmrugg/stockfish.js. Shipped unmodified as engine/*.js and
-   engine/*.wasm; licence text: engine/LICENSE-GPL-3.0.txt.
+1. Stockfish 18 (chess engine), Copyright (C) 2004-2026 The Stockfish developers (see
+   the AUTHORS file in its repository), GPL-3.0 —
+   https://github.com/official-stockfish/Stockfish — as compiled to WebAssembly by
+   stockfish.js 18.0.8, Copyright (c) 2026 Chess.com, LLC (originally by Nathan Rugg),
+   GPL-3.0 — https://github.com/nmrugg/stockfish.js. The build shipped is the
+   single-threaded "lite" one with its neural network embedded, unmodified, as
+   engine/stockfish-18-lite-single.js and engine/stockfish-18-lite-single.wasm;
+   licence text: engine/LICENSE-GPL-3.0.txt.
 
 2. chessground (board rendering), Copyright (C) Lichess Team, GPL-3.0-or-later —
    https://github.com/lichess-org/chessground. Bundled into the application script.
@@ -51,3 +61,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 5. Puzzle positions in puzzles/puzzles.json come from the Lichess puzzle database,
    released under CC0 — https://database.lichess.org/#puzzles.
+
+Not third-party, but worth knowing:
+
+6. The pictures (animal pieces, splash screens, app icons, the owl teacher) were
+   generated with AI image tools (ChatGPT and similar) and then cut and edited by the author.
+   They are not under the GPL — see LICENSE-ARTWORK.md in the source repository. The
+   owl's read-aloud voice and the narration of the lesson videos are computer-generated
+   speech (the Windows text-to-speech voice "Microsoft Jakub"), not a human recording.
+   The sound effects are synthesised by the author's own script.

@@ -29,6 +29,9 @@
       <h2>Co zůstává jen v tvém prohlížeči</h2>
       <p>Odehrané partie, nastavení (obtížnost, figurky, pomocníci), postup kampaně, koncovek a lekcí, vlastní sady
       figurek a jméno na diplomu (jen když zaškrtneš „Zapamatuj si moje jméno“). Nic z toho appka nikam neposílá; smažeš to vymazáním dat webu v prohlížeči.</p>
+      <p>Appka se dá nainstalovat a většina z ní pak funguje i bez internetu. Proto si prohlížeč ukládá do své
+      paměti (cache) soubory appky: program, obrázky, lekce a zvuky, které se už načetly. Jsou to jen soubory
+      appky, žádné údaje o tobě; zmizí při vymazání dat webu nebo odinstalování appky.</p>
 
       <h2>Co projde přes server a proč</h2>
       <dl>
@@ -36,7 +39,8 @@
         <dd>Při načtení stránky pošle prohlížeč do Cloudflare informaci o zobrazení: adresu stránky (bez
         části za <code>#</code>), typ prohlížeče a IP adresu, ze které se spojení navazuje. Cloudflare z toho
         počítá souhrnné počty návštěv za den; nevytváří profil, nepoužívá cookies ani otisk prohlížeče.
-        Právní důvod: oprávněný zájem provozovatele vědět, kolik lidí appku používá.</dd>
+        Právní důvod: oprávněný zájem provozovatele vědět, kolik lidí appku používá. Podrobná data drží
+        Cloudflare 7 dní, pak už jen zmenšený vzorek; přehled sahá nejvýš šest měsíců zpět.</dd>
         <dt>Hra s kamarádem přes odkaz</dt>
         <dd>Tahy obou hráčů procházejí přes náš server u Cloudflare (<code>hra.zvirecisachy.cz</code>). Server
         uchovává náhodné číslo hry, náhodný klíč místa u stolu, seznam tahů a technické údaje o průběhu
@@ -47,7 +51,9 @@
         nebo Lichess. Posílá se jen to jméno, resp. id turnaje.</dd>
         <dt>Zpětná vazba</dt>
         <dd>Formulář provozuje Google (Google Forms). Vyplněné odpovědi vidí správce; e‑mail je nepovinný.
-        Děti do 15 let ať formulář vyplní s rodičem.</dd>
+        Děti do 15 let ať formulář vyplní s rodičem. Právní důvod: oprávněný zájem provozovatele appku
+        zlepšovat a odpovědět ti, když o to stojíš. Odpovědi uchováváme, dokud jsou ke zlepšování appky
+        potřeba, nebo do smazání na tvou žádost.</dd>
         <dt>Video k lekci</dt>
         <dd>Když si u lekce stiskneš „▶ Video“, prohlížeč si video přehraje přímo z našeho úložiště
         Cloudflare (<code>videa.zvirecisachy.cz</code>) — žádná cizí služba ani cookies, a jen ve chvíli,
@@ -55,11 +61,20 @@
         <dt>Sova čte nahlas</dt>
         <dd>Když stiskneš tlačítko 🔊, nebo máš zapnuté „Sova čte nahlas“ v nastavení, prohlížeč si
         nahraný hlas sovy stáhne ze stejného úložiště Cloudflare (<code>videa.zvirecisachy.cz</code>) —
-        stejné jako u videa, bez cizí služby a bez cookies.</dd>
+        stejné jako u videa, bez cizí služby a bez cookies. Hlas sovy i hlas ve videích k lekcím je
+        počítačový (syntetická řeč), nenamluvil ho člověk.</dd>
         <dt>Hosting</dt>
         <dd>Stránky servíruje GitHub Pages; DNS zajišťuje Cloudflare. Oba jako každý hosting vidí IP adresu
         při načítání stránky.</dd>
+        <dt>Zpracování mimo Evropskou unii</dt>
+        <dd>Cloudflare, GitHub (patří Microsoftu) a Google jsou firmy se sídlem v USA, takže údaje popsané
+        výše (hlavně IP adresa a odpovědi z formuláře) mohou být zpracovány i tam. Předání se opírá
+        o rámec EU–US Data Privacy Framework, případně o standardní smluvní doložky těchto firem.</dd>
       </dl>
+
+      <h2>Obrázky a hlas z počítače</h2>
+      <p>Obrázky v appce (zvířecí figurky, sova, úvodní obrazovky) jsou vygenerované umělou inteligencí
+      a upravené autorem. Hlas sovy je počítačový.</p>
 
       <h2>Tvoje práva</h2>
       <p>Protože appka nevede žádné účty, nemáme k tobě přiřazená žádná data, která bychom mohli vydat nebo

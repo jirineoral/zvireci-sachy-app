@@ -122,18 +122,20 @@ app.innerHTML = `
       <button type="button" class="friend" title="Přes internet">Kamarád${ONLINE_BADGE}</button>
     </div>
     <footer class="credits">
-      <p class="mission">Pro děti napořád zdarma, bez reklam a bez registrace. Žádné osobní údaje nesbíráme:
+      <p class="mission">Pro děti napořád zdarma, bez reklam a bez registrace. Nevedeme účty ani profily:
       nastavení, postup i partie zůstávají jen v tomhle prohlížeči (jen když si načteš partie z chess.com nebo turnaj z Lichess, prohlížeč si je od nich stáhne).
       Návštěvy počítáme anonymně (Cloudflare), bez cookies. Při hře s kamarádem projdou tahy přes náš server
       a do 24 hodin od posledního tahu se smažou. Odkaz na zpětnou vazbu otevře formulář Google — vyplň ho s rodičem; verze appky a typ zařízení se do něj předvyplní.</p>
       <p class="feedback-line"><a class="feedback-link" href="#" target="_blank" rel="noopener">Napiš mi, co si o tom myslíš →</a> · <a href="soukromi.html">Soukromí</a> <span class="build"></span></p>
       <p class="social-line">Sleduj nás: <a href="https://www.facebook.com/zvirecisachy" target="_blank" rel="noopener">Facebook</a> · <a href="https://www.youtube.com/@zvirecisachy" target="_blank" rel="noopener">YouTube</a> · <a href="https://www.instagram.com/zvirecisachy/" target="_blank" rel="noopener">Instagram</a></p>
-      Engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
+      © 2026 Jiří Neoral ·
+      engine <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> 18
       (<a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, GPL-3.0 —
       <a href="engine/LICENSE-GPL-3.0.txt">licence</a>) ·
       deska <a href="https://github.com/lichess-org/chessground">chessground</a> ·
       pravidla <a href="https://github.com/jhlywa/chess.js">chess.js</a> ·
-      zvířecí figurky jsou vygenerované umělou inteligencí ·
+      obrázky (figurky, sova, úvodní obrazovky) jsou vygenerované umělou inteligencí,
+      hlas sovy je počítačový ·
       klasické figurky © <a href="https://en.wikipedia.org/wiki/User:Cburnett" rel="noopener">Colin M.L. Burnett</a>
       (<a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="noopener">CC BY-SA 3.0</a>) ·
       <a href="https://github.com/jirineoral/zvireci-sachy-app" rel="noopener">zdrojový kód</a> (GPL-3.0) ·

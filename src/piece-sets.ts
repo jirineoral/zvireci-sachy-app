@@ -489,7 +489,8 @@ async function loadLibrary(baseUrl: string, folder: string): Promise<AnimalLibra
   for (const entry of r.animals) {
     const animal = validateAnimal(entry);
     if (!animal) console.warn('Ignoring invalid character entry', entry);
-    else if (animal.season === null || inSeason(animal.season, today)) animals.push(animal);
+    // The dev site (dev.zvirecisachy.cz) shows seasonal characters all year, for previews.
+    else if (animal.season === null || __DEV_SITE__ || inSeason(animal.season, today)) animals.push(animal);
   }
   if (animals.length === 0) {
     console.error(`Character library "${folder}" has no valid characters; its style is unavailable`);

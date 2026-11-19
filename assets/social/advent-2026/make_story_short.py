@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 shot, title, subtitle, out = sys.argv[1:5]
 mode = sys.argv[5] if len(sys.argv) > 5 else "story"
 W, H = (1080, 1920) if mode == "story" else (1080, 1350)
-TOP = 260 if mode == "story" else 56          # story: below the platform's top bar
+TOP = 440 if mode == "story" else 56          # story: below the platform's top bar
 BOTTOM = 330 if mode == "story" else 48       # story: keep caption/button zone free
 top, bottom = (76, 175, 80), (31, 95, 34)
 bg = Image.new("RGB", (W, H))

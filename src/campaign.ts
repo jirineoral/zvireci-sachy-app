@@ -39,9 +39,17 @@ export function defaultCampaign(animals: readonly Animal[]): CampaignState {
   return { order: orderFor([], animals), defeated: [], skipped: [], losses: {} };
 }
 
+/**
+ * Ids that take part in the campaign: seasonal characters (Christmas) stay out, so the
+ * ladder, its final boss and the stored progress do not change with the calendar.
+ */
+function campaignIds(animals: readonly Animal[]): Set<string> {
+  return new Set(animals.filter((a) => !a.season).map((a) => a.id));
+}
+
 /** A full ordering: the given ids that exist, then the missing ones in default order. */
 function orderFor(given: readonly string[], animals: readonly Animal[]): string[] {
-  const ids = new Set(animals.map((a) => a.id));
+  const ids = campaignIds(animals);
   const order: string[] = [];
   for (const id of given) if (ids.has(id) && !order.includes(id)) order.push(id);
   for (const id of DEFAULT_ORDER) if (ids.has(id) && !order.includes(id)) order.push(id);
@@ -62,7 +70,7 @@ export function readCampaign(storage: Storage | null, animals: readonly Animal[]
     const v = JSON.parse(raw) as unknown;
     if (typeof v !== 'object' || v === null) throw new Error('not an object');
     const o = v as Record<string, unknown>;
-    const ids = new Set(animals.map((a) => a.id));
+    const ids = campaignIds(animals);
     const idList = (value: unknown): string[] =>
       Array.isArray(value) ? [...new Set(value.filter((x): x is string => typeof x === 'string' && ids.has(x)))] : [];
     const losses: Record<string, number> = {};

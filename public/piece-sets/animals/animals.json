@@ -43,7 +43,7 @@
       "levels": ["Jikra", "Plůdek", "Kapřík", "Kapr", "Šupináč", "Kapří král"],
       "season": { "from": "11-28", "to": "01-06" } },
     { "id": "pernicci", "name": "perníčci", "za": "perníčky", "sound": "Křup!", "hurt": "Křup…",
-      "levels": ["Drobek", "Těsto", "Perníček", "Zdobený perníček", "Perníková chaloupka", "Perníkový král"],
+      "levels": ["Těsto", "Vykrojený perníček", "Upečený perníček", "Zdobený perníček", "Perníkové kůzlátko", "Perníkový král"],
       "season": { "from": "11-28", "to": "01-06" } }
   ]
 }

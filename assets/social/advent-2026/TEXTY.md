@@ -3,12 +3,12 @@
 Vyrobeno 2026-11-19 podle `assets/social/PLAN-2026-12.md` (Jiřího „1 ano“). Naplánovat smí až další krok po review; tady jsou jen soubory.
 Každý příspěvek: `N-*-feed.jpg` (4:5, Facebook i Instagram), `N-*-story.jpg` (9:16), `N-*-short.mp4` (9:16, 9,5 s, tichá vlastní
 hudba z 28. 9. přes `scripts/social/make_music.py`, závěrečná karta se sovou a „Obrázky vytvořené s pomocí AI“), `N-*-shot.jpg`
-(zdrojový snímek ze živého https://zvirecisachy.cz/#bezmereni, mobil 412 px, build bf75b99 z 12. 11. 2026, pořízeno 19. 11. 2026).
-Časy Europe/Prague, všechny tři kanály ve stejný čas. Odkaz všude: https://zvirecisachy.cz (ověřeno: web odpovídá HTTP 200, stejná doména jako v `tyden-2026-11-16/TEXTY.md`).
+(zdrojový snímek bez pruhu s materiálem, u lekcí bez tlačítka „Přečíst“, ze živého https://zvirecisachy.cz/#bezmereni, mobil 412 px, build bf75b99 z 12. 11. 2026, pořízeno 19. 11. 2026).
+Shorts mají desku zúženou na 760 px a posunutou doleva (pravých ~130 px je volných pro tlačítka YouTube; `make_story_short.py`). Časy Europe/Prague, všechny tři kanály ve stejný čas. Odkaz všude: https://zvirecisachy.cz (ověřeno: web odpovídá HTTP 200, stejná doména jako v `tyden-2026-11-16/TEXTY.md`).
 
 ## Nastavení před zveřejněním (beze změny, jako 16. 11.)
 
-- FB a IG: skrytá slova v komentářích `#hra=`, `hra=`, `hra.zvirecisachy`, `zvirecisachy.cz/#`; komentáře s odkazem na hru mazat; dětí se v DM nikdy neptát na jméno, věk ani fotku.
+- FB a IG: skrytá slova v komentářích `#hra=`, `hra=`, `hra.zvirecisachy`, `zvirecisachy.cz/#`; komentáře s odkazem na hru mazat; dětí se v DM nikdy neptat na jméno, věk ani fotku.
 - YouTube: u každého Shortu „Ano, je určeno pro děti“.
 - Shorts jsou jen pro YouTube. Kdyby šly i jako Reel na FB/IG, štítek AI vždy ano.
 - Hádanky nevyzývají děti psát řešení do komentářů; text říká „zkuste to s rodičem, řešení je níže“. Nikde není jméno, věk, škola ani fotka dítěte.
@@ -35,7 +35,7 @@ Snímek: úloha Cal8F z Lichess databáze (CC0), obtížnost 888, téma „mat 1
 **Facebook**
 
 > První adventní neděle, první hádanka ♟️🕯️
-> Od dnešní neděle bude každou adventní neděli jedna šachová hádanka. Dnešní: na tahu jsou bílá kůzlata a mají mat na jeden tah. Najdete ho? Zkuste to s dítětem, než dočtete, a řešení je níže.
+> Až do Vánoc bude každou adventní neděli jedna šachová hádanka. Dnešní: na tahu jsou bílá kůzlata a mají mat na jeden tah. Najdete ho? Zkuste to s dítětem, než dočtete, a řešení je níže.
 > Další úlohy najdete v části Úlohy, téma „mat 1. tahem“.
 > 👉 https://zvirecisachy.cz
 > .
@@ -79,7 +79,7 @@ Snímek: lekce 16 „Rošáda“, krok 7 z 8 (otázka „Smí bílý udělat kr�
 > .
 > .
 > .
-> Řešení: ne. Při krátké rošádě jde král přes pole f1 a to černá věž napadá. Rošáda nejde, když je král v šachu, když by přešel přes napadené pole nebo skončil v šachu. Napadená věž ale být smí, to dospělí často nevědí.
+> Řešení: ne. Při krátké rošádě jde král přes pole f1 a to černá věž napadá. Rošáda nejde, když je král v šachu, když by přešel přes napadené pole nebo skončil v šachu. A král ani ta věž se předtím nesmí pohnout. Napadená věž ale být smí, to dospělí často nevědí.
 
 **Instagram** (popisek; obrázek stejný)
 
@@ -111,7 +111,7 @@ Snímek: úloha 9X0N3 z Lichess databáze (CC0), obtížnost 986, téma „mat 1
 **Facebook**
 
 > Druhá adventní neděle, druhá hádanka ♟️🕯️
-> Dnes má mat na jeden tah dáma. Na tahu jsou bílá kůzlata. Najdete, kam má dáma skočit? Zkuste to s dítětem a řešení je níže.
+> Dnes má mat na jeden tah dáma. Na tahu jsou bílá kůzlata. Najdete, kam má dáma táhnout? Zkuste to s dítětem a řešení je níže.
 > Další úlohy najdete v části Úlohy, téma „mat 1. tahem“.
 > 👉 https://zvirecisachy.cz
 > .
@@ -144,7 +144,7 @@ Druhá adventní neděle, druhá hádanka ♟️ Dnes dává mat na jeden tah d�
 ## 4. St 9. 12., 18:00 – Pravidlo: Braní mimochodem
 
 Obrázek: `4-mimochodem-feed.jpg` · štítek AI: ano
-Snímek: lekce 17 „Braní mimochodem“, krok 3 z 6 (pěšec e5, černý pěšec právě skočil na d5, zelené kolečko na d6). Braní e5xd6 ověřeno v chess.js (s polem d6 pro braní mimochodem je tah legální).
+Snímek: lekce 17 „Braní mimochodem“, krok 3 z 6, poslední tah d7–d5 zvýrazněn (pěšec e5, černý pěšec právě skočil na d5, zelené kolečko na d6). Braní e5xd6 ověřeno v chess.js (s polem d6 pro braní mimochodem je tah legální).
 
 **Facebook**
 
@@ -156,7 +156,7 @@ Snímek: lekce 17 „Braní mimochodem“, krok 3 z 6 (pěšec e5, černý pěš
 **Instagram** (popisek; obrázek stejný)
 
 ```
-Braní mimochodem: pravidlo, o kterém se hádají i dospělí ♟️ Soupeřův pěšec skočí o dvě pole a zastaví se vedle vašeho. Smíte ho vzít, jako by šel jen o jedno pole, ale jen hned v dalším tahu. Sova to vysvětluje v lekcích. Zdarma, bez registrace – web zvirecisachy.cz najdete v profilu.
+Braní mimochodem: pravidlo, o kterém se hádají i dospělí ♟️ Soupeřův pěšec skočí z výchozího pole o dvě pole a zastaví se vedle vašeho. Smíte ho vzít, jako by šel jen o jedno pole, ale jen hned v dalším tahu. Sova to vysvětluje v lekcích. Zdarma, bez registrace – web zvirecisachy.cz najdete v profilu.
 #zvirecisachy #sachy #šachy #sachyprodeti #chess
 ```
 
@@ -175,7 +175,7 @@ Braní mimochodem: pravidlo, o kterém se hádají i dospělí ♟️ Soupeřův
 ## 5. Ne 13. 12., 9:30 – Adventní hádanka 3: mat na dva tahy
 
 Obrázek: `5-hadanka-feed.jpg` · štítek AI: ano
-Snímek: úloha OpIgO z Lichess databáze (CC0), obtížnost 942, téma „mat v 2 tazích“ (mat na poslední řadě, žádná vidlička); na tahu jsou bílá kůzlata. Řešení ověřeno v chess.js: jediný první tah, po kterém je mat vynucený, je Rb8+; černý má jedinou odpověď Ne8 a pak Rxe8#.
+Snímek: úloha OpIgO z Lichess databáze (CC0), obtížnost 942, téma „mat 2. tahem“ (mat na poslední řadě, žádná vidlička); na tahu jsou bílá kůzlata. Řešení ověřeno v chess.js: jediný první tah, po kterém je mat vynucený, je Rb8+; černý má jedinou odpověď Ne8 a pak Rxe8#.
 
 **Facebook**
 

@@ -50,6 +50,8 @@ const ANIMAL_SINGULAR: Record<string, string> = {
   pstrosi: 'pštros',
   veverky: 'veverka',
   zizaly: 'žížala',
+  kapri: 'kapr',
+  pernicci: 'perníček',
 };
 
 /** The child's piece set as far as texts care: a library character, or none (classic / own set). */

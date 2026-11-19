@@ -34,6 +34,22 @@ export interface Animal {
   hurt: string;
   /** Six difficulty labels, weakest first; null = the default (frog) ladder names. */
   levels: string[] | null;
+  /** Seasonal character: offered only between these days (inclusive, "MM-DD"); null = always. */
+  season: Season | null;
+}
+
+/** A yearly window of days, "MM-DD" each; `from` after `to` wraps over the new year. */
+export interface Season {
+  from: string;
+  to: string;
+}
+
+const SEASON_DAY = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+
+/** True when `date` (local time) falls inside the yearly window, both ends included. */
+export function inSeason(season: Season, date: Date): boolean {
+  const day = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return season.from <= season.to ? day >= season.from && day <= season.to : day >= season.from || day <= season.to;
 }
 
 export interface AnimalLibrary {
@@ -469,10 +485,11 @@ async function loadLibrary(baseUrl: string, folder: string): Promise<AnimalLibra
     return null;
   }
   const animals: Animal[] = [];
+  const today = new Date();
   for (const entry of r.animals) {
     const animal = validateAnimal(entry);
-    if (animal) animals.push(animal);
-    else console.warn('Ignoring invalid character entry', entry);
+    if (!animal) console.warn('Ignoring invalid character entry', entry);
+    else if (animal.season === null || inSeason(animal.season, today)) animals.push(animal);
   }
   if (animals.length === 0) {
     console.error(`Character library "${folder}" has no valid characters; its style is unavailable`);
@@ -493,7 +510,14 @@ function validateAnimal(entry: unknown): Animal | null {
     if (!Array.isArray(e.levels) || e.levels.length !== 6 || !e.levels.every((l) => typeof l === 'string' && l.length > 0)) return null;
     levels = e.levels as string[];
   }
-  return { id: e.id, name: e.name as string, za: e.za as string, sound: e.sound as string, hurt: e.hurt as string, levels };
+  let season: Season | null = null;
+  if ('season' in e) {
+    const sn = e.season as Record<string, unknown> | null;
+    if (typeof sn !== 'object' || sn === null || typeof sn.from !== 'string' || typeof sn.to !== 'string') return null;
+    if (!SEASON_DAY.test(sn.from) || !SEASON_DAY.test(sn.to)) return null;
+    season = { from: sn.from, to: sn.to };
+  }
+  return { id: e.id, name: e.name as string, za: e.za as string, sound: e.sound as string, hurt: e.hurt as string, levels, season };
 }
 
 // ---- styling ----------------------------------------------------------------------------

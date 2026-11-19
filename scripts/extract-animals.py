@@ -73,17 +73,21 @@ SOURCES: dict[str, dict[str, tuple[str, str]]] = {
     "kuzlata": {"light": ("farm-busts.png", "top"), "dark": ("farm-busts-inverse.png", "top")},
     "zabky": {"light": ("farm-busts-inverse.png", "bottom"), "dark": ("farm-busts.png", "bottom")},
 }
-for _id in ["had", "jezevcici", "clovek", "kocky", "kravky", "mravenci", "mysky", "oslici", "slepice", "tucnaci", "zraloci", "mouchy", "vosy", "lamy", "pstrosi", "veverky", "zizaly"]:
+for _id in ["had", "jezevcici", "clovek", "kocky", "kravky", "mravenci", "mysky", "oslici", "slepice", "tucnaci", "zraloci", "mouchy", "vosy", "lamy", "pstrosi", "veverky", "zizaly", "kapri", "pernicci"]:
     SOURCES[_id] = {"light": (f"{_id}.png", "bottom"), "dark": (f"{_id}.png", "top")}
 
 # Sheets without the Czech piece labels between the rows (the layout is the same: dark row
 # on top, light row below, P R N B Q K left to right — see docs/vlastni-sada.md). The
 # wasps were regenerated 2026-09-14 after the pilot found the old ones hard to read.
-UNLABELLED_SHEETS = {"veverky.png", "vosy.png"}
+UNLABELLED_SHEETS = {"veverky.png", "vosy.png", "kapri.png", "pernicci.png"}
 
 # Verdict overrides: (character, side, role, pocket index) -> True = clear, False = keep.
 # Filled in from the DoD review of the printed verdicts / debug overlays.
 POCKET_OVERRIDES: dict[tuple[str, str, str, int], bool] = {}
+
+# Characters whose art has flat white details (sugar icing on the gingerbread kids): only
+# pockets at least this large (the gap between the king's arm and sceptre) are background.
+POCKET_MIN_CLEAR_AREA: dict[str, int] = {"pernicci": 1000}
 
 
 # ---- fast connected components (BFS over pixel coordinates) -----------------------------
@@ -233,6 +237,9 @@ def cut_piece(character: str, side: str, role: str, sh: Sheet, comp: np.ndarray,
         else:
             clear = bool((mean >= FLAT_MEAN).all() and std <= FLAT_STD)
             why = f"mean {tuple(int(m) for m in mean)} std {std:.1f}"
+            if clear and int(cand.sum()) < POCKET_MIN_CLEAR_AREA.get(character, 0):
+                clear = False
+                why += " -> small pocket kept (icing)"
         key = (character, side, role, idx)
         if key in POCKET_OVERRIDES:
             clear = POCKET_OVERRIDES[key]

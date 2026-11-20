@@ -88,7 +88,8 @@ POCKET_OVERRIDES: dict[tuple[str, str, str, int], bool] = {}
 # Characters whose art has flat white details (sugar icing on the gingerbread kids): only
 # pockets at least this large (the gap between the king's arm and sceptre) are background.
 # Glass highlights on the baubles and snow on the light firs are white too.
-POCKET_MIN_CLEAR_AREA: dict[str, int] = {"pernicci": 1000, "ozdoby": 1000, "jedlicky": 1000}
+# Keys are "<character>" or "<character>/<side>" (the side-specific key wins).
+POCKET_MIN_CLEAR_AREA: dict[str, int] = {"pernicci": 1000, "ozdoby": 1000, "jedlicky/light": 1000}
 
 
 # ---- fast connected components (BFS over pixel coordinates) -----------------------------
@@ -238,7 +239,8 @@ def cut_piece(character: str, side: str, role: str, sh: Sheet, comp: np.ndarray,
         else:
             clear = bool((mean >= FLAT_MEAN).all() and std <= FLAT_STD)
             why = f"mean {tuple(int(m) for m in mean)} std {std:.1f}"
-            if clear and int(cand.sum()) < POCKET_MIN_CLEAR_AREA.get(character, 0):
+            min_clear = POCKET_MIN_CLEAR_AREA.get(f"{character}/{side}", POCKET_MIN_CLEAR_AREA.get(character, 0))
+            if clear and int(cand.sum()) < min_clear:
                 clear = False
                 why += " -> small pocket kept (icing)"
         key = (character, side, role, idx)

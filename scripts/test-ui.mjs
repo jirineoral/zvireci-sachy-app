@@ -403,10 +403,10 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
   await load(page, url);
   await page.evaluate(() => (document.querySelector('details.settings').open = true));
   assert(await visible(page, '.christmas-setting'), 'theme switch hidden on the dev site');
-  assert((await page.textContent('.christmas-setting')).trim().startsWith('Téma'), 'label is not "Téma"');
-  assert((await optionValues(page, 'select.christmas')).join() === 'standard,christmas', 'theme options are not Standardní / Vánoční');
+  assert((await page.textContent('.christmas-setting')).trim().includes('Vánoce'), 'label is not "Vánoce"');
+  assert((await page.getAttribute('input.christmas', 'role')) === 'switch' && (await page.getAttribute('input.christmas', 'type')) === 'checkbox', 'theme control is not a checkbox switch');
   // Default: Vánoční, kapri, a fir-green board, only seasonal characters.
-  assert((await page.inputValue('select.christmas')) === 'christmas', 'default theme is not Vánoční');
+  assert((await page.isChecked('input.christmas')), 'default theme is not Vánoční');
   assert((await page.inputValue('select.animal')) === 'kapri', 'default Christmas player is not kapri');
   assert(await htmlHas(page, 'skm-xmas-board'), 'no fir-green board in the Christmas theme');
   const xmasAnimals = await optionValues(page, 'select.animal');
@@ -415,7 +415,7 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
   assert(xmasOpponents.length > 0 && xmasOpponents.every(isSeasonal), `Christmas opponent picker has ordinary characters: ${xmasOpponents}`);
   await page.selectOption('select.animal', 'andele');
   // Standardní: ordinary characters only, normal board, own remembered choice.
-  await page.selectOption('select.christmas', 'standard');
+  await page.uncheck('input.christmas');
   assert((await storageOf(page, 'skm.christmas')) === 'off', 'skm.christmas not "off" for Standardní');
   assert(!(await htmlHas(page, 'skm-xmas-board')), 'fir-green board stays in the standard theme');
   const stdAnimals = await optionValues(page, 'select.animal');
@@ -424,12 +424,12 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
   await page.selectOption('select.animal', 'kocky');
   await page.selectOption('select.opponent', 'had');
   // Back to Vánoční: the Christmas choice is restored, the standard keys are untouched.
-  await page.selectOption('select.christmas', 'christmas');
+  await page.check('input.christmas');
   assert((await storageOf(page, 'skm.christmas')) === 'on', 'skm.christmas not "on" for Vánoční');
   assert((await page.inputValue('select.animal')) === 'andele', 'Christmas player choice not restored');
   assert((await page.inputValue('select.opponent')) === 'random', 'Christmas opponent preference not random');
   assert((await storageOf(page, 'skm.animal')) === 'kocky' && (await storageOf(page, 'skm.animal.xmas')) === 'andele', 'per-theme storage keys wrong');
-  await page.selectOption('select.christmas', 'standard');
+  await page.uncheck('input.christmas');
   assert((await page.inputValue('select.animal')) === 'kocky' && (await page.inputValue('select.opponent')) === 'had', 'standard choices not restored');
   assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
   await context.close();
@@ -438,14 +438,14 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
 themeTest('theme switch: a stored on/off from the earlier switch carries over (off = Standardní)', async ({ browser, url }) => {
   const { page, context, errors } = await newPage(browser, 'desktop', { local: { 'skm.christmas': 'off', 'skm.animal': 'kocky' } });
   await load(page, url);
-  assert((await page.inputValue('select.christmas')) === 'standard', 'stored "off" is not Standardní');
+  assert(!(await page.isChecked('input.christmas')), 'stored "off" is not Standardní');
   assert((await page.inputValue('select.animal')) === 'kocky', 'standard player not kept');
   assert(!(await htmlHas(page, 'skm-xmas-board')), 'fir-green board despite Standardní');
   // An old seasonal character in skm.animal was the Christmas choice: it moves to the Christmas theme.
   const old = await newPage(browser, 'desktop', { local: { 'skm.animal': 'certi' } });
   await load(old.page, url);
   assert((await old.page.inputValue('select.animal')) === 'certi', 'legacy seasonal choice not kept in Vánoční');
-  await old.page.selectOption('select.christmas', 'standard');
+  await old.page.uncheck('input.christmas');
   assert((await old.page.inputValue('select.animal')) === 'kuzlata', 'standard player does not fall back to the default');
   assert(errors.length === 0 && old.errors.length === 0, `page errors: ${errors.concat(old.errors).join(' | ')}`);
   await old.context.close();
@@ -457,14 +457,16 @@ themeTest('theme switch: a theme change mid-game keeps the running characters an
   await load(page, url);
   await page.evaluate(() => (document.querySelector('details.settings').open = true));
   assert((await page.evaluate(() => document.querySelector('.settings .controls label').className)).includes('christmas-setting'), 'Téma is not the first setting');
-  assert((await page.textContent('select.christmas option[value="christmas"]')) === 'vánoční', 'option text is not lowercase');
+  await page.click('.christmas-setting', { position: { x: 8, y: 8 } });
+  assert(!(await page.isChecked('input.christmas')), 'tapping the label text does not toggle the switch');
+  await page.check('input.christmas');
   await page.click('.board-start');
   await page.waitForSelector('.board-start', { state: 'hidden' });
   await move(page, 'e2', 'e4');
   await page.waitForFunction(() => document.querySelectorAll('.move-list li > span.san').length >= 1);
   await page.evaluate(() => (document.querySelector('details.settings').open = true)); // starting a game folds the settings
   const before = await page.evaluate(() => [...document.documentElement.classList].filter((c) => /^skm-(white|black)-/.test(c)).join());
-  await page.selectOption('select.christmas', 'standard');
+  await page.uncheck('input.christmas');
   const after = await page.evaluate(() => [...document.documentElement.classList].filter((c) => /^skm-(white|black)-/.test(c)).join());
   assert(before === after, `running characters changed: ${before} -> ${after}`);
   assert((await page.inputValue('select.animal')) !== '', 'player select went blank mid-game');
@@ -475,7 +477,7 @@ themeTest('theme switch: a theme change mid-game keeps the running characters an
 themeTest('theme switch: the campaign works in Vánoční (standard character plays, ordinary opponent)', async ({ browser, url }) => {
   const { page, context, errors } = await newPage(browser, 'desktop', { local: { 'skm.animal': 'kocky' } });
   await load(page, url);
-  assert((await page.inputValue('select.christmas')) === 'christmas', 'not in the Christmas theme');
+  assert((await page.isChecked('input.christmas')), 'not in the Christmas theme');
   await page.click('.buttons .campaign');
   await page.waitForSelector('dialog.campaign-dialog[open] .campaign-play');
   await page.click('dialog.campaign-dialog[open] .campaign-play');
@@ -500,7 +502,7 @@ test('season: the theme switch and the Christmas characters appear inside the se
   await load(inn.page, url);
   await inn.page.evaluate(() => (document.querySelector('details.settings').open = true));
   assert(await visible(inn.page, '.christmas-setting'), 'theme switch hidden inside the season');
-  assert((await inn.page.inputValue('select.christmas')) === 'christmas', 'default theme inside the season is not Vánoční');
+  assert((await inn.page.isChecked('input.christmas')), 'default theme inside the season is not Vánoční');
   assert(out.errors.length === 0 && inn.errors.length === 0, `page errors: ${out.errors.concat(inn.errors).join(' | ')}`);
   await out.context.close();
   await inn.context.close();

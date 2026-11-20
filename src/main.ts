@@ -68,7 +68,7 @@ app.innerHTML = `
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">
-        <label class="christmas-setting" hidden>Téma <select class="christmas"></select></label>
+        <label class="christmas-setting" hidden>🎄 Vánoce <input type="checkbox" role="switch" class="christmas switch" /></label>
         <label>Hraju za <select class="animal"></select></label>
         <label>Soupeř <select class="opponent"></select></label>
         <label>Barva <select class="side"></select></label>
@@ -775,12 +775,11 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
 
   // Theme switch: shown only while seasonal characters are available (season or dev site).
   const themeLabel = requireElement<HTMLElement>(app, '.christmas-setting');
-  const themeSelect = requireElement<HTMLSelectElement>(app, '.christmas');
-  themeSelect.replaceChildren(new Option('standardní', 'standard'), new Option('vánoční', 'christmas'));
-  themeSelect.value = manager.theme;
+  const themeSwitch = requireElement<HTMLInputElement>(app, '.christmas');
+  themeSwitch.checked = manager.theme === 'christmas';
   themeLabel.hidden = !manager.hasSeasonal;
-  themeSelect.addEventListener('change', () => {
-    manager.setTheme(themeSelect.value === 'christmas' ? 'christmas' : 'standard', game.gameInProgress || (game.isRemote && game.anythingInProgress));
+  themeSwitch.addEventListener('change', () => {
+    manager.setTheme(themeSwitch.checked ? 'christmas' : 'standard', game.gameInProgress || (game.isRemote && game.anythingInProgress));
     campaignHooks?.afterAnimalChange();
     render();
   });

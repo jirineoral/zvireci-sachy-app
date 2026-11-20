@@ -1718,6 +1718,55 @@ html.dev-site body::before {
   }
 }
 
+/* iOS-style on/off switch (Christmas theme): a real checkbox with role=switch, drawn as a sliding pill. */
+.controls input.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 52px;
+  height: 30px;
+  margin: 0;
+  border-radius: 15px;
+  border: 0;
+  background: #666;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.controls input.switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s;
+}
+
+.controls input.switch:checked {
+  background: #2f6b3a;
+}
+
+.controls input.switch:checked::before {
+  transform: translateX(22px);
+}
+
+.controls input.switch:focus-visible {
+  outline: 3px solid #8fd19a;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls input.switch,
+  .controls input.switch::before {
+    transition: none;
+  }
+}
+
 /* `display:flex` above would otherwise beat the `hidden` attribute (the Christmas switch). */
 .controls label[hidden] {
   display: none;

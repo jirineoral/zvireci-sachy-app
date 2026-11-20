@@ -64,3 +64,27 @@ cg-board {
   padding-right: 4px;
   text-align: right;
 }
+
+/*
+ * Christmas board (the "Vánoční figurky a šachovnice" switch, class set on <html> by the
+ * piece-set manager while seasonal characters are available): muted fir green dark squares,
+ * warm cream light squares. The manager then leaves --board-* to this rule.
+ */
+html.skm-xmas-board .cg-wrap {
+  --board-light: #f4ead0;
+  --board-dark: #6f9275;
+}
+/* Chessground's dark-green move dots and selection vanish on green: use a deep red-brown ring instead. */
+html.skm-xmas-board cg-board square.move-dest {
+  background: radial-gradient(rgba(120, 30, 30, 0.55) 22%, #0000 0, #0000 0);
+}
+html.skm-xmas-board cg-board square.move-dest.oc,
+html.skm-xmas-board cg-board square.oc.move-dest {
+  background: radial-gradient(transparent 0%, transparent 80%, rgba(120, 30, 30, 0.55) 80%);
+}
+html.skm-xmas-board cg-board square.selected {
+  background-color: rgba(214, 160, 40, 0.55);
+}
+html.skm-xmas-board cg-board square.last-move {
+  background-color: rgba(214, 160, 40, 0.45);
+}

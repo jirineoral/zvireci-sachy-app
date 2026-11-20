@@ -98,6 +98,11 @@ export interface PieceSetManager {
   /** True when the current family is a loaded character library. */
   readonly isLibrary: boolean;
   readonly animals: readonly Animal[];
+  /** True when the library has seasonal characters available now (the Christmas switch is shown). */
+  readonly hasSeasonal: boolean;
+  /** The Christmas switch (default on, per device): seasonal characters + the fir-green board. */
+  readonly christmas: boolean;
+  setChristmas(on: boolean): void;
   /** The player's character id (library) / pair animal (pair families). */
   readonly animal: string;
   readonly opponentPreference: OpponentPreference;
@@ -140,6 +145,9 @@ export const FAMILY_STORAGE_KEY = 'skm.pieceFamily';
 export const ANIMAL_STORAGE_KEY = 'skm.animal';
 export const OPPONENT_STORAGE_KEY = 'skm.opponent';
 export const COLOR_STORAGE_KEY = 'skm.color';
+export const CHRISTMAS_STORAGE_KEY = 'skm.christmas';
+/** <html> class that switches the board to the fir-green Christmas palette (see board.css). */
+export const CHRISTMAS_BOARD_CLASS = 'skm-xmas-board';
 /** Pre-5A key; migrated to the family key once and removed. */
 const LEGACY_SET_STORAGE_KEY = 'skm.pieceSetId';
 const LINK_ATTR = 'data-piece-set';
@@ -170,22 +178,35 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   let opponent: string | null = null; // the drawn/chosen opponent of the current game
   let forcedOpponent: string | null = null; // campaign: overrides the preference while set
   let appliedPairSet: PieceSet | null = null;
+  let christmas = readStoredRaw(opts.storage, CHRISTMAS_STORAGE_KEY) !== 'off'; // default on
 
   const family = (): PieceFamily | null => families.find((f) => f.id === familyId) ?? null;
   const library = (): AnimalLibrary | null => family()?.library ?? null;
-  const findAnimal = (id: string | null): Animal | null => library()?.animals.find((a) => a.id === id) ?? null;
+  // `library().animals` holds every character available today; the Christmas switch only
+  // hides the seasonal ones from choices (pickers, random opponent), never from rendering.
+  const hasSeasonal = (): boolean => families.some((f) => f.library?.animals.some((a) => a.season !== null));
+  const christmasActive = (): boolean => christmas && hasSeasonal();
+  const choosable = (): readonly Animal[] => (library()?.animals ?? []).filter((a) => a.season === null || christmasActive());
+  const findAnimal = (id: string | null): Animal | null => choosable().find((a) => a.id === id) ?? null;
+  const htmlClasses = (classes: string[]): void => setHtmlClasses(christmasActive() ? [...classes, CHRISTMAS_BOARD_CLASS] : classes);
 
   const pickOpponent = (): string | null => {
-    const lib = library();
-    if (!lib) return null;
+    if (!library()) return null;
+    const pool0 = choosable();
     if (forcedOpponent !== null && forcedOpponent !== animal && findAnimal(forcedOpponent)) return forcedOpponent;
     if (opponentPreference !== 'random' && findAnimal(opponentPreference)) return opponentPreference;
-    const candidates = lib.animals.filter((a) => a.id !== animal);
-    const pool = candidates.length > 0 ? candidates : lib.animals;
+    const candidates = pool0.filter((a) => a.id !== animal);
+    const pool = candidates.length > 0 ? candidates : pool0;
     return pool[Math.floor(Math.random() * pool.length)].id;
   };
 
   const applyBoard = (board: { light: string; dark: string }): void => {
+    if (christmasActive()) {
+      // Inline values would beat the stylesheet: let `html.skm-xmas-board .cg-wrap` colour the board.
+      opts.boardEl.style.removeProperty('--board-light');
+      opts.boardEl.style.removeProperty('--board-dark');
+      return;
+    }
     opts.boardEl.style.setProperty('--board-light', board.light);
     opts.boardEl.style.setProperty('--board-dark', board.dark);
   };
@@ -197,13 +218,14 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       removePairLinks();
       appliedPairSet = null;
       userStyles.ensure(f.userSet);
-      setHtmlClasses([`${HTML_CLASS_PREFIX}user-${f.userSet.id}`]);
+      htmlClasses([`${HTML_CLASS_PREFIX}user-${f.userSet.id}`]);
       applyBoard(USER_BOARD);
       return;
     }
     if (f.library) {
       const librarySet = f.sets.find((s) => s.library !== null) ?? f.sets[0];
-      const player = findAnimal(animal) ?? f.library.animals[0];
+      // A seasonal choice while the switch is off (or the season is over) falls back to the default.
+      const player = findAnimal(animal) ?? findAnimal(DEFAULT_ANIMAL) ?? choosable()[0] ?? f.library.animals[0];
       animal = player.id;
       if (!findAnimal(opponent)) opponent = pickOpponent();
       const white = humanColor === 'w' ? player.id : (opponent ?? player.id);
@@ -212,11 +234,11 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       appliedPairSet = null;
       ensureAnimalLink(opts.baseUrl, librarySet.library ?? 'animals', white);
       if (black !== white) ensureAnimalLink(opts.baseUrl, librarySet.library ?? 'animals', black);
-      setHtmlClasses([`${HTML_CLASS_PREFIX}white-${white}`, `${HTML_CLASS_PREFIX}black-${black}`]);
+      htmlClasses([`${HTML_CLASS_PREFIX}white-${white}`, `${HTML_CLASS_PREFIX}black-${black}`]);
       applyBoard(f.library.board);
       return;
     }
-    setHtmlClasses([]);
+    htmlClasses([]);
     const set = resolvePair(f, animal, humanColor);
     if (set === appliedPairSet) return;
     appliedPairSet = set;
@@ -244,7 +266,20 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       return library() !== null;
     },
     get animals() {
-      return library()?.animals ?? [];
+      return choosable();
+    },
+    get hasSeasonal() {
+      return hasSeasonal();
+    },
+    get christmas() {
+      return christmas;
+    },
+    setChristmas(on: boolean): void {
+      christmas = on;
+      writeStored(opts.storage, CHRISTMAS_STORAGE_KEY, on ? 'on' : 'off');
+      appliedPairSet = null; // force the board colours to be re-applied
+      if (!findAnimal(opponent)) opponent = pickOpponent();
+      apply();
     },
     get animal() {
       return animal;
@@ -273,7 +308,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     setAnimal(id: string): void {
       const lib = library();
-      const valid = lib ? lib.animals.some((a) => a.id === id) : isPairAnimal(id);
+      const valid = lib ? findAnimal(id) !== null : isPairAnimal(id);
       if (!valid) {
         console.warn(`Unknown animal "${id}"`);
         return;

@@ -68,12 +68,12 @@ app.innerHTML = `
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">
+        <label class="christmas-setting" hidden>Téma <select class="christmas"></select></label>
         <label>Hraju za <select class="animal"></select></label>
         <label>Soupeř <select class="opponent"></select></label>
         <label>Barva <select class="side"></select></label>
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
-        <label class="christmas-setting" hidden>Téma <select class="christmas"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
         <label>Tahy zpět <select class="undo-limit"></select></label>
         <label>Intro <select class="intro-setting"></select></label>
@@ -741,13 +741,17 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
     familySelect.value = manager.familyId ?? manager.families[0].id;
     sideSelect.value = manager.colorPreference;
     if (manager.isLibrary) {
-      // A Christmas-theme campaign plays with the standard-theme character, which the Christmas picker
-      // does not list: show it as the only (locked) entry until the campaign ends.
-      const campaignCharacter = campaignOpponent !== null && !manager.animals.some((a) => a.id === manager.animal) ? manager.allAnimals.find((a) => a.id === manager.animal) : undefined;
-      animalSelect.replaceChildren(...(campaignCharacter ? [campaignCharacter] : manager.animals).map((a) => new Option(a.za, a.id)));
+      // The running game's character can lie outside the theme's list (a Christmas-theme campaign plays the
+      // standard-theme character; a theme changed mid-game keeps the game's characters): show it as an extra,
+      // disabled entry so the select never goes blank. The campaign also locks the whole select.
+      const runningCharacter = manager.animals.some((a) => a.id === manager.animal) ? undefined : manager.allAnimals.find((a) => a.id === manager.animal);
+      animalSelect.replaceChildren(
+        ...(runningCharacter ? [Object.assign(new Option(runningCharacter.za, runningCharacter.id), { disabled: true })] : []),
+        ...manager.animals.map((a) => new Option(a.za, a.id)),
+      );
       animalSelect.value = manager.animal;
-      animalSelect.disabled = campaignCharacter !== undefined;
-      animalSelect.title = campaignCharacter ? 'Kampaň hraje za postavičku ze Standardního tématu' : '';
+      animalSelect.disabled = runningCharacter !== undefined && campaignOpponent !== null;
+      animalSelect.title = runningCharacter ? (campaignOpponent !== null ? 'Kampaň hraje za postavičku ze Standardního tématu' : 'Rozehraná hra hraje dál s touto postavičkou') : '';
       // The campaign plays ordinary characters even in the Christmas theme, whose pickers hide them:
       // the campaign's opponent shows as an extra (disabled) entry.
       const campaignOpponentAnimal = campaignOpponent !== null && !manager.animals.some((a) => a.id === campaignOpponent) ? manager.allAnimals.find((a) => a.id === campaignOpponent) : undefined;
@@ -772,7 +776,7 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
   // Theme switch: shown only while seasonal characters are available (season or dev site).
   const themeLabel = requireElement<HTMLElement>(app, '.christmas-setting');
   const themeSelect = requireElement<HTMLSelectElement>(app, '.christmas');
-  themeSelect.replaceChildren(new Option('Standardní', 'standard'), new Option('Vánoční', 'christmas'));
+  themeSelect.replaceChildren(new Option('standardní', 'standard'), new Option('vánoční', 'christmas'));
   themeSelect.value = manager.theme;
   themeLabel.hidden = !manager.hasSeasonal;
   themeSelect.addEventListener('change', () => {
@@ -877,7 +881,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   const leave = (): void => {
     campaignOpponent = null;
     campaignNext = null;
-    manager.forceOpponent(null);
+    manager.forceOpponent(null, game.gameInProgress); // a running game keeps its characters
     void game.setDifficultyOverride(null).catch((err) => console.error('setDifficultyOverride failed', err));
     rerenderSelects();
     renderBar();

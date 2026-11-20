@@ -141,8 +141,9 @@ export interface PieceSetManager {
   /**
    * Campaign (Phase 11): the next games are against this character regardless of the
    * stored preference; null lifts it. Not persisted. Applies to the view at once.
+   * `gameRunning` (when lifting): the running game keeps its characters until the next game starts.
    */
-  forceOpponent(id: string | null): void;
+  forceOpponent(id: string | null, gameRunning?: boolean): void;
   /** Same-origin URL of a character's piece image (library families only). */
   characterImage(id: string, variant: 'light' | 'dark', role: 'K' | 'Q' | 'R' | 'B' | 'N' | 'P'): string | null;
   /** Adds or replaces the player's own set as a family and selects it. */
@@ -411,15 +412,16 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       if (preferredOpponent[slot()] === 'random' || forcedOpponent !== null) opponent = pickOpponent();
       apply();
     },
-    forceOpponent(id: string | null): void {
+    forceOpponent(id: string | null, gameRunning = false): void {
       if (id !== null && !findAny(id)) {
         console.warn(`Unknown campaign opponent "${id}"`);
         return;
       }
       forcedOpponent = id;
+      deferCharacters = gameRunning;
       const lib = library();
       if (lib) animal = resolvePlayer(lib).id; // the campaign plays with the standard-theme character
-      opponent = pickOpponent();
+      if (!deferCharacters) opponent = pickOpponent(); // deferred: the running game keeps its opponent
       apply();
     },
     characterImage(id, variant, role): string | null {

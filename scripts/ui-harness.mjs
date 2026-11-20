@@ -45,8 +45,16 @@ export const VIEWPORTS = {
  * to localStorage before the app runs; the intro splash is skipped for this session only
  * (sessionStorage — it does not make the user look like a returning one).
  */
-export async function newPage(browser, viewport, { local = null, intro = false } = {}) {
+/**
+ * The page clock is fixed (Date only, timers keep running) so tests do not depend on today's date: by
+ * default outside the Christmas season, so the seasonal characters never leak into ordinary tests.
+ * `date` overrides it (UI_DATE=2026-12-15 reruns the whole suite inside the season).
+ */
+export const OUT_OF_SEASON = '2026-10-15T12:00:00';
+
+export async function newPage(browser, viewport, { local = null, intro = false, date = process.env.UI_DATE ?? OUT_OF_SEASON } = {}) {
   const context = await browser.newContext({ ...VIEWPORTS[viewport], locale: 'cs-CZ', serviceWorkers: 'block' });
+  await context.clock.setFixedTime(new Date(date.length === 10 ? `${date}T12:00:00` : date));
   await context.addInitScript(
     ([seed, skipIntro]) => {
       try {

@@ -138,6 +138,7 @@ const FIXTURE = {
   'skm.animal': 'kocky',
   'skm.opponent': 'had',
   'skm.pieceFamily': 'hlavy',
+  'skm.christmas': 'off', // stored Standardní: the saved characters stay in force inside the season too
   'skm.puzzles': JSON.stringify({ band: 'stredni', theme: null, solved: {} }),
   'skm.lessons': JSON.stringify({ done: [] }),
 };
@@ -451,6 +452,26 @@ themeTest('theme switch: a stored on/off from the earlier switch carries over (o
   await context.close();
 });
 
+themeTest('theme switch: a theme change mid-game keeps the running characters and the player select stays filled; the theme row is first', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'desktop', { local: { 'skm.color': 'w' } });
+  await load(page, url);
+  await page.evaluate(() => (document.querySelector('details.settings').open = true));
+  assert((await page.evaluate(() => document.querySelector('.settings .controls label').className)).includes('christmas-setting'), 'Téma is not the first setting');
+  assert((await page.textContent('select.christmas option[value="christmas"]')) === 'vánoční', 'option text is not lowercase');
+  await page.click('.board-start');
+  await page.waitForSelector('.board-start', { state: 'hidden' });
+  await move(page, 'e2', 'e4');
+  await page.waitForFunction(() => document.querySelectorAll('.move-list li > span.san').length >= 1);
+  await page.evaluate(() => (document.querySelector('details.settings').open = true)); // starting a game folds the settings
+  const before = await page.evaluate(() => [...document.documentElement.classList].filter((c) => /^skm-(white|black)-/.test(c)).join());
+  await page.selectOption('select.christmas', 'standard');
+  const after = await page.evaluate(() => [...document.documentElement.classList].filter((c) => /^skm-(white|black)-/.test(c)).join());
+  assert(before === after, `running characters changed: ${before} -> ${after}`);
+  assert((await page.inputValue('select.animal')) !== '', 'player select went blank mid-game');
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  await context.close();
+});
+
 themeTest('theme switch: the campaign works in Vánoční (standard character plays, ordinary opponent)', async ({ browser, url }) => {
   const { page, context, errors } = await newPage(browser, 'desktop', { local: { 'skm.animal': 'kocky' } });
   await load(page, url);
@@ -470,9 +491,29 @@ themeTest('theme switch: the campaign works in Vánoční (standard character pl
   await context.close();
 });
 
+test('season: the theme switch and the Christmas characters appear inside the season only', async ({ browser, url }) => {
+  const out = await newPage(browser, 'desktop', { date: '2026-10-15' });
+  await load(out.page, url);
+  assert(!(await visible(out.page, '.christmas-setting')), 'theme switch shown outside the season');
+  assert(!(await htmlHas(out.page, 'skm-xmas-board')), 'Christmas board outside the season');
+  const inn = await newPage(browser, 'desktop', { date: '2026-12-15' });
+  await load(inn.page, url);
+  await inn.page.evaluate(() => (document.querySelector('details.settings').open = true));
+  assert(await visible(inn.page, '.christmas-setting'), 'theme switch hidden inside the season');
+  assert((await inn.page.inputValue('select.christmas')) === 'christmas', 'default theme inside the season is not Vánoční');
+  assert(out.errors.length === 0 && inn.errors.length === 0, `page errors: ${out.errors.concat(inn.errors).join(' | ')}`);
+  await out.context.close();
+  await inn.context.close();
+});
+
 const devsite = process.argv.includes('--devsite');
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 if (devsite) tests.splice(0, tests.length, ...themeTests);
+const selected = tests.filter((t) => !only || t.name.includes(only));
+if (selected.length === 0) {
+  console.error(`UI smoke: no test matches "${only}"`);
+  process.exit(1);
+}
 const server = await startPreview(devsite ? 'dist-devsite' : 'dist');
 const browser = await launchBrowser();
 let failed = 0;

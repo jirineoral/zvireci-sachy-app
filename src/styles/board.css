@@ -98,3 +98,10 @@ html.skm-xmas-board cg-board square.check {
     rgba(120, 0, 0, 0) 100%
   );
 }
+/* Contrast on the green board: a subtle light halo for black pieces, a subtle dark one for white pieces. */
+html.skm-xmas-board .cg-wrap piece.black {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.5));
+}
+html.skm-xmas-board .cg-wrap piece.white {
+  filter: drop-shadow(0 0 1px rgba(60, 40, 20, 0.7));
+}

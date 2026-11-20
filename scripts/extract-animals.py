@@ -87,7 +87,8 @@ POCKET_OVERRIDES: dict[tuple[str, str, str, int], bool] = {}
 
 # Characters whose art has flat white details (sugar icing on the gingerbread kids): only
 # pockets at least this large (the gap between the king's arm and sceptre) are background.
-POCKET_MIN_CLEAR_AREA: dict[str, int] = {"pernicci": 1000}
+# Glass highlights on the baubles and snow on the light firs are white too.
+POCKET_MIN_CLEAR_AREA: dict[str, int] = {"pernicci": 1000, "ozdoby": 1000, "jedlicky": 1000}
 
 
 # ---- fast connected components (BFS over pixel coordinates) -----------------------------

@@ -46,6 +46,9 @@ export interface Season {
 
 const SEASON_DAY = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
 
+/** Characters a random opponent draw never picks (still choosable by hand). */
+const NOT_RANDOM_OPPONENTS: ReadonlySet<string> = new Set(['jezulatka']);
+
 /** True when `date` (local time) falls inside the yearly window, both ends included. */
 export function inSeason(season: Season, date: Date): boolean {
   const day = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -206,7 +209,8 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     const pool0 = choosable();
     if (forcedOpponent !== null && forcedOpponent !== animal && findAnimal(forcedOpponent)) return forcedOpponent;
     if (opponentPreference !== 'random' && findAnimal(opponentPreference)) return opponentPreference;
-    const candidates = pool0.filter((a) => a.id !== animal);
+    // The baby Jesus set is never drawn as a random opponent; children pick it on purpose only.
+    const candidates = pool0.filter((a) => a.id !== animal && !NOT_RANDOM_OPPONENTS.has(a.id));
     const pool = candidates.length > 0 ? candidates : pool0;
     return pool[Math.floor(Math.random() * pool.length)].id;
   };

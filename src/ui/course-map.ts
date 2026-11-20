@@ -100,7 +100,7 @@ export function buildCourseMap(deps: CourseMapDeps): CourseMap {
     owlChoice.input.checked = progress.teacher === 'owl' || teachers.animal === null;
     if (teachers.animal) {
       paintAvatar(animalChoice.avatar, teachers.animal);
-      animalChoice.name.textContent = `${teachers.animal.name} (zvířátko, za které hraješ)`;
+      animalChoice.name.textContent = `${teachers.animal.name} (postavička, za kterou hraješ)`; // neutral: seasonal sets are not animals
       animalChoice.input.disabled = false;
       animalChoice.input.checked = progress.teacher === 'animal';
       animalNote.textContent = '';

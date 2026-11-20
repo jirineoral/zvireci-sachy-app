@@ -73,7 +73,7 @@ app.innerHTML = `
         <label>Barva <select class="side"></select></label>
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
-        <label class="christmas-setting" hidden>Vánoční figurky a šachovnice <select class="christmas"></select></label>
+        <label class="christmas-setting" hidden>Vánoční vzhled <select class="christmas"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
         <label>Tahy zpět <select class="undo-limit"></select></label>
         <label>Intro <select class="intro-setting"></select></label>

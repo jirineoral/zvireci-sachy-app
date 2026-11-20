@@ -68,7 +68,7 @@ app.innerHTML = `
     <details class="settings" open>
       <summary>⚙ Nastavení</summary>
       <div class="controls">
-        <label class="christmas-setting" hidden>🎄 Vánoce <input type="checkbox" role="switch" class="christmas switch" /></label>
+        <label class="christmas-setting" hidden><span><span aria-hidden="true">🎄</span> Vánoce</span> <input type="checkbox" role="switch" class="christmas switch" /></label>
         <label>Hraju za <select class="animal"></select></label>
         <label>Soupeř <select class="opponent"></select></label>
         <label>Barva <select class="side"></select></label>

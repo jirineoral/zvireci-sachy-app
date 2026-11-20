@@ -456,9 +456,10 @@ themeTest('theme switch: a theme change mid-game keeps the running characters an
   const { page, context, errors } = await newPage(browser, 'desktop', { local: { 'skm.color': 'w' } });
   await load(page, url);
   await page.evaluate(() => (document.querySelector('details.settings').open = true));
-  assert((await page.evaluate(() => document.querySelector('.settings .controls label').className)).includes('christmas-setting'), 'Téma is not the first setting');
+  assert((await page.evaluate(() => document.querySelector('.settings .controls label').className)).includes('christmas-setting'), 'the Vánoce switch is not the first setting');
+  assert(await page.isChecked('input.christmas'), 'the Vánoce switch did not start on');
   await page.click('.christmas-setting', { position: { x: 8, y: 8 } });
-  assert(!(await page.isChecked('input.christmas')), 'tapping the label text does not toggle the switch');
+  assert(!(await page.isChecked('input.christmas')), 'label tap did not toggle the switch');
   await page.check('input.christmas');
   await page.click('.board-start');
   await page.waitForSelector('.board-start', { state: 'hidden' });

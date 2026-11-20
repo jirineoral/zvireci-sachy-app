@@ -73,7 +73,7 @@ app.innerHTML = `
         <label>Barva <select class="side"></select></label>
         <label>Obtížnost <select class="difficulty"></select></label>
         <label>Figurky <select class="piece-family"></select></label>
-        <label class="christmas-setting" hidden>Vánoční vzhled <select class="christmas"></select></label>
+        <label class="christmas-setting" hidden>Téma <select class="christmas"></select></label>
         <label>Hodnocení tahů <select class="feedback"></select></label>
         <label>Tahy zpět <select class="undo-limit"></select></label>
         <label>Intro <select class="intro-setting"></select></label>
@@ -416,7 +416,7 @@ function announcement(): Announcement {
   const me = manager.animalOf(manager.humanColor)?.name ?? '?';
   const them = manager.animalOf(manager.humanColor === 'w' ? 'b' : 'w')?.name ?? '?';
   const line1 = `${me} vs. ${them}`.toLocaleUpperCase('cs-CZ');
-  const step = campaignOpponent && campaignState ? campaignStep(campaignState, manager.animals, manager.animal, campaignOpponent) : null;
+  const step = campaignOpponent && campaignState ? campaignStep(campaignState, manager.allAnimals, manager.campaignPlayer, campaignOpponent) : null;
   return step ? { line1, line2: `soupeř ${step.index + 1} z ${step.total}` } : { line1 };
 }
 
@@ -741,13 +741,19 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
     familySelect.value = manager.familyId ?? manager.families[0].id;
     sideSelect.value = manager.colorPreference;
     if (manager.isLibrary) {
-      animalSelect.replaceChildren(...manager.animals.map((a) => new Option(a.za, a.id)));
+      // A Christmas-theme campaign plays with the standard-theme character, which the Christmas picker
+      // does not list: show it as the only (locked) entry until the campaign ends.
+      const campaignCharacter = campaignOpponent !== null && !manager.animals.some((a) => a.id === manager.animal) ? manager.allAnimals.find((a) => a.id === manager.animal) : undefined;
+      animalSelect.replaceChildren(...(campaignCharacter ? [campaignCharacter] : manager.animals).map((a) => new Option(a.za, a.id)));
       animalSelect.value = manager.animal;
-      animalSelect.disabled = false;
-      opponentSelect.replaceChildren(new Option('náhodně', 'random'), ...manager.animals.map((a) => new Option(a.name, a.id)));
+      animalSelect.disabled = campaignCharacter !== undefined;
+      animalSelect.title = campaignCharacter ? 'Kampaň hraje za postavičku ze Standardního tématu' : '';
+      // The campaign plays ordinary characters even in the Christmas theme, whose pickers hide them:
+      // the campaign's opponent shows as an extra (disabled) entry.
+      const campaignOpponentAnimal = campaignOpponent !== null && !manager.animals.some((a) => a.id === campaignOpponent) ? manager.allAnimals.find((a) => a.id === campaignOpponent) : undefined;
+      opponentSelect.replaceChildren(new Option('náhodně', 'random'), ...(campaignOpponentAnimal ? [campaignOpponentAnimal] : []).concat(manager.animals).map((a) => new Option(a.name, a.id)));
       const wantedOpponent = campaignOpponent ?? manager.opponentPreference;
-      // A stored seasonal opponent that is not choosable now shows as 'random' (storage is untouched).
-      opponentSelect.value = wantedOpponent === 'random' || manager.animals.some((a) => a.id === wantedOpponent) ? wantedOpponent : 'random';
+      opponentSelect.value = wantedOpponent === 'random' || opponentSelect.querySelector(`option[value="${wantedOpponent}"]`) ? wantedOpponent : 'random';
       opponentSelect.disabled = campaignOpponent !== null;
       opponentSelect.title = campaignOpponent !== null ? 'Soupeře určuje kampaň' : '';
       const me = manager.animalOf(manager.humanColor);
@@ -763,14 +769,14 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
     renderMatchup();
   };
 
-  // Christmas switch: shown only while seasonal characters are available (season or dev site).
-  const christmasLabel = requireElement<HTMLElement>(app, '.christmas-setting');
-  const christmasSelect = requireElement<HTMLSelectElement>(app, '.christmas');
-  christmasSelect.replaceChildren(new Option('zapnuto', 'on'), new Option('vypnuto', 'off'));
-  christmasSelect.value = manager.christmas ? 'on' : 'off';
-  christmasLabel.hidden = !manager.hasSeasonal;
-  christmasSelect.addEventListener('change', () => {
-    manager.setChristmas(christmasSelect.value === 'on', game.gameInProgress || (game.isRemote && game.anythingInProgress));
+  // Theme switch: shown only while seasonal characters are available (season or dev site).
+  const themeLabel = requireElement<HTMLElement>(app, '.christmas-setting');
+  const themeSelect = requireElement<HTMLSelectElement>(app, '.christmas');
+  themeSelect.replaceChildren(new Option('Standardní', 'standard'), new Option('Vánoční', 'christmas'));
+  themeSelect.value = manager.theme;
+  themeLabel.hidden = !manager.hasSeasonal;
+  themeSelect.addEventListener('change', () => {
+    manager.setTheme(themeSelect.value === 'christmas' ? 'christmas' : 'standard', game.gameInProgress || (game.isRemote && game.anythingInProgress));
     campaignHooks?.afterAnimalChange();
     render();
   });
@@ -818,15 +824,15 @@ const campaignOpenBtn = requireElement<HTMLButtonElement>(app, '.campaign-open')
 const campaignButton = requireElement<HTMLButtonElement>(app, '.campaign');
 
 function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): void {
-  const state: CampaignState = readCampaign(safeLocalStorage(), manager.animals);
+  const state: CampaignState = readCampaign(safeLocalStorage(), manager.allAnimals);
   campaignState = state;
   const save = (): void => writeCampaign(safeLocalStorage(), state);
   const other = (): 'w' | 'b' => (manager.humanColor === 'w' ? 'b' : 'w');
-  const nextUndefeated = (): string | null => campaignStep(state, manager.animals, manager.animal)?.animal.id ?? null;
+  const nextUndefeated = (): string | null => campaignStep(state, manager.allAnimals, manager.campaignPlayer)?.animal.id ?? null;
 
   /** Sets the engine strength of the step `opponentId` occupies; false when it is not an opponent. */
   const strengthOf = (opponentId: string): Difficulty | null => {
-    const step = campaignStep(state, manager.animals, manager.animal, opponentId);
+    const step = campaignStep(state, manager.allAnimals, manager.campaignPlayer, opponentId);
     return step ? interpolateDifficulty(step.x) : null;
   };
   const applyStrength = (opponentId: string): boolean => {
@@ -839,8 +845,8 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   const renderBar = (): void => {
     campaignBar.hidden = campaignOpponent === null;
     if (campaignOpponent === null) return;
-    const step = campaignStep(state, manager.animals, manager.animal, campaignOpponent);
-    const next = campaignNext ? manager.animals.find((a) => a.id === campaignNext) : null;
+    const step = campaignStep(state, manager.allAnimals, manager.campaignPlayer, campaignOpponent);
+    const next = campaignNext ? manager.allAnimals.find((a) => a.id === campaignNext) : null;
     const done = nextUndefeated() === null;
     const losses = step ? (state.losses[step.animal.id] ?? 0) : 0;
     campaignText.textContent = !step
@@ -880,8 +886,8 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
   const dialog = buildCampaignDialog({
     dialog: requireElement<HTMLDialogElement>(app, '.campaign-dialog'),
     state: () => state,
-    animals: () => manager.animals,
-    playerId: () => manager.animal,
+    animals: () => manager.allAnimals,
+    playerId: () => manager.campaignPlayer,
     currentOpponent: () => campaignOpponent,
     image: (id) => manager.characterImage(id, 'light', 'K'),
     play,
@@ -893,7 +899,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
       dialog.render();
     },
     move: (id, delta) => {
-      if (!moveInOrder(state, id, delta, manager.animal)) return;
+      if (!moveInOrder(state, id, delta, manager.campaignPlayer)) return;
       save();
       if (campaignOpponent) applyStrength(campaignOpponent); // the step number may have changed
       renderBar();
@@ -947,7 +953,7 @@ function wireCampaign(manager: PieceSetManager, rerenderSelects: () => void): vo
     },
     afterAnimalChange: () => {
       if (campaignOpponent === null) return;
-      if (campaignOpponent === manager.animal) {
+      if (campaignOpponent === manager.campaignPlayer) {
         const next = nextUndefeated();
         if (next === null) {
           leave();

@@ -94,6 +94,8 @@ const USER_BOARD = { light: '#dce6f0', dark: '#8fa3bd' };
 export type ColorPreference = 'random' | Color | 'two';
 /** 'random' or a character id. */
 export type OpponentPreference = string;
+/** Character theme: ordinary animals + the normal board, or only the seasonal characters + the fir-green board. */
+export type Theme = 'standard' | 'christmas';
 
 export interface PieceSetManager {
   readonly families: readonly PieceFamily[];
@@ -101,17 +103,27 @@ export interface PieceSetManager {
   /** True when the current family is a loaded character library. */
   readonly isLibrary: boolean;
   readonly animals: readonly Animal[];
-  /** True when the library has seasonal characters available now (the Christmas switch is shown). */
+  /** Every character of the library regardless of the theme (campaign ladder, lookups); [] outside a library. */
+  readonly allAnimals: readonly Animal[];
+  /** True when the library has seasonal characters available now (the theme switch is shown). */
   readonly hasSeasonal: boolean;
-  /** The Christmas switch (default on, per device): seasonal characters + the fir-green board. */
-  readonly christmas: boolean;
   /**
-   * `gameRunning`: the characters of the running game stay as they are, the switch applies to
+   * The effective theme: 'christmas' only while the stored choice (default Christmas) is on AND
+   * seasonal characters are available (season or dev site); otherwise always 'standard'.
+   */
+  readonly theme: Theme;
+  /**
+   * `gameRunning`: the characters of the running game stay as they are, the theme applies to
    * the next game (the board palette changes at once). No-op without seasonal characters.
    */
-  setChristmas(on: boolean, gameRunning?: boolean): void;
+  setTheme(theme: Theme, gameRunning?: boolean): void;
   /** The player's character id (library) / pair animal (pair families). */
   readonly animal: string;
+  /**
+   * The character the player has in the campaign: always the standard-theme choice (the campaign
+   * ladder has ordinary characters only), whatever the theme is. Equals `animal` in the standard theme.
+   */
+  readonly campaignPlayer: string;
   readonly opponentPreference: OpponentPreference;
   readonly colorPreference: ColorPreference;
   /** The colour the human plays in the current game. */
@@ -152,7 +164,11 @@ export const FAMILY_STORAGE_KEY = 'skm.pieceFamily';
 export const ANIMAL_STORAGE_KEY = 'skm.animal';
 export const OPPONENT_STORAGE_KEY = 'skm.opponent';
 export const COLOR_STORAGE_KEY = 'skm.color';
+/** 'on' = Vánoční theme (default), 'off' = Standardní. Key kept from the earlier on/off switch. */
 export const CHRISTMAS_STORAGE_KEY = 'skm.christmas';
+/** The Christmas theme remembers its own player and opponent choice (the standard keys above stay the standard theme's). */
+export const CHRISTMAS_ANIMAL_STORAGE_KEY = 'skm.animal.xmas';
+export const CHRISTMAS_OPPONENT_STORAGE_KEY = 'skm.opponent.xmas';
 /** <html> class that switches the board to the fir-green Christmas palette (see board.css). */
 export const CHRISTMAS_BOARD_CLASS = 'skm-xmas-board';
 /** Pre-5A key; migrated to the family key once and removed. */
@@ -161,6 +177,7 @@ const LINK_ATTR = 'data-piece-set';
 const ID_PATTERN = /^[a-z0-9-]+$/;
 const PAIR_ANIMALS: readonly PairAnimal[] = ['kuzlata', 'zabky'];
 const DEFAULT_ANIMAL = 'kuzlata';
+const DEFAULT_CHRISTMAS_ANIMAL = 'kapri';
 const HTML_CLASS_PREFIX = 'skm-';
 
 export function otherPairAnimal(animal: PairAnimal): PairAnimal {
@@ -178,40 +195,64 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   const families: PieceFamily[] = await loadFamilies(opts.baseUrl);
   for (const set of opts.userSets ?? []) families.push(userFamily(set));
   let familyId: string | null = null;
-  let animal = DEFAULT_ANIMAL; // the effective player character (derived from `preferredAnimal` on each apply)
-  let preferredAnimal = DEFAULT_ANIMAL; // the stored/chosen character, kept even while it is unavailable
-  let deferCharacters = false; // the switch was toggled mid-game: keep the running game's characters until startGame
-  let opponentPreference: OpponentPreference = 'random';
+  let animal = DEFAULT_ANIMAL; // the effective player character (derived from the preference on each apply)
+  // Player and opponent preferences are kept per theme, so switching back and forth restores each one.
+  const preferredAnimal: Record<Theme, string> = { standard: DEFAULT_ANIMAL, christmas: DEFAULT_CHRISTMAS_ANIMAL };
+  const preferredOpponent: Record<Theme, OpponentPreference> = { standard: 'random', christmas: 'random' };
+  let deferCharacters = false; // the theme was changed mid-game: keep the running game's characters until startGame
   let colorPreference: ColorPreference = 'random';
   let humanColor: Color = 'w';
   let opponent: string | null = null; // the drawn/chosen opponent of the current game
   let forcedOpponent: string | null = null; // campaign: overrides the preference while set
   let appliedPairSet: PieceSet | null = null;
-  let christmas = readStoredRaw(opts.storage, CHRISTMAS_STORAGE_KEY) !== 'off'; // default on
+  let christmas = readStoredRaw(opts.storage, CHRISTMAS_STORAGE_KEY) !== 'off'; // stored choice, default Christmas
 
   const family = (): PieceFamily | null => families.find((f) => f.id === familyId) ?? null;
   const library = (): AnimalLibrary | null => family()?.library ?? null;
-  // `library().animals` holds every character available today; the Christmas switch only
-  // hides the seasonal ones from choices (pickers, random opponent), never from rendering.
+  // `library().animals` holds every character available today; the theme only decides which of
+  // them are offered (pickers, random draws), never what is rendered.
   const hasSeasonal = (): boolean => families.some((f) => f.library?.animals.some((a) => a.season !== null));
-  const christmasActive = (): boolean => christmas && hasSeasonal();
-  const choosable = (): readonly Animal[] => (library()?.animals ?? []).filter((a) => a.season === null || christmasActive());
+  const theme = (): Theme => (christmas && hasSeasonal() ? 'christmas' : 'standard');
+  // Pair and user families know no themes: they use the standard slot.
+  const slot = (): Theme => (library() !== null ? theme() : 'standard');
+  const inTheme = (a: Animal): boolean => (theme() === 'christmas' ? a.season !== null : a.season === null);
+  const choosable = (): readonly Animal[] => (library()?.animals ?? []).filter(inTheme);
   const findAnimal = (id: string | null): Animal | null => choosable().find((a) => a.id === id) ?? null;
-  // Rendering of a running game never depends on the switch.
+  // Rendering never depends on the theme.
   const findAny = (id: string | null): Animal | null => library()?.animals.find((a) => a.id === id) ?? null;
-  const lookup = (id: string | null): Animal | null => (deferCharacters ? findAny(id) : findAnimal(id));
+  // The campaign's character: the standard-theme choice (the ladder has ordinary characters only).
+  const standardPlayer = (lib: AnimalLibrary): Animal => {
+    const ordinary = lib.animals.filter((a) => a.season === null);
+    return ordinary.find((a) => a.id === preferredAnimal.standard) ?? ordinary.find((a) => a.id === DEFAULT_ANIMAL) ?? ordinary[0] ?? lib.animals[0];
+  };
+  const resolvePlayer = (lib: AnimalLibrary): Animal => {
+    if (deferCharacters) {
+      const keep = findAny(animal); // a running game keeps its characters
+      if (keep) return keep;
+    }
+    if (forcedOpponent !== null) return standardPlayer(lib);
+    const t = theme();
+    const fallback = t === 'christmas' ? DEFAULT_CHRISTMAS_ANIMAL : DEFAULT_ANIMAL;
+    return findAnimal(preferredAnimal[t]) ?? findAnimal(fallback) ?? choosable()[0] ?? lib.animals[0];
+  };
+  // Is this character fine as the current opponent? A running game and the campaign keep theirs
+  // whatever the theme offers.
+  const opponentFits = (id: string | null): boolean => (deferCharacters || forcedOpponent !== null ? findAny(id) : findAnimal(id)) !== null;
   // The fir-green board belongs to the library (animal characters) family only; user and pair sets keep their own.
-  const xmasBoard = (): boolean => christmasActive() && library() !== null;
+  const xmasBoard = (): boolean => theme() === 'christmas' && library() !== null;
   const htmlClasses = (classes: string[]): void => setHtmlClasses(xmasBoard() ? [...classes, CHRISTMAS_BOARD_CLASS] : classes);
 
   const pickOpponent = (): string | null => {
     if (!library()) return null;
-    const pool0 = choosable();
-    if (forcedOpponent !== null && forcedOpponent !== animal && findAnimal(forcedOpponent)) return forcedOpponent;
-    if (opponentPreference !== 'random' && findAnimal(opponentPreference)) return opponentPreference;
+    if (forcedOpponent !== null && forcedOpponent !== animal && findAny(forcedOpponent)) return forcedOpponent; // campaign: ordinary characters, whatever the theme
+    const pref = preferredOpponent[slot()];
+    if (pref !== 'random' && findAnimal(pref)) return pref;
     // The baby Jesus set is never drawn as a random opponent; children pick it on purpose only.
-    const candidates = pool0.filter((a) => a.id !== animal && !NOT_RANDOM_OPPONENTS.has(a.id));
-    const pool = candidates.length > 0 ? candidates : pool0;
+    const pool0 = choosable();
+    const drawable = pool0.filter((a) => !NOT_RANDOM_OPPONENTS.has(a.id));
+    const others = drawable.filter((a) => a.id !== animal);
+    // Only the player's own character left: mirror it rather than draw outside the theme or a never-random one.
+    const pool = others.length > 0 ? others : drawable.length > 0 ? drawable : pool0;
     return pool[Math.floor(Math.random() * pool.length)].id;
   };
 
@@ -239,10 +280,9 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     }
     if (f.library) {
       const librarySet = f.sets.find((s) => s.library !== null) ?? f.sets[0];
-      // A seasonal choice while the switch is off (or the season is over) falls back to the default.
-      const player = lookup(preferredAnimal) ?? lookup(animal) ?? findAnimal(DEFAULT_ANIMAL) ?? choosable()[0] ?? f.library.animals[0];
+      const player = resolvePlayer(f.library);
       animal = player.id;
-      if (!lookup(opponent)) opponent = pickOpponent();
+      if (!opponentFits(opponent)) opponent = pickOpponent();
       const white = humanColor === 'w' ? player.id : (opponent ?? player.id);
       const black = humanColor === 'w' ? (opponent ?? player.id) : player.id;
       removePairLinks();
@@ -254,6 +294,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       return;
     }
     htmlClasses([]);
+    animal = preferredAnimal.standard;
     const set = resolvePair(f, animal, humanColor);
     if (set === appliedPairSet) return;
     appliedPairSet = set;
@@ -264,9 +305,8 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   if (families.length > 0) {
     const stored = readFamily(opts.storage, families);
     familyId = stored.familyId ?? families[0].id;
-    preferredAnimal = readAnimal(opts.storage, families) ?? stored.legacyAnimal ?? DEFAULT_ANIMAL;
-    animal = preferredAnimal;
-    opponentPreference = readOpponent(opts.storage, families);
+    readThemePreferences(opts.storage, families, stored.legacyAnimal, preferredAnimal, preferredOpponent);
+    animal = preferredAnimal.standard;
     colorPreference = readColor(opts.storage);
     apply();
   }
@@ -284,16 +324,19 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     get animals() {
       return choosable();
     },
+    get allAnimals() {
+      return library()?.animals ?? [];
+    },
     get hasSeasonal() {
       return hasSeasonal();
     },
-    get christmas() {
-      return christmas;
+    get theme() {
+      return theme();
     },
-    setChristmas(on: boolean, gameRunning = false): void {
+    setTheme(next: Theme, gameRunning = false): void {
       if (!hasSeasonal()) return;
-      christmas = on;
-      writeStored(opts.storage, CHRISTMAS_STORAGE_KEY, on ? 'on' : 'off');
+      christmas = next === 'christmas';
+      writeStored(opts.storage, CHRISTMAS_STORAGE_KEY, christmas ? 'on' : 'off');
       appliedPairSet = null; // force the board colours to be re-applied
       deferCharacters = gameRunning;
       apply();
@@ -301,8 +344,12 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     get animal() {
       return animal;
     },
+    get campaignPlayer() {
+      const lib = library();
+      return lib ? standardPlayer(lib).id : animal;
+    },
     get opponentPreference() {
-      return opponentPreference;
+      return preferredOpponent[slot()];
     },
     get colorPreference() {
       return colorPreference;
@@ -312,7 +359,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     animalOf(color: Color): Animal | null {
       if (!library()) return null;
-      return color === humanColor ? findAnimal(animal) : findAnimal(opponent);
+      return color === humanColor ? findAny(animal) : findAny(opponent);
     },
     setFamily(id: string): void {
       if (!families.some((f) => f.id === id)) {
@@ -330,21 +377,23 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
         console.warn(`Unknown animal "${id}"`);
         return;
       }
+      const t = slot();
+      preferredAnimal[t] = id;
       animal = id;
-      preferredAnimal = id;
-      if (opponent === id && opponentPreference === 'random') opponent = pickOpponent(); // never mirror by accident
+      if (opponent === id && preferredOpponent[t] === 'random') opponent = pickOpponent(); // never mirror by accident
       apply();
-      writeStored(opts.storage, ANIMAL_STORAGE_KEY, id);
+      writeStored(opts.storage, t === 'christmas' ? CHRISTMAS_ANIMAL_STORAGE_KEY : ANIMAL_STORAGE_KEY, id);
     },
     setOpponentPreference(pref: OpponentPreference): void {
       if (pref !== 'random' && !findAnimal(pref)) {
         console.warn(`Unknown opponent "${pref}"`);
         return;
       }
-      opponentPreference = pref;
+      const t = slot();
+      preferredOpponent[t] = pref;
       if (pref !== 'random') opponent = pref; // an explicit choice applies at once (view-only)
       apply();
-      writeStored(opts.storage, OPPONENT_STORAGE_KEY, pref);
+      writeStored(opts.storage, t === 'christmas' ? CHRISTMAS_OPPONENT_STORAGE_KEY : OPPONENT_STORAGE_KEY, pref);
     },
     setColorPreference(pref: ColorPreference): void {
       colorPreference = pref;
@@ -357,21 +406,25 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     startGame(color: Color): void {
       humanColor = color;
       deferCharacters = false;
-      if (opponentPreference === 'random' || forcedOpponent !== null) opponent = pickOpponent();
+      const lib = library();
+      if (lib) animal = resolvePlayer(lib).id; // the theme may have changed since the last game
+      if (preferredOpponent[slot()] === 'random' || forcedOpponent !== null) opponent = pickOpponent();
       apply();
     },
     forceOpponent(id: string | null): void {
-      if (id !== null && !findAnimal(id)) {
+      if (id !== null && !findAny(id)) {
         console.warn(`Unknown campaign opponent "${id}"`);
         return;
       }
       forcedOpponent = id;
+      const lib = library();
+      if (lib) animal = resolvePlayer(lib).id; // the campaign plays with the standard-theme character
       opponent = pickOpponent();
       apply();
     },
     characterImage(id, variant, role): string | null {
       const f = family();
-      if (!f?.library || !findAnimal(id)) return null;
+      if (!f?.library || !findAny(id)) return null;
       const folder = f.sets.find((s) => s.library !== null)?.library ?? 'animals';
       return `${opts.baseUrl}piece-sets/${folder}/${id}/${variant}/${role}.png`;
     },
@@ -647,26 +700,52 @@ function readFamily(storage: Storage | null, families: readonly PieceFamily[]): 
   return { familyId: null, legacyAnimal: null };
 }
 
-function allAnimalIds(families: readonly PieceFamily[]): Set<string> {
-  const ids = new Set<string>(PAIR_ANIMALS);
-  for (const f of families) for (const a of f.library?.animals ?? []) ids.add(a.id);
-  return ids;
-}
+/**
+ * Fills the per-theme preferences from storage. The standard slot (`skm.animal`, `skm.opponent`)
+ * stays the standard theme's; the Christmas theme has its own keys. A seasonal character found in a
+ * standard key comes from the earlier on/off switch (it was the Christmas choice): it moves to the
+ * Christmas slot unless that is already set, and the standard slot falls back to its default.
+ * Unknown ids (e.g. a seasonal one out of season) fall back to the defaults in memory only; storage is untouched.
+ */
+function readThemePreferences(
+  storage: Storage | null,
+  families: readonly PieceFamily[],
+  legacyAnimal: string | null,
+  animals: Record<Theme, string>,
+  opponents: Record<Theme, OpponentPreference>,
+): void {
+  const known = new Set<string>(PAIR_ANIMALS);
+  const seasonal = new Set<string>();
+  for (const f of families) {
+    for (const a of f.library?.animals ?? []) {
+      known.add(a.id);
+      if (a.season !== null) seasonal.add(a.id);
+    }
+  }
+  const read = (key: string): string | null => {
+    const v = readStoredRaw(storage, key);
+    if (v === null) return null;
+    if (v === 'random' || known.has(v)) return v;
+    console.warn(`Stored value "${v.slice(0, 40)}" in ${key} is unknown; using the default`);
+    return null;
+  };
+  const stdAnimal = read(ANIMAL_STORAGE_KEY) ?? legacyAnimal;
+  const xmasAnimal = read(CHRISTMAS_ANIMAL_STORAGE_KEY);
+  if (stdAnimal !== null && stdAnimal !== 'random' && !seasonal.has(stdAnimal)) animals.standard = stdAnimal;
+  else if (stdAnimal !== null && seasonal.has(stdAnimal) && xmasAnimal === null) {
+    animals.christmas = stdAnimal;
+    writeStored(storage, CHRISTMAS_ANIMAL_STORAGE_KEY, stdAnimal);
+  }
+  if (xmasAnimal !== null && seasonal.has(xmasAnimal)) animals.christmas = xmasAnimal;
 
-function readAnimal(storage: Storage | null, families: readonly PieceFamily[]): string | null {
-  const stored = readStoredRaw(storage, ANIMAL_STORAGE_KEY);
-  if (stored === null) return null;
-  if (allAnimalIds(families).has(stored)) return stored;
-  console.warn(`Stored animal "${stored.slice(0, 40)}" is unknown; using "${DEFAULT_ANIMAL}"`);
-  return null;
-}
-
-function readOpponent(storage: Storage | null, families: readonly PieceFamily[]): OpponentPreference {
-  const stored = readStoredRaw(storage, OPPONENT_STORAGE_KEY);
-  if (stored === null || stored === 'random') return 'random';
-  if (allAnimalIds(families).has(stored)) return stored;
-  console.warn(`Stored opponent "${stored.slice(0, 40)}" is unknown; using "random"`);
-  return 'random';
+  const stdOpp = read(OPPONENT_STORAGE_KEY);
+  const xmasOpp = read(CHRISTMAS_OPPONENT_STORAGE_KEY);
+  if (stdOpp !== null && !seasonal.has(stdOpp)) opponents.standard = stdOpp;
+  else if (stdOpp !== null && xmasOpp === null) {
+    opponents.christmas = stdOpp;
+    writeStored(storage, CHRISTMAS_OPPONENT_STORAGE_KEY, stdOpp);
+  }
+  if (xmasOpp !== null && (xmasOpp === 'random' || seasonal.has(xmasOpp))) opponents.christmas = xmasOpp;
 }
 
 function readColor(storage: Storage | null): ColorPreference {

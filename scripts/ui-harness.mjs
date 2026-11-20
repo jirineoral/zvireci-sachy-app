@@ -15,10 +15,10 @@ import { chromium } from 'playwright-core';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Starts `vite preview` on a free port; returns its base URL and a close function. */
-export async function startPreview() {
-  if (!existsSync(join(ROOT, 'dist', 'index.html'))) throw new Error('dist/ is missing — run `npm run build` first');
-  const server = await preview({ root: ROOT, logLevel: 'error', preview: { port: 0, host: '127.0.0.1', strictPort: false, open: false } });
+/** Starts `vite preview` of `dist/` (or another build folder) on a free port; returns its base URL and a close function. */
+export async function startPreview(outDir = 'dist') {
+  if (!existsSync(join(ROOT, outDir, 'index.html'))) throw new Error(`${outDir}/ is missing — run the build first`);
+  const server = await preview({ root: ROOT, logLevel: 'error', build: { outDir }, preview: { port: 0, host: '127.0.0.1', strictPort: false, open: false } });
   const address = server.httpServer.address();
   const port = typeof address === 'object' && address ? address.port : 4173;
   return {

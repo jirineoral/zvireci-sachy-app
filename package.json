@@ -17,7 +17,7 @@
     "check:lessons": "node scripts/check-lessons.mjs",
     "check:endgames": "node scripts/check-endgames.mjs",
     "test:lessons": "node scripts/test-lesson-runner.mjs",
-    "test:ui": "vite build && node scripts/test-ui.mjs"
+    "test:ui": "vite build && node scripts/test-ui.mjs && vite build --mode devsite --outDir dist-devsite && node scripts/test-ui.mjs --devsite"
   },
   "dependencies": {
     "@lichess-org/chessground": "10.1.1",

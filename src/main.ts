@@ -745,7 +745,9 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
       animalSelect.value = manager.animal;
       animalSelect.disabled = false;
       opponentSelect.replaceChildren(new Option('náhodně', 'random'), ...manager.animals.map((a) => new Option(a.name, a.id)));
-      opponentSelect.value = campaignOpponent ?? manager.opponentPreference;
+      const wantedOpponent = campaignOpponent ?? manager.opponentPreference;
+      // A stored seasonal opponent that is not choosable now shows as 'random' (storage is untouched).
+      opponentSelect.value = wantedOpponent === 'random' || manager.animals.some((a) => a.id === wantedOpponent) ? wantedOpponent : 'random';
       opponentSelect.disabled = campaignOpponent !== null;
       opponentSelect.title = campaignOpponent !== null ? 'Soupeře určuje kampaň' : '';
       const me = manager.animalOf(manager.humanColor);
@@ -768,7 +770,7 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
   christmasSelect.value = manager.christmas ? 'on' : 'off';
   christmasLabel.hidden = !manager.hasSeasonal;
   christmasSelect.addEventListener('change', () => {
-    manager.setChristmas(christmasSelect.value === 'on');
+    manager.setChristmas(christmasSelect.value === 'on', game.gameInProgress || (game.isRemote && game.anythingInProgress));
     campaignHooks?.afterAnimalChange();
     render();
   });

@@ -102,7 +102,11 @@ export interface PieceSetManager {
   readonly hasSeasonal: boolean;
   /** The Christmas switch (default on, per device): seasonal characters + the fir-green board. */
   readonly christmas: boolean;
-  setChristmas(on: boolean): void;
+  /**
+   * `gameRunning`: the characters of the running game stay as they are, the switch applies to
+   * the next game (the board palette changes at once). No-op without seasonal characters.
+   */
+  setChristmas(on: boolean, gameRunning?: boolean): void;
   /** The player's character id (library) / pair animal (pair families). */
   readonly animal: string;
   readonly opponentPreference: OpponentPreference;
@@ -171,7 +175,9 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   const families: PieceFamily[] = await loadFamilies(opts.baseUrl);
   for (const set of opts.userSets ?? []) families.push(userFamily(set));
   let familyId: string | null = null;
-  let animal = DEFAULT_ANIMAL;
+  let animal = DEFAULT_ANIMAL; // the effective player character (derived from `preferredAnimal` on each apply)
+  let preferredAnimal = DEFAULT_ANIMAL; // the stored/chosen character, kept even while it is unavailable
+  let deferCharacters = false; // the switch was toggled mid-game: keep the running game's characters until startGame
   let opponentPreference: OpponentPreference = 'random';
   let colorPreference: ColorPreference = 'random';
   let humanColor: Color = 'w';
@@ -188,7 +194,12 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   const christmasActive = (): boolean => christmas && hasSeasonal();
   const choosable = (): readonly Animal[] => (library()?.animals ?? []).filter((a) => a.season === null || christmasActive());
   const findAnimal = (id: string | null): Animal | null => choosable().find((a) => a.id === id) ?? null;
-  const htmlClasses = (classes: string[]): void => setHtmlClasses(christmasActive() ? [...classes, CHRISTMAS_BOARD_CLASS] : classes);
+  // Rendering of a running game never depends on the switch.
+  const findAny = (id: string | null): Animal | null => library()?.animals.find((a) => a.id === id) ?? null;
+  const lookup = (id: string | null): Animal | null => (deferCharacters ? findAny(id) : findAnimal(id));
+  // The fir-green board belongs to the library (animal characters) family only; user and pair sets keep their own.
+  const xmasBoard = (): boolean => christmasActive() && library() !== null;
+  const htmlClasses = (classes: string[]): void => setHtmlClasses(xmasBoard() ? [...classes, CHRISTMAS_BOARD_CLASS] : classes);
 
   const pickOpponent = (): string | null => {
     if (!library()) return null;
@@ -201,7 +212,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   };
 
   const applyBoard = (board: { light: string; dark: string }): void => {
-    if (christmasActive()) {
+    if (xmasBoard()) {
       // Inline values would beat the stylesheet: let `html.skm-xmas-board .cg-wrap` colour the board.
       opts.boardEl.style.removeProperty('--board-light');
       opts.boardEl.style.removeProperty('--board-dark');
@@ -225,9 +236,9 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     if (f.library) {
       const librarySet = f.sets.find((s) => s.library !== null) ?? f.sets[0];
       // A seasonal choice while the switch is off (or the season is over) falls back to the default.
-      const player = findAnimal(animal) ?? findAnimal(DEFAULT_ANIMAL) ?? choosable()[0] ?? f.library.animals[0];
+      const player = lookup(preferredAnimal) ?? lookup(animal) ?? findAnimal(DEFAULT_ANIMAL) ?? choosable()[0] ?? f.library.animals[0];
       animal = player.id;
-      if (!findAnimal(opponent)) opponent = pickOpponent();
+      if (!lookup(opponent)) opponent = pickOpponent();
       const white = humanColor === 'w' ? player.id : (opponent ?? player.id);
       const black = humanColor === 'w' ? (opponent ?? player.id) : player.id;
       removePairLinks();
@@ -249,7 +260,8 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   if (families.length > 0) {
     const stored = readFamily(opts.storage, families);
     familyId = stored.familyId ?? families[0].id;
-    animal = readAnimal(opts.storage, families) ?? stored.legacyAnimal ?? DEFAULT_ANIMAL;
+    preferredAnimal = readAnimal(opts.storage, families) ?? stored.legacyAnimal ?? DEFAULT_ANIMAL;
+    animal = preferredAnimal;
     opponentPreference = readOpponent(opts.storage, families);
     colorPreference = readColor(opts.storage);
     apply();
@@ -274,11 +286,12 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     get christmas() {
       return christmas;
     },
-    setChristmas(on: boolean): void {
+    setChristmas(on: boolean, gameRunning = false): void {
+      if (!hasSeasonal()) return;
       christmas = on;
       writeStored(opts.storage, CHRISTMAS_STORAGE_KEY, on ? 'on' : 'off');
       appliedPairSet = null; // force the board colours to be re-applied
-      if (!findAnimal(opponent)) opponent = pickOpponent();
+      deferCharacters = gameRunning;
       apply();
     },
     get animal() {
@@ -314,6 +327,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
         return;
       }
       animal = id;
+      preferredAnimal = id;
       if (opponent === id && opponentPreference === 'random') opponent = pickOpponent(); // never mirror by accident
       apply();
       writeStored(opts.storage, ANIMAL_STORAGE_KEY, id);
@@ -338,6 +352,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     startGame(color: Color): void {
       humanColor = color;
+      deferCharacters = false;
       if (opponentPreference === 'random' || forcedOpponent !== null) opponent = pickOpponent();
       apply();
     },

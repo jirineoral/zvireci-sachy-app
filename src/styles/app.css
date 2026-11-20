@@ -1717,3 +1717,8 @@ html.dev-site body::before {
     grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
   }
 }
+
+/* `display:flex` above would otherwise beat the `hidden` attribute (the Christmas switch). */
+.controls label[hidden] {
+  display: none;
+}

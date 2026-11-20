@@ -88,3 +88,13 @@ html.skm-xmas-board cg-board square.selected {
 html.skm-xmas-board cg-board square.last-move {
   background-color: rgba(214, 160, 40, 0.45);
 }
+/* Chessground's red check glow is faint on green: stronger core with a dark ring. */
+html.skm-xmas-board cg-board square.check {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 40, 40, 1) 0%,
+    rgba(200, 0, 0, 1) 35%,
+    rgba(120, 0, 0, 0.85) 70%,
+    rgba(120, 0, 0, 0) 100%
+  );
+}

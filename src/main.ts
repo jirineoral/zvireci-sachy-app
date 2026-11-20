@@ -747,9 +747,11 @@ function wirePieceSetSelects(manager: PieceSetManager): () => void {
       const runningCharacter = manager.animals.some((a) => a.id === manager.animal) ? undefined : manager.allAnimals.find((a) => a.id === manager.animal);
       animalSelect.replaceChildren(
         ...(runningCharacter ? [Object.assign(new Option(runningCharacter.za, runningCharacter.id), { disabled: true })] : []),
+        // The Christmas theme offers a random player character (a new draw every game; the matchup line names it).
+        ...(manager.theme === 'christmas' ? [new Option('náhodně', 'random')] : []),
         ...manager.animals.map((a) => new Option(a.za, a.id)),
       );
-      animalSelect.value = manager.animal;
+      animalSelect.value = !runningCharacter && manager.animalPreference === 'random' ? 'random' : manager.animal;
       animalSelect.disabled = runningCharacter !== undefined && campaignOpponent !== null;
       animalSelect.title = runningCharacter ? (campaignOpponent !== null ? 'Kampaň hraje za postavičku ze Standardního tématu' : 'Rozehraná hra hraje dál s touto postavičkou') : '';
       // The campaign plays ordinary characters even in the Christmas theme, whose pickers hide them:

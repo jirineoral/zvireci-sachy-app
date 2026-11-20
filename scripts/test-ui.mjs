@@ -405,11 +405,11 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
   assert(await visible(page, '.christmas-setting'), 'theme switch hidden on the dev site');
   assert((await page.textContent('.christmas-setting')).trim().includes('Vánoce'), 'label is not "Vánoce"');
   assert((await page.getAttribute('input.christmas', 'role')) === 'switch' && (await page.getAttribute('input.christmas', 'type')) === 'checkbox', 'theme control is not a checkbox switch');
-  // Default: Vánoční, kapri, a fir-green board, only seasonal characters.
+  // Default: Vánoční, a random player, a fir-green board, only seasonal characters.
   assert((await page.isChecked('input.christmas')), 'default theme is not Vánoční');
-  assert((await page.inputValue('select.animal')) === 'kapri', 'default Christmas player is not kapri');
+  assert((await page.inputValue('select.animal')) === 'random', 'default Christmas player is not random');
   assert(await htmlHas(page, 'skm-xmas-board'), 'no fir-green board in the Christmas theme');
-  const xmasAnimals = await optionValues(page, 'select.animal');
+  const xmasAnimals = (await optionValues(page, 'select.animal')).filter((v) => v !== 'random');
   const xmasOpponents = (await optionValues(page, 'select.opponent')).filter((v) => v !== 'random');
   assert(xmasAnimals.length > 0 && xmasAnimals.every(isSeasonal), `Christmas player picker has ordinary characters: ${xmasAnimals}`);
   assert(xmasOpponents.length > 0 && xmasOpponents.every(isSeasonal), `Christmas opponent picker has ordinary characters: ${xmasOpponents}`);
@@ -420,6 +420,7 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
   assert(!(await htmlHas(page, 'skm-xmas-board')), 'fir-green board stays in the standard theme');
   const stdAnimals = await optionValues(page, 'select.animal');
   assert(stdAnimals.length > 0 && !stdAnimals.some(isSeasonal), `standard player picker has seasonal characters: ${stdAnimals}`);
+  assert(!stdAnimals.includes('random'), 'standard player picker offers random (the campaign needs a fixed character)');
   assert((await optionValues(page, 'select.opponent')).every((v) => !isSeasonal(v)), 'standard opponent picker has seasonal characters');
   await page.selectOption('select.animal', 'kocky');
   await page.selectOption('select.opponent', 'had');
@@ -431,6 +432,43 @@ themeTest('theme switch: Vánoční shows only seasonal characters, Standardní 
   assert((await storageOf(page, 'skm.animal')) === 'kocky' && (await storageOf(page, 'skm.animal.xmas')) === 'andele', 'per-theme storage keys wrong');
   await page.uncheck('input.christmas');
   assert((await page.inputValue('select.animal')) === 'kocky' && (await page.inputValue('select.opponent')) === 'had', 'standard choices not restored');
+  assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  await context.close();
+});
+
+themeTest('Christmas theme: a random player character is drawn from the seasonal ones, stays put within a game, never mirrors a chosen opponent', async ({ browser, url }) => {
+  const { page, context, errors } = await newPage(browser, 'desktop', { local: { 'skm.color': 'w' } });
+  const whiteOf = () => page.evaluate(() => [...document.documentElement.classList].find((c) => c.startsWith('skm-white-'))?.slice('skm-white-'.length));
+  const seen = new Set();
+  for (let i = 0; i < 8; i++) {
+    await load(page, url); // waits until the first game has started (its startGame draws the player)
+    await page.waitForFunction(() => (document.querySelector('.matchup')?.textContent ?? '').includes('Ty: '));
+    const me = await whiteOf();
+    assert(isSeasonal(me), `random Christmas player is not seasonal: ${me}`);
+    assert((await page.inputValue('select.animal')) === 'random', 'player select does not show náhodně');
+    assert((await page.textContent('.matchup')).includes('Ty: '), 'matchup line missing');
+    seen.add(me);
+  }
+  assert(seen.size >= 2, `random player never changed over 8 loads: ${[...seen]}`);
+  // Re-renders (an opponent change) keep the drawn player; a chosen opponent is never mirrored.
+  await page.evaluate(() => (document.querySelector('details.settings').open = true));
+  const me = await whiteOf();
+  const other = SEASONAL_IDS.find((id) => id !== me);
+  await page.selectOption('select.opponent', other);
+  assert((await whiteOf()) === me, 'opponent change re-drew the random player');
+  await page.selectOption('select.opponent', me);
+  assert((await whiteOf()) !== me, 'random player mirrors the chosen opponent');
+  assert((await storageOf(page, 'skm.animal.xmas')) === null || (await storageOf(page, 'skm.animal.xmas')) === 'random', 'random preference stored wrong');
+  await page.selectOption('select.opponent', 'random');
+  await page.selectOption('select.animal', 'certi');
+  for (let i = 0; i < 6; i++) {
+    await page.selectOption('select.animal', 'random');
+    const opp = await page.evaluate(() => [...document.documentElement.classList].find((c) => c.startsWith('skm-black-'))?.slice('skm-black-'.length));
+    assert((await whiteOf()) !== opp, `choosing náhodně drew the current opponent: ${opp}`);
+    await page.selectOption('select.animal', 'certi');
+  }
+  await page.selectOption('select.animal', 'random');
+  assert((await storageOf(page, 'skm.animal.xmas')) === 'random', 'choosing náhodně is not stored');
   assert(errors.length === 0, `page errors: ${errors.join(' | ')}`);
   await context.close();
 });

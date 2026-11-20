@@ -119,6 +119,8 @@ export interface PieceSetManager {
   setTheme(theme: Theme, gameRunning?: boolean): void;
   /** The player's character id (library) / pair animal (pair families). */
   readonly animal: string;
+  /** The player's choice in the current theme: a character id, or 'random' (Christmas theme only; drawn per game). */
+  readonly animalPreference: string;
   /**
    * The character the player has in the campaign: always the standard-theme choice (the campaign
    * ladder has ordinary characters only), whatever the theme is. Equals `animal` in the standard theme.
@@ -179,6 +181,8 @@ const ID_PATTERN = /^[a-z0-9-]+$/;
 const PAIR_ANIMALS: readonly PairAnimal[] = ['kuzlata', 'zabky'];
 const DEFAULT_ANIMAL = 'kuzlata';
 const DEFAULT_CHRISTMAS_ANIMAL = 'kapri';
+/** The Christmas theme starts with a random player character (a new one each game). */
+const DEFAULT_CHRISTMAS_PREFERENCE = 'random';
 const HTML_CLASS_PREFIX = 'skm-';
 
 export function otherPairAnimal(animal: PairAnimal): PairAnimal {
@@ -198,8 +202,9 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
   let familyId: string | null = null;
   let animal = DEFAULT_ANIMAL; // the effective player character (derived from the preference on each apply)
   // Player and opponent preferences are kept per theme, so switching back and forth restores each one.
-  const preferredAnimal: Record<Theme, string> = { standard: DEFAULT_ANIMAL, christmas: DEFAULT_CHRISTMAS_ANIMAL };
+  const preferredAnimal: Record<Theme, string> = { standard: DEFAULT_ANIMAL, christmas: DEFAULT_CHRISTMAS_PREFERENCE };
   const preferredOpponent: Record<Theme, OpponentPreference> = { standard: 'random', christmas: 'random' };
+  let redrawPlayer = true; // a 'random' player preference draws a new character on the next resolve
   let deferCharacters = false; // the theme was changed mid-game: keep the running game's characters until startGame
   let colorPreference: ColorPreference = 'random';
   let humanColor: Color = 'w';
@@ -233,8 +238,22 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     }
     if (forcedOpponent !== null) return standardPlayer(lib);
     const t = theme();
+    if (preferredAnimal[t] === 'random') {
+      const keep = redrawPlayer ? null : findAnimal(animal); // one draw per game, stable across re-applies
+      redrawPlayer = false;
+      return keep ?? drawPlayer() ?? lib.animals[0];
+    }
     const fallback = t === 'christmas' ? DEFAULT_CHRISTMAS_ANIMAL : DEFAULT_ANIMAL;
     return findAnimal(preferredAnimal[t]) ?? findAnimal(fallback) ?? choosable()[0] ?? lib.animals[0];
+  };
+  // A random player character from the theme, avoiding an explicitly chosen opponent (no mirror match).
+  const drawPlayer = (): Animal | null => {
+    const pool = choosable();
+    const pref = preferredOpponent[slot()];
+    const avoid = pref !== 'random' ? pref : opponent; // the chosen opponent, else the one already drawn
+    const others = pool.filter((a) => a.id !== avoid);
+    const from = others.length > 0 ? others : pool;
+    return from.length > 0 ? from[Math.floor(Math.random() * from.length)] : null;
   };
   // Is this character fine as the current opponent? A running game and the campaign keep theirs
   // whatever the theme offers.
@@ -345,6 +364,9 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     get animal() {
       return animal;
     },
+    get animalPreference() {
+      return preferredAnimal[slot()];
+    },
     get campaignPlayer() {
       const lib = library();
       return lib ? standardPlayer(lib).id : animal;
@@ -373,13 +395,20 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     },
     setAnimal(id: string): void {
       const lib = library();
-      const valid = lib ? findAnimal(id) !== null : isPairAnimal(id);
+      const t = slot();
+      const random = id === 'random' && lib !== null && t === 'christmas';
+      const valid = random || (lib ? findAnimal(id) !== null : isPairAnimal(id));
       if (!valid) {
         console.warn(`Unknown animal "${id}"`);
         return;
       }
-      const t = slot();
       preferredAnimal[t] = id;
+      if (random) {
+        redrawPlayer = true;
+        apply(); // draws the character now (view-only until the next game, like any choice)
+        writeStored(opts.storage, CHRISTMAS_ANIMAL_STORAGE_KEY, id);
+        return;
+      }
       animal = id;
       if (opponent === id && preferredOpponent[t] === 'random') opponent = pickOpponent(); // never mirror by accident
       apply();
@@ -393,6 +422,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
       const t = slot();
       preferredOpponent[t] = pref;
       if (pref !== 'random') opponent = pref; // an explicit choice applies at once (view-only)
+      if (pref === animal && preferredAnimal[t] === 'random') redrawPlayer = true; // a random player never mirrors it
       apply();
       writeStored(opts.storage, t === 'christmas' ? CHRISTMAS_OPPONENT_STORAGE_KEY : OPPONENT_STORAGE_KEY, pref);
     },
@@ -407,6 +437,7 @@ export async function initPieceSets(opts: PieceSetOptions): Promise<PieceSetMana
     startGame(color: Color): void {
       humanColor = color;
       deferCharacters = false;
+      redrawPlayer = true; // a random player gets a new character every game
       const lib = library();
       if (lib) animal = resolvePlayer(lib).id; // the theme may have changed since the last game
       if (preferredOpponent[slot()] === 'random' || forcedOpponent !== null) opponent = pickOpponent();
@@ -738,7 +769,7 @@ function readThemePreferences(
     animals.christmas = stdAnimal;
     writeStored(storage, CHRISTMAS_ANIMAL_STORAGE_KEY, stdAnimal);
   }
-  if (xmasAnimal !== null && seasonal.has(xmasAnimal)) animals.christmas = xmasAnimal;
+  if (xmasAnimal !== null && (xmasAnimal === 'random' || seasonal.has(xmasAnimal))) animals.christmas = xmasAnimal;
 
   const stdOpp = read(OPPONENT_STORAGE_KEY);
   const xmasOpp = read(CHRISTMAS_OPPONENT_STORAGE_KEY);

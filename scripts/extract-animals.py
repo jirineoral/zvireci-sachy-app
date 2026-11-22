@@ -83,7 +83,27 @@ UNLABELLED_SHEETS = {"veverky.png", "vosy.png", "kapri.png", "pernicci.png", "an
 
 # Verdict overrides: (character, side, role, pocket index) -> True = clear, False = keep.
 # Filled in from the DoD review of the printed verdicts / debug overlays.
-POCKET_OVERRIDES: dict[tuple[str, str, str, int], bool] = {}
+POCKET_OVERRIDES: dict[tuple[str, str, str, int], bool] = {
+    # Silver baubles: the near-white glass between the face and the gold band is part of the ball;
+    # the hanging loop on the pawn caps is background.
+    ("ozdoby", "light", "R", 0): False,
+    ("ozdoby", "light", "N", 0): False,
+    ("ozdoby", "light", "B", 0): False,
+    ("ozdoby", "light", "P", 1): True,
+    ("ozdoby", "dark", "P", 0): True,
+    # Light gift boxes: the cream box top beside the headgear brim is enclosed like a pocket; keep it.
+    ("darecky", "light", "R", 0): False,
+    ("darecky", "light", "R", 1): False,
+    ("darecky", "light", "N", 0): False,
+    ("darecky", "light", "N", 1): False,
+    ("darecky", "light", "B", 1): False,
+    ("darecky", "light", "B", 2): False,
+    ("darecky", "light", "Q", 0): False,
+    ("darecky", "light", "Q", 1): False,
+    ("darecky", "light", "K", 0): False,
+    ("darecky", "light", "K", 1): False,
+    ("darecky", "dark", "N", 0): False,  # white highlight on the helmet, not a hole
+}
 
 # Characters whose art has flat white details (sugar icing on the gingerbread kids): only
 # pockets at least this large (the gap between the king's arm and sceptre) are background.

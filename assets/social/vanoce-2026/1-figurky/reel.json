@@ -1,0 +1,12 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {"title": "Vánoce ve Zvířecích šachách", "text": "Od 1. prosince do 6. ledna hraje 10 vánočních postav", "images": ["shots/galerie.png"], "dur": 6.5},
+    {"title": "Vánoce se zapnou samy", "text": "a šachovnice zezelená", "images": ["shots/vypinac-on.png"]},
+    {"title": "Za koho hraješ? Losuje se!", "text": "Nebo si postavu vyber", "images": ["shots/c-draw-2.png", "shots/c-draw-4.png", "shots/c-draw-5.png"], "per_image": 1.9},
+    {"title": "Perníčci proti kaprům", "text": "Kdo vyhraje u vás doma?", "images": ["shots/g-1b.png", "shots/g-2b.png", "shots/g-3b.png", "shots/g-4b.png"], "per_image": 1.4},
+    {"title": "Radši zvířátka?", "text": "Vypni vypínač Vánoce", "images": ["shots/vypinac-off.png"], "dur": 4.5},
+    {"title": "Zdarma, bez reklam, bez registrace", "text": "zvirecisachy.cz", "images": ["shots/c-draw-2.png"], "dur": 5}
+  ],
+  "end_card": true
+}

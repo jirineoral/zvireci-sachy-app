@@ -1,0 +1,31 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Braní mimochodem",
+      "text": "Pravidlo, o kterém se hádají i dospělí",
+      "images": [
+        "../4-mimochodem-shot.jpg"
+      ],
+      "dur": 11
+    },
+    {
+      "title": "Platí jen hned v dalším tahu",
+      "text": "Potom už pěšce takhle vzít nejde",
+      "images": [
+        "../4-mimochodem-shot.jpg"
+      ],
+      "dur": 5
+    },
+    {
+      "title": "Další pravidla vysvětluje sova",
+      "text": "v lekcích na zvirecisachy.cz",
+      "images": [
+        "../4-mimochodem-shot.jpg"
+      ],
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

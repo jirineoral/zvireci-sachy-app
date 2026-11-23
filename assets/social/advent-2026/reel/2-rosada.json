@@ -1,0 +1,30 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Rošáda: kdy ji nesmíš udělat?",
+      "text": "Černá věž stojí na f8",
+      "images": [
+        "../2-rosada-shot.jpg"
+      ],
+      "dur": 6
+    },
+    {
+      "title": "Smí krátkou rošádu?",
+      "images": [
+        "../2-rosada-shot.jpg"
+      ],
+      "countdown": 10
+    },
+    {
+      "title": "Odpověď je v popisku",
+      "text": "Pravidla vysvětluje sova v lekcích na zvirecisachy.cz",
+      "images": [
+        "../2-rosada-shot.jpg"
+      ],
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

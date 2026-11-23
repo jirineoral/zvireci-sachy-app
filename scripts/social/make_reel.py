@@ -12,7 +12,10 @@ spec = {
      "per_image": 1.6,                   # seconds per image in a slideshow (default 1.6)
      "dur": 5.0}                         # optional minimum; the reading time rule can make it longer
   ],
-  "end_card": true                       # append the approved owl end card (4 s)
+  "end_card": true,                      # append the approved owl end card (4 s)
+  "card_top": 560                        # optional fixed y of the picture card (board does not jump)
+  Scene option "countdown": N shows the first image N seconds with a countdown badge N..1 (thinking
+  time for puzzles; owner 2026-11-23: viewers must have time to look for the mate before the end card).
 }
 Reading time per scene: max(dur, 2.0 + 0.4 s per word of title+text, slideshow length) + the 0.4 s fade.
 Scenes change through a short fade to black, so two captions never overlap.
@@ -66,7 +69,7 @@ def wrap(d, text, font, maxw):
     return lines
 
 
-def frame(style, title, text, img_path):
+def frame(style, title, text, img_path, badge=None, card_top=None):
     bg = background(style)
     d = ImageDraw.Draw(bg)
     y = TOP
@@ -87,6 +90,8 @@ def frame(style, title, text, img_path):
             d.text((CX - d.textlength(line, font=sf) / 2, y), line, font=sf, fill=(255, 236, 179))
             y += 68
     y += 40
+    if card_top:  # fixed card position for the whole video, so the board never jumps between scenes
+        y = max(y, card_top)
     if img_path:
         img = Image.open(img_path).convert("RGB")
         max_h = H - BOTTOM - y
@@ -94,7 +99,16 @@ def frame(style, title, text, img_path):
         img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
         mask = Image.new("L", img.size, 0)
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, *img.size), radius=28, fill=255)
-        bg.paste(img, (CX - img.width // 2, y + (max_h - img.height) // 2), mask)
+        top = y if card_top else y + (max_h - img.height) // 2
+        bg.paste(img, (CX - img.width // 2, top), mask)
+        if badge is not None:  # countdown number in a gold circle just above the card (never over the board)
+            r = 66
+            by = top - 2 * r - 8
+            bx = CX
+            d.ellipse((bx - r, by, bx + r, by + 2 * r), fill=(255, 193, 7), outline="white", width=6)
+            bf = ImageFont.truetype(BOLD, 76)
+            bt = str(badge)
+            d.text((bx - d.textlength(bt, font=bf) / 2, by + r - 44), bt, font=bf, fill=(30, 60, 35))
     return bg
 
 
@@ -103,29 +117,41 @@ def main(spec_path, out):
     base = os.path.dirname(os.path.abspath(spec_path))
     style = spec.get("style", "xmas")
     tmp = tempfile.mkdtemp()
-    clips = []  # (png, seconds)
+    clips = []  # (png, seconds, first clip of a scene, source image)
+    ct = spec.get("card_top")
     for i, s in enumerate(spec["scenes"]):
         words = len((s.get("title", "") + " " + s.get("text", "")).split())
         imgs = [os.path.join(base, p) for p in s.get("images", [])] or [None]
+        if s.get("countdown"):  # thinking time: the same image with a 1-second countdown badge N..1
+            n = int(s["countdown"])
+            for k in range(n):
+                f = os.path.join(tmp, f"s{i:02d}_{k:02d}.png")
+                frame(style, s.get("title", ""), s.get("text", ""), imgs[0], badge=n - k, card_top=ct).save(f)
+                clips.append((f, 1.0 + (FADE if k == 0 else 0), k == 0, imgs[0]))
+            continue
         per = s.get("per_image", 1.6)
         need = max(s.get("dur", 0), 2.0 + 0.4 * words, per * len(imgs) if len(imgs) > 1 else 0) + FADE  # fade time is not reading time
         each = need / len(imgs)
         for k, p in enumerate(imgs):
             f = os.path.join(tmp, f"s{i:02d}_{k:02d}.png")
-            frame(style, s.get("title", ""), s.get("text", ""), p).save(f)
-            clips.append((f, each, k == 0))
+            frame(style, s.get("title", ""), s.get("text", ""), p, card_top=ct).save(f)
+            clips.append((f, each, k == 0, p))
     if spec.get("end_card", True):
-        clips.append((END, 4.0, True))
+        clips.append((END, 4.0, True, END))
     # Build: within a scene hard cuts between slideshow images, crossfade between scenes.
     inputs, fc, prev, t = [], [], None, 0.0
-    for n, (f, sec, new_scene) in enumerate(clips):
+    last_src = None
+    for n, (f, sec, new_scene, src) in enumerate(clips):
         inputs += ["-loop", "1", "-t", f"{sec + FADE:.3f}", "-i", f]
         fc.append(f"[{n}:v]scale={W}:{H},fps={FPS},setsar=1,format=yuv420p[v{n}]")
+        same_image, last_src = (src == last_src), src
         if prev is None:
             prev, t = f"v{n}", sec
             continue
-        dur = FADE if new_scene else 0.15
-        fc.append(f"[{prev}][v{n}]xfade=transition={'fadeblack' if new_scene else 'fade'}:duration={dur}:offset={t - dur:.3f}[x{n}]")
+        # Same picture (countdown ticks, caption change over the same board): near-hard cut, the board stays put.
+        # New scene with a new picture: short fade through black so two captions never overlap.
+        dur, trans = (0.04, "fade") if same_image else ((FADE, "fadeblack") if new_scene else (0.15, "fade"))
+        fc.append(f"[{prev}][v{n}]xfade=transition={trans}:duration={dur}:offset={t - dur:.3f}[x{n}]")
         prev, t = f"x{n}", t + sec - dur
     total = t
     wav = os.path.join(tmp, "music.wav")

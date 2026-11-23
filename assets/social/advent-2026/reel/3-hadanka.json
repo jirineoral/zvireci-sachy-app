@@ -1,0 +1,30 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Adventní hádanka 2",
+      "text": "Bílá kůzlata táhnou a mat dá dáma jedním tahem",
+      "images": [
+        "../3-hadanka-shot.jpg"
+      ],
+      "dur": 6
+    },
+    {
+      "title": "Kam táhne dáma?",
+      "images": [
+        "../3-hadanka-shot.jpg"
+      ],
+      "countdown": 15
+    },
+    {
+      "title": "Máš to?",
+      "text": "Řešení je v popisku. Další úlohy najdeš na zvirecisachy.cz",
+      "images": [
+        "../3-hadanka-shot.jpg"
+      ],
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

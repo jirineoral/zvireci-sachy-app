@@ -1,0 +1,31 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Adventní hádanka 3",
+      "text": "Bílá kůzlata táhnou a dají mat na dva tahy",
+      "images": [
+        "../5-hadanka-shot.jpg"
+      ],
+      "dur": 6
+    },
+    {
+      "title": "Najdeš první tah?",
+      "text": "Po něm už mat nejde zastavit",
+      "images": [
+        "../5-hadanka-shot.jpg"
+      ],
+      "countdown": 25
+    },
+    {
+      "title": "Máš to?",
+      "text": "Řešení je v popisku. Další úlohy najdeš na zvirecisachy.cz",
+      "images": [
+        "../5-hadanka-shot.jpg"
+      ],
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

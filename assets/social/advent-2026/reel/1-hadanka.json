@@ -1,0 +1,30 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Adventní hádanka 1",
+      "text": "Bílá kůzlata táhnou a dají mat jedním tahem",
+      "images": [
+        "../1-hadanka-shot.jpg"
+      ],
+      "dur": 6
+    },
+    {
+      "title": "Najdeš mat 1. tahem?",
+      "images": [
+        "../1-hadanka-shot.jpg"
+      ],
+      "countdown": 15
+    },
+    {
+      "title": "Máš ho?",
+      "text": "Řešení je v popisku. Další úlohy najdeš na zvirecisachy.cz",
+      "images": [
+        "../1-hadanka-shot.jpg"
+      ],
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

@@ -1,3 +1,11 @@
+## POZOR, DEPLOY PŘED 24. 12. 2026: změny „postavička kamaráda“ (friend) nenasazovat bez úpravy příspěvku 23. 12.
+
+Neuložené změny v `src/friend.ts`, `src/ui/friend-panel.ts`, `src/main.ts`, `src/piece-sets.ts`, `worker/src/index.ts` (a větev `wip/friend-animal-2026-09-30`)
+posílají přes server kromě tahů i **zvolenou postavičku hráče** (`hello.animal`, zpráva `{t:'animal'}`).
+Příspěvek „Šachy s babičkou“ (st 23. 12. 18:00, naplánovaný 27. 11.) tvrdí, že se posílají jen tahy: video na YouTube, Facebooku a Instagramu („Posílají se jen tahy“) a facebookový text („přes server projdou jen tahy…“).
+**Nenasazovat klienta ani worker s těmito změnami před 24. 12.**, dokud se nepřeplánuje YouTube a Facebook s pravdivým textem a videem a neupraví `publikace/vanoce-2026/ig-8.md` + video.
+Při nasazení (i po 24. 12.) upravit i text panelu Kamarád v aplikaci („posílají se jen tahy“) a stránku soukromí.
+
 # Progress — batch 2026-09-28 (owner: "1, 2, 3, 4 pojďme") — DONE
 
 All four items merged to main and deployed to production 2026-09-28 (~21:45):

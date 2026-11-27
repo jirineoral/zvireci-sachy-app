@@ -1,0 +1,30 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Veselé Vánoce!",
+      "images": [
+        "shots/galerie.png"
+      ],
+      "text": "přejí Zvířecí šachy",
+      "dur": 5
+    },
+    {
+      "title": "Hezké chvíle u šachovnice",
+      "images": [
+        "shots/c-draw-2.png",
+        "shots/c-draw-4.png"
+      ],
+      "per_image": 2.0
+    },
+    {
+      "title": "A klidné svátky",
+      "images": [
+        "shots/c-draw-5.png"
+      ],
+      "text": "celé vaší rodině",
+      "dur": 4
+    }
+  ],
+  "end_card": true
+}

@@ -1,0 +1,30 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Sváteční hádanka 5",
+      "images": [
+        "shots/pz10.png"
+      ],
+      "text": "Bílí andílci táhnou a dají mat dvěma tahy",
+      "dur": 6
+    },
+    {
+      "title": "Najdeš mat 2. tahem?",
+      "images": [
+        "shots/pz10.png"
+      ],
+      "countdown": 25
+    },
+    {
+      "title": "Máš ho?",
+      "images": [
+        "shots/pz10.png"
+      ],
+      "text": "Řešení je v popisku. Další úlohy najdeš na zvirecisachy.cz",
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

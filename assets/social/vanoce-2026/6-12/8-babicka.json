@@ -1,0 +1,54 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Šachy s babičkou",
+      "images": [
+        "shots/two-4.png"
+      ],
+      "text": "U jednoho stolu i na dálku",
+      "dur": 4
+    },
+    {
+      "title": "U jednoho displeje",
+      "images": [
+        "shots/two-settings.png"
+      ],
+      "text": "V nastavení „Barva“ vyber „dva hráči“"
+    },
+    {
+      "title": "Hrajete spolu",
+      "images": [
+        "shots/two-0.png",
+        "shots/two-1.png",
+        "shots/two-2.png",
+        "shots/two-3.png",
+        "shots/two-4.png"
+      ],
+      "text": "Bez počítače, tah za tahem",
+      "per_image": 1.3
+    },
+    {
+      "title": "Babička je daleko?",
+      "images": [
+        "shots/friend.png"
+      ],
+      "text": "Klepni na Kamarád a odkaz jí pošli s rodičem"
+    },
+    {
+      "title": "Bez chatu a bez jmen",
+      "images": [
+        "shots/friend.png"
+      ],
+      "text": "Posílají se jen tahy"
+    },
+    {
+      "title": "Zdarma a bez registrace",
+      "images": [
+        "shots/two-4.png"
+      ],
+      "text": "zvirecisachy.cz"
+    }
+  ],
+  "end_card": true
+}

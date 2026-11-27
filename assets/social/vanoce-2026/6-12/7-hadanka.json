@@ -1,0 +1,30 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Adventní hádanka 4",
+      "images": [
+        "shots/pz7.png"
+      ],
+      "text": "Bílí perníčci táhnou a dají mat jedním tahem",
+      "dur": 6
+    },
+    {
+      "title": "Najdeš mat 1. tahem?",
+      "images": [
+        "shots/pz7.png"
+      ],
+      "countdown": 15
+    },
+    {
+      "title": "Máš ho?",
+      "images": [
+        "shots/pz7.png"
+      ],
+      "text": "Řešení je v popisku. Další úlohy najdeš na zvirecisachy.cz",
+      "dur": 5
+    }
+  ],
+  "end_card": true,
+  "card_top": 575
+}

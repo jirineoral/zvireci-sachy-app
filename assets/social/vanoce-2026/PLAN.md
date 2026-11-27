@@ -22,13 +22,13 @@ Dosavadní Shorts měly 9,5 s: jeden snímek s titulkem a karta se sovou. Nový 
 | # | Den a čas | Co | Video | Stav |
 |---|---|---|---|---|
 | V1 | **Út 1. 12., 18:00** | Vánoční postavy jsou tu: vypínač Vánoce, 10 postav, losování „za koho hraju“, perníčci proti kaprům | `1-figurky/1-figurky-reel.mp4` (38 s) | vyrobeno, po review, čeká na Jiřího ano k vydání |
-| 6 | St 16. 12., 18:00 | Pat není výhra (pravidlo ze sovy) | delší video: pozice, otázka, vysvětlení ve 3 krocích | k výrobě do 6. 12. |
-| 7 | Ne 20. 12., 9:30 | Adventní hádanka 4 na vánoční šachovnici | delší video: úloha, „najdeš to?“, odpočet, odkaz na řešení v popisku | k výrobě |
-| 8 | St 23. 12., 18:00 | Šachy s babičkou: dva hráči u jednoho displeje nebo Kamarád přes odkaz | delší video: jak začít partii ve dvou, vánoční postavy | k výrobě |
-| 9 | Čt 24. 12., 9:30 | Veselé Vánoce od zvířátek a vánočních postav | krátké přání 20 s: galerie postav, „Veselé Vánoce“ | k výrobě |
-| 10 | Ne 27. 12., 9:30 | Sváteční hádanka 5 | jako 7 | k výrobě |
-| 11 | St 30. 12., 18:00 | Předsevzetí 2027: jedna úroveň lekcí se sovou a diplom | delší video: mapa lekcí, diplom | k výrobě |
-| 12 | Čt 31. 12., 9:30 | PF 2027 | obrázek, bez videa | k výrobě |
+| 6 | St 16. 12., 18:00 | Pat není výhra (pravidlo ze sovy) | delší video: pozice, otázka, vysvětlení ve 3 krocích | vyrobeno a naplánováno 27. 11. (`6-12/`) |
+| 7 | Ne 20. 12., 9:30 | Adventní hádanka 4 na vánoční šachovnici | delší video: úloha, „najdeš to?“, odpočet, odkaz na řešení v popisku | vyrobeno 27. 11. (`6-12/`), stav kanálů v PUBLIKACE-LOG |
+| 8 | St 23. 12., 18:00 | Šachy s babičkou: dva hráči u jednoho displeje nebo Kamarád přes odkaz | delší video: jak začít partii ve dvou, vánoční postavy | vyrobeno 27. 11. (`6-12/`), stav kanálů v PUBLIKACE-LOG |
+| 9 | Čt 24. 12., 9:30 | Veselé Vánoce od zvířátek a vánočních postav | krátké přání 20 s: galerie postav, „Veselé Vánoce“ | vyrobeno 27. 11. (`6-12/`), stav kanálů v PUBLIKACE-LOG |
+| 10 | Ne 27. 12., 9:30 | Sváteční hádanka 5 | jako 7 | vyrobeno 27. 11. (`6-12/`), stav kanálů v PUBLIKACE-LOG |
+| 11 | St 30. 12., 18:00 | Předsevzetí 2027: jedna úroveň lekcí se sovou a diplom | delší video: mapa lekcí, diplom | vyrobeno 27. 11. (`6-12/`), stav kanálů v PUBLIKACE-LOG |
+| 12 | Čt 31. 12., 9:30 | PF 2027 | obrázek, bez videa | vyrobeno 27. 11. (`6-12/`), stav kanálů v PUBLIKACE-LOG |
 
 Instagram o svátcích dál podle `PLAN-2026-12.md` (24.–31. 12. jen FB a YouTube, IG jeden příspěvek 23. 12. 9:30), protože IG publikují lokální rutiny.
 

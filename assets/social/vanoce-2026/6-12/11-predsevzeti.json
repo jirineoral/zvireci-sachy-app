@@ -1,0 +1,36 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Předsevzetí na rok 2027",
+      "images": [
+        "shots/dip-map.png"
+      ],
+      "text": "Projít jednu úroveň lekcí se sovou",
+      "dur": 5
+    },
+    {
+      "title": "Úroveň 1 má 18 lekcí",
+      "images": [
+        "shots/dip-map.png"
+      ],
+      "text": "Od šachovnice po závěrečnou zkoušku"
+    },
+    {
+      "title": "Po zkoušce diplom",
+      "images": [
+        "shots/dip.png"
+      ],
+      "text": "Jméno na něj napíšeš ty a nikam se neposílá",
+      "dur": 6
+    },
+    {
+      "title": "Zdarma a bez registrace",
+      "images": [
+        "shots/dip.png"
+      ],
+      "text": "zvirecisachy.cz"
+    }
+  ],
+  "end_card": true
+}

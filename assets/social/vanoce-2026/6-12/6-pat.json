@@ -1,0 +1,57 @@
+{
+  "style": "xmas",
+  "scenes": [
+    {
+      "title": "Je to mat, nebo pat?",
+      "images": [
+        "shots/pat-board.png"
+      ],
+      "text": "Černý je na tahu",
+      "dur": 5
+    },
+    {
+      "title": "Tipni si!",
+      "images": [
+        "shots/pat-board.png"
+      ],
+      "countdown": 8
+    },
+    {
+      "title": "Král není v šachu",
+      "images": [
+        "shots/pat-board.png"
+      ],
+      "text": "Na černého krále teď nic neútočí"
+    },
+    {
+      "title": "A nemá žádný tah",
+      "images": [
+        "shots/pat-board-rings.png"
+      ],
+      "text": "Všechna pole kolem něj hlídá dáma"
+    },
+    {
+      "title": "Je to pat: remíza",
+      "images": [
+        "shots/pat-board-rings.png"
+      ],
+      "text": "Nikdo nevyhrál a nikdo neprohrál"
+    },
+    {
+      "title": "Máš navrch? Pozor na pat!",
+      "images": [
+        "shots/pat-avoid.png"
+      ],
+      "text": "Dej mat, nebo nech soupeři nějaký tah"
+    },
+    {
+      "title": "Víc ti poví sova",
+      "images": [
+        "shots/pat-lesson.png"
+      ],
+      "text": "Lekce Pat a remízy na zvirecisachy.cz"
+    }
+  ],
+  "end_card": true,
+  "card_top": 520
+}
